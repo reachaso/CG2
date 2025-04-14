@@ -4,6 +4,13 @@
 #include <cstdint>
 #pragma warning(pop)
 
+//クライアント領域のサイズ
+const int32_t kClientWidth = 1280;
+const int32_t kClientHeight = 720;
+
+//ウィンドウサイズを表す構造体にクライアント領域を入れる
+RECT wrc = { 0, 0, kClientWidth, kClientHeight };
+
 //ウィンドウプロシージャ
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg,
     WPARAM wparam, LPARAM lparam) {
@@ -36,13 +43,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	//ウィンドウクラスの登録
 	RegisterClass(&wc);
-
-	//クライアント領域のサイズ
-	const int32_t kClientWidth = 1280;
-	const int32_t kClientHeight = 720;
-
-	//ウィンドウサイズを表す構造体にクライアント領域を入れる
-	RECT wrc = { 0, 0, kClientWidth, kClientHeight };
 
 	//クライアント領域を元に実際のサイズにwrcを変更してもらう
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
