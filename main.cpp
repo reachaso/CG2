@@ -2,9 +2,16 @@
 #pragma warning(disable:28251)
 #include <Windows.h>
 #include <cstdint>
+#include <string>
+#include <format> //文字列のフォーマットを行うライブラリ
 #include <filesystem> //ファイルやディレクトリの操作を行うライブラリ
 #include <fstream> //ファイル入出力を行うライブラリ
 #include <chrono> //時間を扱うライブラリ
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <cassert>
+#pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxgi.lib")
 #pragma warning(pop)
 
 //クライアント領域のサイズ
@@ -36,6 +43,36 @@ void Log(std::ostream& os, const std::string& message) {
 	os << message << std::endl;
 	//出力ウィンドウにもメッセージを書き込む
 	OutputDebugStringA(message.c_str());
+}
+
+void Log(const std::string& message) {
+	OutputDebugStringA(message.c_str());
+}
+
+//stringをwstringに変換する関数
+std::wstring ConverString(const std::string& str) {
+	//stringのサイズを取得
+	int size = MultiByteToWideChar(
+		CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+	//wstringのサイズを取得
+	std::wstring wstr(size, L'\0');
+	//stringをwstringに変換
+	MultiByteToWideChar(
+		CP_UTF8, 0, str.c_str(), -1, &wstr[0], size);
+	return wstr;
+}
+
+//wstringをstringに変換する関数
+std::string ConvertString(const std::wstring& wstr) {
+	//wstringのサイズを取得
+	int size = WideCharToMultiByte(
+		CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+	//stringのサイズを取得
+	std::string str(size, '\0');
+	//wstringをstringに変換
+	WideCharToMultiByte(
+		CP_UTF8, 0, wstr.c_str(), -1, &str[0], size, nullptr, nullptr);
+	return str;
 }
 
 //Windowsアプリでのエントリーポイント(main関数)
@@ -89,6 +126,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		nullptr); //オプション
 
 	MSG msg{};
+
+	//DXGIファクトリーの生成
+	IDXGIFactory6* dxgiFactory = nullptr;
+	//HRESULTはWindows系のエラーコードであり、
+	//関数が成功したかどうかをSUCCEEDEDマクロで判定する
+	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
+	//初期化の根本的な部分でエラーが出た場合はプログラムが間違っているか、どうにもできない場合多いのでassertでエラーを出す
+	assert(SUCCEEDED(hr));
+
+	//使用すうるアダプタ用の変数。最初にnullptrを入れておく
+	IDXGIAdapter4* useAdapter = nullptr;
+
+	//良い順にアダプタを頼む
+	for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(i,
+		DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,IID_PPV_ARGS(&useAdapter)) !=
+		DXGI_ERROR_NOT_FOUND; ++i) {
+		//アダプタの情報を取得するための変数
+		DXGI_ADAPTER_DESC3 adapterDesc{};
+		hr = useAdapter->GetDesc3(&adapterDesc);
+		assert(SUCCEEDED(hr)); //取得できないのは一大事
+		//ソフトウェアアダプタは除外
+		if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
+			//採用したアダプタの情報をログに出力。wstringの方なので注意
+			Log(ConvertString(std::format(L"Use Adapater:{}\n",adapterDesc.Description)));
+			break;
+		}
+		useAdapter = nullptr;//ソフトウェアアダプタは除外するのでnullptrに戻す
+	}
+	//アダプタが見つからなかった場合はエラー
+	assert(useAdapter != nullptr);
+
+
 	//ウィンドウのxボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {
 		//メッセージがある場合は、メッセージを取得
