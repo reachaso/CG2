@@ -157,6 +157,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//アダプタが見つからなかった場合はエラー
 	assert(useAdapter != nullptr);
 
+	ID3D12Device* device = nullptr;
+	//機能レベルとログの出力用の文字列
+	D3D_FEATURE_LEVEL featureLevel[] = {
+		D3D_FEATURE_LEVEL_12_2,
+		D3D_FEATURE_LEVEL_12_1,
+		D3D_FEATURE_LEVEL_12_0
+	};
+
+	const char* featureLevelStrings[] = {
+		"12.2",
+		"12.1",
+		"12.0"
+	};
+
+	//高い順に機能レベルを試す
+	for (size_t i = 0; i < std::size(featureLevel); ++i) {
+		//デバイスの生成
+		hr = D3D12CreateDevice(useAdapter, featureLevel[i], IID_PPV_ARGS(&device));
+		//指定した機能レベルでデバイスが生成できた場合
+		if (SUCCEEDED(hr)) {
+			//生成できたのでログ出力を行ってループを抜ける
+			Log(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
+			break;
+		}
+	}
+	//デバイスが生成できなかった場合はエラー
+	assert(device != nullptr);
+	Log("Complete create D3D12Device!!!\n");//初期化完了のログ出力
 
 	//ウィンドウのxボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {
