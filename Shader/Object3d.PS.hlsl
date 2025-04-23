@@ -1,10 +1,15 @@
-struct PixelShaderOutput {
-    float4 color : SV_TARGET0; // 出力する色
+struct Material {
+    float4 color;
 };
 
-PixelShaderOutput main()
-{
+ConstantBuffer<Material> gMaterial : register(b0);
+
+struct PixelShaderOutput {
+    float4 color : SV_TARGET0;
+};
+
+PixelShaderOutput main() {
     PixelShaderOutput output;
-    output.color = float4(1.0f, 1.0f, 1.0f, 1.0f); // 色の設定
+    output.color = gMaterial.color;
     return output;
 }

@@ -110,9 +110,12 @@ IDxcBlob *CompileShader(
 
   LPCWSTR arguments[] = {
       filePath.c_str(), // コンパイル対象のhlslファイル名
-      L"-E", L"main", // エントリーポイントの指定。基本的にmain以外にはしない
-      L"-T", profile, // ShaderProfileの設定
-      L"-Zi",L"-Qembed_debug", // デバッグ用の情報を埋め込む
+      L"-E",
+      L"main", // エントリーポイントの指定。基本的にmain以外にはしない
+      L"-T",
+      profile, // ShaderProfileの設定
+      L"-Zi",
+      L"-Qembed_debug", // デバッグ用の情報を埋め込む
       L"-Od",           // 最適化をしない
       L"-Zpr",          // メモリレイアウトは行優先
   };
@@ -157,6 +160,38 @@ IDxcBlob *CompileShader(
   // 実行用のバイナリを返す
   return shaderBlob;
 }
+
+ // Resource作成関数
+ID3D12Resource *CreateBufferResource(ID3D12Device *device, size_t sizeInBytes) {
+  // ヒーププロパティの設定
+  D3D12_HEAP_PROPERTIES heapProperties{};
+  heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD; // アップロード用ヒープ
+
+  // リソースの設定
+  D3D12_RESOURCE_DESC bufferDesc{};
+  bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+  bufferDesc.Width = sizeInBytes; // リソースのサイズ
+  bufferDesc.Height = 1;
+  bufferDesc.DepthOrArraySize = 1;
+  bufferDesc.MipLevels = 1;
+  bufferDesc.SampleDesc.Count = 1;
+  bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+  // リソースを作成
+  ID3D12Resource *buffer = nullptr;
+  HRESULT hr = device->CreateCommittedResource(
+      &heapProperties,                   // ヒーププロパティ
+      D3D12_HEAP_FLAG_NONE,              // ヒープフラグ
+      &bufferDesc,                       // リソースの設定
+      D3D12_RESOURCE_STATE_GENERIC_READ, // 初期状態
+      nullptr,                           // クリア値 (バッファの場合は不要)
+      IID_PPV_ARGS(&buffer));            // 作成されたリソースを受け取る
+
+  // 作成に失敗した場合はエラー
+  assert(SUCCEEDED(hr));
+
+  return buffer;
+};
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -422,6 +457,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   descriptionRootSignature.Flags =
       D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
+  // RootParameter作成。複数設定できるので配列。今回は結果1つだけなので長さ1のは配列
+  // 02-01
+  D3D12_ROOT_PARAMETER rootParameters[1] = {};
+  rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
+  rootParameters[0].ShaderVisibility =
+      D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダーからアクセスする
+  rootParameters[0].Descriptor.ShaderRegister = 0; // シェーダーのレジスタ番号
+  descriptionRootSignature.pParameters =
+      rootParameters; // ルートパラメータ配列へのポインタ
+  descriptionRootSignature.NumParameters =
+      _countof(rootParameters); // ルートパラメータの数
+
+
   // シリアライズしてバイナリにする
   ID3DBlob *signatureBlob = nullptr;
   ID3DBlob *errorBlob = nullptr;
@@ -521,29 +569,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //==========================
   // VertexResourceを生成する
   //==========================
-  // 頂点リソース用のヒープの設定
-  D3D12_HEAP_PROPERTIES uploadHeapProperties{};
-  uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-  // 頂点リソースの設定
-  D3D12_RESOURCE_DESC vertexResourceDesc{};
-  // バッファリソース。テクスチャの場合はまた別の設定
-  vertexResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-  vertexResourceDesc.Width = sizeof(Vector4) * 3; // リソースのサイズ。今回はVertex4を3頂点分
-  // バッファの場合はこれらは1にする決まり
-  vertexResourceDesc.Height = 1;
-  vertexResourceDesc.DepthOrArraySize = 1;
-  vertexResourceDesc.MipLevels = 1;
-  vertexResourceDesc.SampleDesc.Count = 1;
-  // バッファの場合はこれにする決まり
-  vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-  // 実際に頂点リソースを生成する
-  ID3D12Resource *vertexResource = nullptr;
-  hr = device->CreateCommittedResource(
-      &uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc,
-      D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-      IID_PPV_ARGS(&vertexResource));
-  // 頂点リソースの生成に失敗した場合はエラー
-  assert(SUCCEEDED(hr));
+
+  ID3D12Resource *vertexResource = CreateBufferResource(device, sizeof(Vector4) * 3);
 
   //===========================
   // VertexBufferViewを生成する
@@ -594,6 +621,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   scissorRect.right = kClientWidth;
   scissorRect.bottom = kClientHeight;
 
+  //===============================
+  // Material用のResourceを生成する
+  //===============================
+  //マテリアル用のリソースを作る
+  ID3D12Resource *materialResource = CreateBufferResource(device, sizeof(Vector4));
+  // マテリアル用のリソースにデータを書き込む
+  Vector4 *materialData = nullptr;
+  // 書き込むためのアドレスを取得
+  materialResource->Map(0, nullptr,reinterpret_cast<void**>(&materialData));
+  // マテリアルの色を設定
+  *materialData = Vector4(1.0f, 0.0f, 0.0f, 1.0f); // 赤色
 
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
@@ -623,15 +661,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // コマンドを積む 02_00
       //============================
 
-      commandList->RSSetViewports(1, &viewport); // Viewportを設定する
+      commandList->RSSetViewports(1, &viewport);       // Viewportを設定する
       commandList->RSSetScissorRects(1, &scissorRect); // Scissorを設定する
       // RootSignatureを設定。PSOに設定しているけれど別途設定が必要
       commandList->SetGraphicsRootSignature(rootSignature);
       commandList->SetPipelineState(graphicsPipelineState);     // PSOを設定する
-      commandList->IASetVertexBuffers(0, 1, &vertexBufferView);//VBWを設定
+      commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // VBWを設定
       // トポロジを設定する。PSOに設定しているものとはまた別。同じものを設定すると考えておけばいい
       commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-      // 描画! 
+      //===============================
+      // マテリアル用のCBVを設定する 02_01
+      //===============================
+      commandList->SetGraphicsRootConstantBufferView(
+          0, materialResource->GetGPUVirtualAddress());
+      // 描画!
       commandList->DrawInstanced(3, 1, 0, 0); // 3頂点を描画する
 
       // コマンドリストの内容を確定させる。全てのコマンドを詰んでからCloseする
@@ -705,6 +748,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   rootSignature->Release();
   pixelShaderBlob->Release();
   vertexShaderBlob->Release();
+  materialResource->Release();
 
   return 0;
 }
