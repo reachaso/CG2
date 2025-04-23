@@ -16,10 +16,16 @@
     <Filter Include="Shader">
       <UniqueIdentifier>{62b34166-6d1e-4731-a82e-2052c3aacf7a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Affine">
+      <UniqueIdentifier>{837e9f71-7e9c-4aba-8ee4-e4a33ead2874}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Affine\Affine.cpp">
+      <Filter>Affine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -29,5 +35,13 @@
     <FxCompile Include="Shader\Object3d.PS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="struct.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Affine\Affine.h">
+      <Filter>Affine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

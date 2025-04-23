@@ -1,6 +1,7 @@
 #pragma warning(push)
 #pragma warning(disable : 28251)
-#include <Windows.h>
+#include "Affine/Affine.h"
+#include "struct.h"
 #include <cassert>
 #include <chrono> //時間を扱うライブラリ
 #include <cstdint>
@@ -11,21 +12,11 @@
 #include <format>     //文字列のフォーマットを行うライブラリ
 #include <fstream>    //ファイル入出力を行うライブラリ
 #include <string>
+#include <Windows.h>
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
 #pragma warning(pop)
-
-// クライアント領域のサイズ
-const int32_t kClientWidth = 1280;
-const int32_t kClientHeight = 720;
-
-struct Vector4 {
-  float x;
-  float y;
-  float z;
-  float w;
-};
 
 // ウィンドウサイズを表す構造体にクライアント領域を入れる
 RECT wrc = {0, 0, kClientWidth, kClientHeight};
@@ -161,7 +152,7 @@ IDxcBlob *CompileShader(
   return shaderBlob;
 }
 
- // Resource作成関数
+// Resource作成関数
 ID3D12Resource *CreateBufferResource(ID3D12Device *device, size_t sizeInBytes) {
   // ヒーププロパティの設定
   D3D12_HEAP_PROPERTIES heapProperties{};
@@ -459,16 +450,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // RootParameter作成。複数設定できるので配列。今回は結果1つだけなので長さ1のは配列
   // 02-01
-  D3D12_ROOT_PARAMETER rootParameters[1] = {};
+  D3D12_ROOT_PARAMETER rootParameters[2] = {};
   rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
   rootParameters[0].ShaderVisibility =
       D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダーからアクセスする
   rootParameters[0].Descriptor.ShaderRegister = 0; // シェーダーのレジスタ番号
+  rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
+  rootParameters[1].ShaderVisibility =
+      D3D12_SHADER_VISIBILITY_VERTEX;              // Vertexからアクセスする
+  rootParameters[1].Descriptor.ShaderRegister = 0; // シェーダーのレジスタ番号
   descriptionRootSignature.pParameters =
       rootParameters; // ルートパラメータ配列へのポインタ
   descriptionRootSignature.NumParameters =
       _countof(rootParameters); // ルートパラメータの数
-
 
   // シリアライズしてバイナリにする
   ID3DBlob *signatureBlob = nullptr;
@@ -570,7 +564,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // VertexResourceを生成する
   //==========================
 
-  ID3D12Resource *vertexResource = CreateBufferResource(device, sizeof(Vector4) * 3);
+  ID3D12Resource *vertexResource =
+      CreateBufferResource(device, sizeof(Vector4) * 3);
 
   //===========================
   // VertexBufferViewを生成する
@@ -624,14 +619,45 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===============================
   // Material用のResourceを生成する
   //===============================
-  //マテリアル用のリソースを作る
-  ID3D12Resource *materialResource = CreateBufferResource(device, sizeof(Vector4));
+  // マテリアル用のリソースを作る
+  ID3D12Resource *materialResource =
+      CreateBufferResource(device, sizeof(Vector4));
   // マテリアル用のリソースにデータを書き込む
   Vector4 *materialData = nullptr;
   // 書き込むためのアドレスを取得
-  materialResource->Map(0, nullptr,reinterpret_cast<void**>(&materialData));
+  materialResource->Map(0, nullptr, reinterpret_cast<void **>(&materialData));
   // マテリアルの色を設定
   *materialData = Vector4(1.0f, 0.0f, 0.0f, 1.0f); // 赤色
+
+  //=================================================
+  // TransformationMatrix用のResourceを生成する 02_02
+  //=================================================
+
+  ID3D12Resource *wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+  // データを書き込む
+  Matrix4x4 *wvpData = nullptr;
+  // 書き込むためのアドレスを取得
+  wvpResource->Map(0, nullptr, reinterpret_cast<void **>(&wvpData));
+  // 単位行列を書き込んでおく
+  *wvpData = MakeIdentity4x4();
+
+  //===============================
+  // Transform変数を作る
+  //===============================
+
+  Transform transform{
+      {1.0f, 1.0f, 1.0f}, // 位置
+      {0.0f, 0.0f, 0.0f}, // 回転
+      {0.0f, 0.0f, 0.0f}, // スケール
+  };
+
+  Transform cameraTransform{
+      {1.0f, 1.0f, 1.0f}, // 位置
+      {0.0f, 0.0f, 0.0f},  // 回転
+      {0.0f, 0.0f, -5.0f},  // スケール
+  };
+
+  //Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix
 
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
@@ -674,6 +700,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       //===============================
       commandList->SetGraphicsRootConstantBufferView(
           0, materialResource->GetGPUVirtualAddress());
+
+      //===========================================
+      // TransformationMatrix用のCBVを設定する 02_02
+      //===========================================
+      commandList->SetGraphicsRootConstantBufferView(
+          1, wvpResource->GetGPUVirtualAddress());
+
       // 描画!
       commandList->DrawInstanced(3, 1, 0, 0); // 3頂点を描画する
 
@@ -732,6 +765,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       hr = commandList->Reset(commandAllocator, nullptr);
       // コマンドリストのリセットに失敗した場合はエラー
       assert(SUCCEEDED(hr));
+
+      //============================
+      // Transformを更新する
+      //============================
+
+      transform.rotation.y += 0.03f;
+      Matrix4x4 worldMatrix = MakeAffineMatrix(
+          transform.scale, transform.rotation, transform.translation);
+
+      *wvpData = worldMatrix;
+
     }
   }
 
