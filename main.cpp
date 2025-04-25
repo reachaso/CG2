@@ -657,8 +657,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       {0.0f, 0.0f, -5.0f},  // スケール
   };
 
-  //Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix
-
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
     // メッセージがある場合は、メッセージを取得
@@ -771,9 +769,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       //============================
 
       transform.rotation.y += 0.03f;
+
       Matrix4x4 worldMatrix = MakeAffineMatrix(
           transform.scale, transform.rotation, transform.translation);
 
+      Matrix4x4 cameraMatrix =
+          MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotation,
+                           cameraTransform.translation);
+
+      Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+
+      Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(
+          0.45f,
+          static_cast<float>(kClientWidth) / static_cast<float>(kClientHeight),
+          0.1f, 100.0f);
+
+      Matrix4x4 wvpMatrix =
+          Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+
+      //*transformationMatrixData = wvpMatrix;
       *wvpData = worldMatrix;
 
     }
