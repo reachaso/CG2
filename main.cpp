@@ -1,6 +1,7 @@
 #pragma warning(push)
 #pragma warning(disable : 28251)
 #include "Affine/Affine.h"
+#include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -59,7 +60,7 @@ void Log(std::ostream &os, const std::string &message) {
 void Log(const std::string &message) { OutputDebugStringA(message.c_str()); }
 
 // stringをwstringに変換する関数
-std::wstring ConverString(const std::string &str) {
+std::wstring ConvertString(const std::string &str) {
   // stringのサイズを取得
   int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
   // wstringのサイズを取得
@@ -196,9 +197,10 @@ ID3D12Resource *CreateBufferResource(ID3D12Device *device, size_t sizeInBytes) {
   return buffer;
 };
 
-ID3D12DescriptorHeap *
-CreateDescriptorHeap(ID3D12Device *device, D3D12_DESCRIPTOR_HEAP_TYPE heapType,
-                     UINT numDescriptors, bool shaderVisible) {
+ID3D12DescriptorHeap *CreateDescriptorHeap(ID3D12Device *device,
+                                           D3D12_DESCRIPTOR_HEAP_TYPE heapType,
+                                           UINT numDescriptors,
+                                           bool shaderVisible) {
   ID3D12DescriptorHeap *descriptorHeap = nullptr;
   D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
   descriptorHeapDesc.Type = heapType;
@@ -212,8 +214,82 @@ CreateDescriptorHeap(ID3D12Device *device, D3D12_DESCRIPTOR_HEAP_TYPE heapType,
   return descriptorHeap;
 }
 
+DirectX::ScratchImage LoadTexture(const std::string &filePath) {
+  // テクスチャを読み込む
+  DirectX::ScratchImage image{};
+  std::wstring filePathW = ConvertString(filePath);
+  HRESULT hr = DirectX::LoadFromWICFile(
+      filePathW.c_str(), DirectX::WIC_FLAGS_NONE, nullptr, image);
+  // 読み込みに失敗したらエラー
+  assert(SUCCEEDED(hr));
+
+  // ミニマップの作成
+  DirectX::ScratchImage mipImages{};
+  hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(),
+                                image.GetMetadata(),
+                                DirectX::TEX_FILTER_DEFAULT, 0, mipImages);
+  // ミニマップの作成に失敗したらエラー
+  assert(SUCCEEDED(hr));
+
+  // ミニマップを返す
+  return mipImages;
+}
+
+ID3D12Resource *CreateTextureResource(ID3D12Device *device,
+                                      const DirectX::TexMetadata &metadata) {
+  // metadataを基にResourceの設定
+
+  D3D12_RESOURCE_DESC resourceDesc{};
+  resourceDesc.Width = UINT(metadata.width);
+  resourceDesc.Height = UINT(metadata.height);
+  resourceDesc.MipLevels = UINT16(metadata.mipLevels);
+  resourceDesc.DepthOrArraySize = UINT16(metadata.arraySize);
+  resourceDesc.Format = metadata.format;
+  resourceDesc.SampleDesc.Count = 1;
+  resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension);
+
+  // 利用するヒープの設定
+
+  D3D12_HEAP_PROPERTIES heapProperties{};
+  heapProperties.Type = D3D12_HEAP_TYPE_CUSTOM; // カスタムヒープ
+  heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+  heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+
+  // Resourceを生成する
+  ID3D12Resource *resource = nullptr;
+  HRESULT hr = device->CreateCommittedResource(
+      &heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
+      D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+
+  // Resourceの生成に失敗したらエラー
+  assert(SUCCEEDED(hr));
+
+  return resource;
+}
+
+void UploadTextureData(ID3D12Resource *texture,
+                       const DirectX::ScratchImage &mipImages) {
+  // Metadataを取得
+  const DirectX::TexMetadata &metadata = mipImages.GetMetadata();
+  // 全MipMapについて
+  for (size_t mipLevel = 0; mipLevel < metadata.mipLevels; ++mipLevel) {
+
+    const DirectX::Image *img = mipImages.GetImage(mipLevel, 0, 0);
+
+    HRESULT hr =
+        texture->WriteToSubresource(UINT(mipLevel), nullptr, img->pixels,
+                                    UINT(img->rowPitch), UINT(img->slicePitch));
+    // 書き込みに失敗したらエラー
+    assert(SUCCEEDED(hr));
+  }
+}
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+
+  // COMライブラリの初期化
+  CoInitializeEx(0, COINIT_MULTITHREADED);
+
   // ログのディレクトリを用意
   std::filesystem::create_directory("logs");
   // 現在の時間を取得(UTC)
@@ -752,12 +828,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       commandList->SetGraphicsRootConstantBufferView(
           1, wvpResource->GetGPUVirtualAddress());
 
+      //===============================
+      // Textureをよんで転送する
+      //===============================
+      DirectX::ScratchImage mipImages = LoadTexture("Resources/uvChecker.png");
+      const DirectX::TexMetadata &metadata = mipImages.GetMetadata();
+      ID3D12Resource *textureResource = CreateTextureResource(device, metadata);
+      UploadTextureData(textureResource, mipImages);
+
       ImGui::Render();
 
       //===========--==============================
-      // 
+      //
       // !!!!!!描画!!!!
-      // 
+      //
       //===========================================
 
       commandList->DrawInstanced(3, 1, 0, 0); // 3頂点を描画する
@@ -864,6 +948,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   pixelShaderBlob->Release();
   vertexShaderBlob->Release();
   materialResource->Release();
+
+  // COMの終了処理
+  CoUninitialize();
 
   return 0;
 }
