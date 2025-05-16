@@ -97,4 +97,9 @@
       <Filter>imgui</Filter>
     </Text>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\Object3d.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+  </ItemGroup>
 </Project>

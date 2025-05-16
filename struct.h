@@ -48,3 +48,8 @@ struct Transform {
 enum ShaftType {
 	X, Y, Z 
 };
+
+struct VertexData {
+  Vector4 Position; // 頂点の位置
+  Vector2 Texcoord; // テクスチャ座標
+};
