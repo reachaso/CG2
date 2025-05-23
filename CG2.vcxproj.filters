@@ -22,13 +22,13 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{8585f2e6-20ff-46aa-92e5-0921a7ed643e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Window">
+      <UniqueIdentifier>{d832c6c2-4566-4623-a353-26a0acd3445a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Affine\Affine.cpp">
-      <Filter>Affine</Filter>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui.cpp">
       <Filter>imgui</Filter>
@@ -51,6 +51,12 @@
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
+    <ClCompile Include="mySource\Window\Window.cpp">
+      <Filter>Window</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Affine\Affine.cpp">
+      <Filter>Affine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\Object3d.VS.hlsl">
@@ -63,9 +69,6 @@
   <ItemGroup>
     <ClInclude Include="struct.h">
       <Filter>ソース ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="Affine\Affine.h">
-      <Filter>Affine</Filter>
     </ClInclude>
     <ClInclude Include="externals\imgui\imconfig.h">
       <Filter>imgui</Filter>
@@ -90,6 +93,12 @@
     </ClInclude>
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Window\Window.h">
+      <Filter>Window</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Affine\Affine.h">
+      <Filter>Affine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,11 +1,11 @@
 #pragma warning(push)
 #pragma warning(disable : 28251)
-#include "Affine/Affine.h"
+#include "mySource/Affine/Affine.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
-#include "struct.h"
+#include "mySource/struct.h"
 #include <Windows.h>
 #include <cassert>
 #include <chrono> //時間を扱うライブラリ
@@ -226,8 +226,8 @@ DirectX::ScratchImage LoadTexture(const std::string &filePath) {
   // ミニマップの作成
   DirectX::ScratchImage mipImages{};
   hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(),
-                                image.GetMetadata(),
-                                DirectX::TEX_FILTER_SRGB, 0, mipImages);
+                                image.GetMetadata(), DirectX::TEX_FILTER_SRGB,
+                                0, mipImages);
   // ミニマップの作成に失敗したらエラー
   assert(SUCCEEDED(hr));
 
@@ -808,7 +808,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // 三角形用
   //=====================================================
   // 色　デフォは白
-  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f}; 
+  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   // 回転のflag
   bool enableRotateX = false;
   bool enableRotateY = false;
@@ -858,7 +858,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->CreateShaderResourceView(textureResource, &srvDesc,
                                    textureSrvHandleCPU);
 
-
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
     // メッセージがある場合は、メッセージを取得
@@ -878,8 +877,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // ImGui::ShowDemoWindow(); // デモウィンドウの表示
       ImGui::Begin("Triangle Setting");
-      if (ImGui::CollapsingHeader("Color",
-                                  ImGuiTreeNodeFlags_DefaultOpen)) {
+      if (ImGui::CollapsingHeader("Color", ImGuiTreeNodeFlags_DefaultOpen)) {
         // 色を操作するカラーピッカー
         ImGui::ColorEdit3("Color", color);
         // 色をリセットするボタン
@@ -995,7 +993,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // TransitionBarrierを振る
       commandList->ResourceBarrier(1, &barrier);
 
-      
       D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU =
           srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
       srvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(
