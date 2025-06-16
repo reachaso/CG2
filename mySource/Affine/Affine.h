@@ -19,7 +19,11 @@ float Length(const Vector3 &v);
 Vector3 Normalize(const Vector3 &v);
 // 座標変換
 Vector3 Vector3Transform(const Vector3 &vector, const Matrix4x4 &matrix);
-// クロス積
+// 正射影ベクトル
+Vector3 project(const Vector3 &v1, const Vector3 &v2);
+// 最近接点
+Vector3 closestPoint(const Vector3 &point, const Segment& segment);
+// 直線の交点
 Vector3 Cross(const Vector3 &v1, const Vector3 &v2);
 
 //==================================

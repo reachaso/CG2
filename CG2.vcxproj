@@ -128,8 +128,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="mySource\Affine\Affine.h" />
+    <ClInclude Include="mySource\struct.h" />
     <ClInclude Include="mySource\Window\Window.h" />
-    <ClInclude Include="struct.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

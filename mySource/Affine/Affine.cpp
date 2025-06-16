@@ -87,7 +87,9 @@ Vector3 Vector3Transform(const Vector3 &vector, const Matrix4x4 &matrix) {
   float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] +
             vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
 
-  assert(w != 0.0f);
+  if (w == 0) {
+    w = 1.0f;
+  }
 
   result.x /= w;
   result.y /= w;
@@ -96,13 +98,58 @@ Vector3 Vector3Transform(const Vector3 &vector, const Matrix4x4 &matrix) {
   return result;
 }
 
+Vector3 project(const Vector3 &v1, const Vector3 &v2) {
+  float dot = Dot(v1, v2);
+  float lengthSq = Dot(v2, v2); // v2の長さの2乗
+
+  if (lengthSq == 0) {
+    return {0, 0, 0};
+  }
+
+  float scalar = dot / lengthSq;
+  Vector3 result = Multiply(v2, scalar);
+
+  return result;
+}
+
+Vector3 closestPoint(const Vector3 &point, const Segment &segment) {
+
+  // 線分の始点
+  const Vector3 &a = segment.origin;
+  // 線分の終点
+  Vector3 b = Add(segment.origin, segment.diff);
+
+  // abベクトル
+  Vector3 ab = Subtract(b, a);
+  // apベクトル
+  Vector3 ap = Subtract(point, a);
+
+  float abLenSq = Dot(ab, ab);
+  if (abLenSq == 0.0f) {
+    // 線分の長さが0の場合、始点を返す
+    return a;
+  }
+
+  // 最近接点のパラメータtを計算（0 <= t <= 1にクランプ）
+  float t = Dot(ap, ab) / abLenSq;
+  if (t < 0.0f)
+    t = 0.0f;
+  if (t > 1.0f)
+    t = 1.0f;
+
+  // 最近接点を計算
+  Vector3 result = Add(a, Multiply(ab, t));
+  return result;
+
+}
+
 Vector3 Cross(const Vector3 &v1, const Vector3 &v2) {
   Vector3 result;
 
   result.x = v1.y * v2.z - v1.z * v2.y;
   result.y = v1.z * v2.x - v1.x * v2.z;
   result.z = v1.x * v2.y - v1.y * v2.x;
-  
+
   return result;
 }
 

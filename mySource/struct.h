@@ -45,8 +45,56 @@ struct Transform {
 };
 
 // 回転軸の定義
-enum ShaftType {
-	X, Y, Z 
+enum ShaftType { X, Y, Z };
+
+// 球
+struct Sphere {
+  Vector3 center = {0.0f, 0.0f, 0.0f};
+  float radius = 1.0f;
+  uint32_t color = 0x000000FF;
+};
+
+// 三角形
+struct Triangle {
+  Vector3 vertices[3] = {
+      {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+  uint32_t color = 0x000000FF;
+};
+
+// 軸並行境界箱 (Axis-Aligned Bounding Box)
+struct AABB {
+  Vector3 min = {-1.0f, -1.0f, -1.0f};
+  Vector3 max = {1.0f, 1.0f, 1.0f};
+  uint32_t color = 0x000000FF;
+};
+
+// 線
+// origin: 始点
+// diff: 終点
+
+struct Line {
+  Vector3 origin = {0.0f, 0.0f, 0.0f};
+  Vector3 diff = {1.0f, 1.0f, 1.0f};
+  uint32_t color = 0x000000FF;
+};
+
+struct Ray {
+  Vector3 origin = {0.0f, 0.0f, 0.0f};
+  Vector3 diff = {1.0f, 1.0f, 1.0f};
+  uint32_t color = 0x000000FF;
+};
+
+struct Segment {
+  Vector3 origin = {0.0f, 0.0f, 0.0f};
+  Vector3 diff = {1.0f, 1.0f, 1.0f};
+  uint32_t color = 0x000000FF;
+};
+
+// 平面
+struct Plane {
+  Vector3 normal = {0.0f, 1.0f, 0.0f};
+  float distance = 1.0f;
+  uint32_t color = 0xFFFFFFFF;
 };
 
 struct VertexData {
