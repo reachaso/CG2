@@ -1,10 +1,10 @@
 #pragma warning(push)
 #pragma warning(disable : 28251)
-#include "mySource/Affine/Affine.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
+#include "mySource/Affine/Affine.h"
 #include "mySource/struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -284,9 +284,9 @@ void UploadTextureData(ID3D12Resource *texture,
   }
 }
 
-ID3D12Resource* CreateDepthStencilTextureResource(ID3D12Device* device,
-    int32_t width,
-    int32_t height) {
+ID3D12Resource *CreateDepthStencilTextureResource(ID3D12Device *device,
+                                                  int32_t width,
+                                                  int32_t height) {
   // DepthStencil用のResourceの設定
   D3D12_RESOURCE_DESC resourceDesc{};
   resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -294,9 +294,11 @@ ID3D12Resource* CreateDepthStencilTextureResource(ID3D12Device* device,
   resourceDesc.Height = height;
   resourceDesc.DepthOrArraySize = 1;
   resourceDesc.MipLevels = 1;
-  resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 深度24ビット、ステンシル8ビット
+  resourceDesc.Format =
+      DXGI_FORMAT_D24_UNORM_S8_UINT; // 深度24ビット、ステンシル8ビット
   resourceDesc.SampleDesc.Count = 1; // マルチサンプルなし
-  resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; // 深度ステンシル用
+  resourceDesc.Flags =
+      D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; // 深度ステンシル用
   // ヒーププロパティの設定
   D3D12_HEAP_PROPERTIES heapProperties{};
   heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // デフォルトヒープ
@@ -314,7 +316,7 @@ ID3D12Resource* CreateDepthStencilTextureResource(ID3D12Device* device,
       IID_PPV_ARGS(&resource));
 
   assert(SUCCEEDED(hr)); // Resourceの生成に失敗したらエラー
-  
+
   return resource;
 }
 
@@ -746,6 +748,68 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // PSOの生成に失敗した場合はエラー
   assert(SUCCEEDED(hr));
 
+  //===========================
+  // sprite用の頂点リソースを作る
+  //===========================
+
+  ID3D12Resource *vertexResourceSprite =
+      CreateBufferResource(device, sizeof(VertexData) * 6);
+
+  // 頂点バッファビューを作成する
+  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
+  // リソースの先頭のアドレスから使う
+  vertexBufferViewSprite.BufferLocation =
+      vertexResourceSprite->GetGPUVirtualAddress();
+  // 使用するリソースのサイズは頂点6つ分のサイズ
+  vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 6;
+  // 1つの頂点のサイズ
+  vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
+
+  // 頂点データを設定する
+  VertexData *vertexDataSprite = nullptr;
+  vertexResourceSprite->Map(0, nullptr,
+                            reinterpret_cast<void **>(&vertexDataSprite));
+
+  // 一枚目の三角形
+  vertexDataSprite[0].Position = Vector4(0.0f, 360.0f, 0.0f, 1.0f); // 左下
+  vertexDataSprite[0].Texcoord = Vector2(0.0f, 1.0f); // 左下のテクスチャ座標
+  vertexDataSprite[1].Position = Vector4(0.0f, 0.0f, 0.0f, 1.0f); // 左上
+  vertexDataSprite[1].Texcoord = Vector2(0.0f, 0.0f); // 左上のテクスチャ座標
+  vertexDataSprite[2].Position = Vector4(640.0f, 360.0f, 0.0f, 1.0f); // 右下
+  vertexDataSprite[2].Texcoord = Vector2(1.0f, 1.0f); // 右下のテクスチャ座標
+  // 二枚目の三角形
+  vertexDataSprite[3].Position = Vector4(0.0f, 0.0f, 0.0f, 1.0f); // 左上
+  vertexDataSprite[3].Texcoord = Vector2(0.0f, 0.0f); // 左上のテクスチャ座標
+  vertexDataSprite[4].Position = Vector4(640.0f, 0.0f, 0.0f, 1.0f); // 右上
+  vertexDataSprite[4].Texcoord = Vector2(1.0f, 0.0f); // 右上のテクスチャ座標
+  vertexDataSprite[5].Position = Vector4(640.0f, 360.0f, 0.0f, 1.0f); // 右下
+  vertexDataSprite[5].Texcoord = Vector2(1.0f, 1.0f); // 右下のテクスチャ座標
+
+  // Transform
+  ID3D12Resource *transformationMatrixResourceSprite =
+      CreateBufferResource(device, sizeof(Matrix4x4));
+  // データを書き込む
+  Matrix4x4 *transformationMatrixDataSprite = nullptr;
+  // 書き込むためのアドレスを取得
+  transformationMatrixResourceSprite->Map(
+      0, nullptr, reinterpret_cast<void **>(&transformationMatrixDataSprite));
+  // 単位行列を設定
+  *transformationMatrixDataSprite = MakeIdentity4x4();
+
+  Transform transformSprite{
+      {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+
+  // Sprite用のWorldMatrixを作る
+  Matrix4x4 worldMatrixSprite =
+      MakeAffineMatrix(transformSprite.scale, transformSprite.rotation,
+                       transformSprite.translation);
+  Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+  Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(
+      0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
+  Matrix4x4 WVPMatrixSprite = Multiply(
+      worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+  *transformationMatrixDataSprite = WVPMatrixSprite; // データを設定
+
   //==========================
   // VertexResourceを生成する
   //==========================
@@ -753,10 +817,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   ID3D12Resource *vertexResource =
       CreateBufferResource(device, sizeof(Vector4) * 6);
 
-   // 深度ステンシル用のResourceを生成する
-  ID3D12Resource* depthStencilResource = CreateDepthStencilTextureResource(
-      device, kClientWidth,
-      kClientHeight);
+  // 深度ステンシル用のResourceを生成する
+  ID3D12Resource *depthStencilResource =
+      CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 
   ID3D12DescriptorHeap *dsvDescriptorHeap =
       CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
@@ -767,7 +830,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       DXGI_FORMAT_D24_UNORM_S8_UINT; // 深度24ビット、ステンシル8ビット
   dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // テクスチャ2D
 
-  device->CreateDepthStencilView(depthStencilResource, &dsvDesc,
+  device->CreateDepthStencilView(
+      depthStencilResource, &dsvDesc,
       dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
   // 描画先のRTVとDSVを設定する
@@ -797,8 +861,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   vertexResource->Map(0, nullptr, reinterpret_cast<void **>(&vertexData));
 
-  //１枚目
-  // 左下
+  // １枚目
+  //  左下
   vertexData[0].Position = Vector4(-0.5f, -0.5f, 0.0f, 1.0f);
   vertexData[0].Texcoord = Vector2(0.0f, 1.0f);
 
@@ -810,8 +874,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   vertexData[2].Position = Vector4(0.5f, -0.5f, 0.0f, 1.0f);
   vertexData[2].Texcoord = Vector2(1.0f, 1.0f);
 
-  //２枚目
-  //  左下
+  // ２枚目
+  //   左下
   vertexData[3].Position = Vector4(-0.5f, -0.5f, 0.5f, 1.0f);
   vertexData[3].Texcoord = Vector2(0.0f, 1.0f);
 
@@ -958,55 +1022,102 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       ImGui_ImplWin32_NewFrame();
       ImGui::NewFrame();
 
-      // ImGui::ShowDemoWindow(); // デモウィンドウの表示
-      ImGui::Begin("Triangle Setting");
-      if (ImGui::CollapsingHeader("Color", ImGuiTreeNodeFlags_DefaultOpen)) {
-        // 色を操作するカラーピッカー
-        ImGui::ColorEdit3("Color", color);
-        // 色をリセットするボタン
-        if (ImGui::Button("Reset Color")) {
-          color[0] = 1.0f;
-          color[1] = 1.0f;
-          color[2] = 1.0f;
-          color[3] = 1.0f;
+      ImGui::Begin("Settings"); // ImGuiのウィンドウを開始
+
+      // 三角形とSpriteでタブを分ける
+      if (ImGui::BeginTabBar("Setting")) {
+        if (ImGui::BeginTabItem("Triangle")) {
+          // 三角形の描画設定
+          ImGui::Text("Triangle Settings");
+          if (ImGui::CollapsingHeader("Color",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            // 色を操作するカラーピッカー
+            ImGui::ColorEdit3("Color", color);
+            // 色をリセットするボタン
+            if (ImGui::Button("Reset Color")) {
+              color[0] = 1.0f;
+              color[1] = 1.0f;
+              color[2] = 1.0f;
+              color[3] = 1.0f;
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Translation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Transform Translation");
+            ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
+                                2.0f);
+            if (ImGui::Button("Reset Translation")) {
+              transform.translation = {0.0f, 0.0f, 0.0f};
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Rotation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Transform Rotation");
+            ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
+            if (ImGui::Button("Reset Rotation")) {
+              transform.rotation = {0.0f, 0.0f, 0.0f};
+            }
+            ImGui::SameLine();
+            ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateX", &enableRotateX);
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateY", &enableRotateY);
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateZ", &enableRotateZ);
+          }
+
+          if (ImGui::CollapsingHeader("Scale",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Transform Scale");
+            ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
+            if (ImGui::Button("Reset Scale")) {
+              transform.scale = {1.0f, 1.0f, 1.0f};
+            }
+          }
+          ImGui::EndTabItem();
         }
+
+        if (ImGui::BeginTabItem("Sprite")) {
+          // スプライトの描画設定
+          ImGui::Text("Settings");
+          if (ImGui::CollapsingHeader("Translation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::SliderFloat3("Translation",
+                                &transformSprite.translation.x, 0.0f, 1080.0f);
+            if (ImGui::Button("Reset Translation")) {
+              transformSprite.translation = {0.0f, 0.0f, 0.0f};
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Rotation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Rotation");
+            ImGui::SliderFloat3("Rotation", &transformSprite.rotation.x,
+                                0.0f, 10.0f);
+            if (ImGui::Button("Reset Rotation")) {
+              transformSprite.rotation = {0.0f, 0.0f, 0.0f};
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Scale",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::SliderFloat3("Scale", &transformSprite.scale.x, 0.0f, 10.0f);
+
+            if (ImGui::Button("Reset Scale")) {
+              transformSprite.scale = {1.0f, 1.0f, 1.0f};
+            }
+          }
+
+          ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
       }
 
-      if (ImGui::CollapsingHeader("Translation",
-                                  ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("Transform Translation");
-        ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
-                            2.0f);
-        if (ImGui::Button("Reset Translation")) {
-          transform.translation = {0.0f, 0.0f, 0.0f};
-        }
-      }
-
-      if (ImGui::CollapsingHeader("Rotation", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("Transform Rotation");
-        ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
-        if (ImGui::Button("Reset Rotation")) {
-          transform.rotation = {0.0f, 0.0f, 0.0f};
-        }
-        ImGui::SameLine();
-        ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-        ImGui::SameLine();
-        ImGui::Checkbox("RotateX", &enableRotateX);
-        ImGui::SameLine();
-        ImGui::Checkbox("RotateY", &enableRotateY);
-        ImGui::SameLine();
-        ImGui::Checkbox("RotateZ", &enableRotateZ);
-      }
-
-      if (ImGui::CollapsingHeader("Scale", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Text("Transform Scale");
-        ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
-        if (ImGui::Button("Reset Scale")) {
-          transform.scale = {1.0f, 1.0f, 1.0f};
-        }
-      }
-
-      ImGui::End();
+      ImGui::End(); // ImGuiのウィンドウを終了
 
       // ウィンドウの表示
       ShowWindow(hwnd, SW_SHOW);
@@ -1014,19 +1125,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // Log(ofs, "ウィンドウが表示されました");
       // これから書き込むバックバッファのインデックスを取得
       UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
-      // 描画先のRTVを設定
-      commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
-                                      &dsvHandle);
-      commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH,
-                                         1.0f, 0, 0, nullptr);
 
       *materialData = Vector4(color[0], color[1], color[2], color[3]);
       // 指定した色でクリアする
       float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
+
+      // 描画先のRTVを設定
+      commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
+                                      &dsvHandle);
       commandList->ClearRenderTargetView(rtvHandles[backBufferIndex],
                                          clearColor, 0, nullptr);
+      commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH,
+                                         1.0f, 0, 0, nullptr);
 
       ID3D12DescriptorHeap *descriptorHeaps[] = {srvDescriptorHeap};
+
       commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
       //============================
@@ -1084,15 +1197,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
       commandList->SetGraphicsRootDescriptorTable(2, srvHandleGPU);
 
+      // --- スプライト描画 ---
+      commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+      commandList->SetGraphicsRootConstantBufferView(
+          1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+      commandList->DrawInstanced(6, 1, 0, 0);
+
+      // --- 三角形描画 ---
+      commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+      commandList->SetGraphicsRootConstantBufferView(
+          1, wvpResource->GetGPUVirtualAddress());
+      commandList->DrawInstanced(6, 1, 0, 0);
+
       ImGui::Render();
 
-      //===========--==============================
-      //
-      // !!!!!!描画!!!!
-      //
-      //===========================================
-
-      commandList->DrawInstanced(6, 1, 0, 0); // 6頂点を描画する
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
       // コマンドリストの内容を確定させる。全てのコマンドを詰んでからCloseする
@@ -1168,6 +1286,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 
       *wvpData = wvpMatrix;
+
+      // --- Sprite用のWVP行列を更新 ---
+      Matrix4x4 worldMatrixSprite =
+          MakeAffineMatrix(transformSprite.scale, transformSprite.rotation,
+                           transformSprite.translation);
+      Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
+      Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(
+          0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
+      Matrix4x4 WVPMatrixSprite =
+          Multiply(worldMatrixSprite,
+                   Multiply(viewMatrixSprite, projectionMatrixSprite));
+      *transformationMatrixDataSprite = WVPMatrixSprite;
     }
   }
 
