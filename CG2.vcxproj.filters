@@ -25,6 +25,9 @@
     <Filter Include="Window">
       <UniqueIdentifier>{d832c6c2-4566-4623-a353-26a0acd3445a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Sphere">
+      <UniqueIdentifier>{be017e9a-89cd-4a6c-b2fd-b1547098472b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -56,6 +59,9 @@
     </ClCompile>
     <ClCompile Include="mySource\Affine\Affine.cpp">
       <Filter>Affine</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Sphere\Sphere.cpp">
+      <Filter>Sphere</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -99,6 +105,9 @@
     </ClInclude>
     <ClInclude Include="mySource\struct.h">
       <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Sphere\Sphere.h">
+      <Filter>Sphere</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

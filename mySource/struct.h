@@ -48,7 +48,7 @@ struct Transform {
 enum ShaftType { X, Y, Z };
 
 // 球
-struct Sphere {
+struct SphereData {
   Vector3 center = {0.0f, 0.0f, 0.0f};
   float radius = 1.0f;
   uint32_t color = 0x000000FF;

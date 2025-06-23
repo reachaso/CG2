@@ -1026,59 +1026,59 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // 三角形とSpriteでタブを分ける
       if (ImGui::BeginTabBar("Setting")) {
-        if (ImGui::BeginTabItem("Triangle")) {
-          // 三角形の描画設定
-          ImGui::Text("Triangle Settings");
-          if (ImGui::CollapsingHeader("Color",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            // 色を操作するカラーピッカー
-            ImGui::ColorEdit3("Color", color);
-            // 色をリセットするボタン
-            if (ImGui::Button("Reset Color")) {
-              color[0] = 1.0f;
-              color[1] = 1.0f;
-              color[2] = 1.0f;
-              color[3] = 1.0f;
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Translation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Transform Translation");
-            ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
-                                2.0f);
-            if (ImGui::Button("Reset Translation")) {
-              transform.translation = {0.0f, 0.0f, 0.0f};
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Rotation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Transform Rotation");
-            ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
-            if (ImGui::Button("Reset Rotation")) {
-              transform.rotation = {0.0f, 0.0f, 0.0f};
-            }
-            ImGui::SameLine();
-            ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateX", &enableRotateX);
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateY", &enableRotateY);
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateZ", &enableRotateZ);
-          }
-
-          if (ImGui::CollapsingHeader("Scale",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Transform Scale");
-            ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
-            if (ImGui::Button("Reset Scale")) {
-              transform.scale = {1.0f, 1.0f, 1.0f};
-            }
-          }
-          ImGui::EndTabItem();
-        }
+        //if (ImGui::BeginTabItem("Triangle")) {
+        //  // 三角形の描画設定
+        //  ImGui::Text("Triangle Settings");
+        //  if (ImGui::CollapsingHeader("Color",
+        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
+        //    // 色を操作するカラーピッカー
+        //    ImGui::ColorEdit3("Color", color);
+        //    // 色をリセットするボタン
+        //    if (ImGui::Button("Reset Color")) {
+        //      color[0] = 1.0f;
+        //      color[1] = 1.0f;
+        //      color[2] = 1.0f;
+        //      color[3] = 1.0f;
+        //    }
+        //  }
+        //
+        //  if (ImGui::CollapsingHeader("Translation",
+        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
+        //    ImGui::Text("Transform Translation");
+        //    ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
+        //                        2.0f);
+        //    if (ImGui::Button("Reset Translation")) {
+        //      transform.translation = {0.0f, 0.0f, 0.0f};
+        //    }
+        //  }
+        //
+        //  if (ImGui::CollapsingHeader("Rotation",
+        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
+        //    ImGui::Text("Transform Rotation");
+        //    ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
+        //    if (ImGui::Button("Reset Rotation")) {
+        //      transform.rotation = {0.0f, 0.0f, 0.0f};
+        //    }
+        //    ImGui::SameLine();
+        //    ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+        //    ImGui::SameLine();
+        //    ImGui::Checkbox("RotateX", &enableRotateX);
+        //    ImGui::SameLine();
+        //    ImGui::Checkbox("RotateY", &enableRotateY);
+        //    ImGui::SameLine();
+        //    ImGui::Checkbox("RotateZ", &enableRotateZ);
+        //  }
+        //
+        //  if (ImGui::CollapsingHeader("Scale",
+        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
+        //    ImGui::Text("Transform Scale");
+        //    ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
+        //    if (ImGui::Button("Reset Scale")) {
+        //      transform.scale = {1.0f, 1.0f, 1.0f};
+        //    }
+        //  }
+        //  ImGui::EndTabItem();
+        //}
 
         if (ImGui::BeginTabItem("Sprite")) {
           // スプライトの描画設定
@@ -1204,10 +1204,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       commandList->DrawInstanced(6, 1, 0, 0);
 
       // --- 三角形描画 ---
-      commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-      commandList->SetGraphicsRootConstantBufferView(
-          1, wvpResource->GetGPUVirtualAddress());
-      commandList->DrawInstanced(6, 1, 0, 0);
+      //commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+      //commandList->SetGraphicsRootConstantBufferView(
+      //    1, wvpResource->GetGPUVirtualAddress());
+      //commandList->DrawInstanced(6, 1, 0, 0);
 
       ImGui::Render();
 
