@@ -5,6 +5,7 @@
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
 #include "mySource/Affine/Affine.h"
+#include "mySource/Sphere/Sphere.h"
 #include "mySource/struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -749,6 +750,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   assert(SUCCEEDED(hr));
 
   //===========================
+  // Sphere用
+  //===========================
+
+  Sphere *sphere = new Sphere();
+
+  if (sphere != nullptr) {
+    sphere->Initialize(device, commandList, 0.5f, 16, 16);
+  }
+
+  bool eanableSphereRotateX = false;
+  bool eanableSphereRotateY = false;
+  bool eanableSphereRotateZ = false;
+
+  bool isSphere = true;
+
+  // --- Sphere用のCBVリソースを作成 ---
+  ID3D12Resource *sphereWvpResource =
+      CreateBufferResource(device, sizeof(Matrix4x4));
+  Matrix4x4 *sphereWvpData = nullptr;
+  sphereWvpResource->Map(0, nullptr, reinterpret_cast<void **>(&sphereWvpData));
+  *sphereWvpData = MakeIdentity4x4();
+
+  //===========================
   // sprite用の頂点リソースを作る
   //===========================
 
@@ -809,6 +833,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   Matrix4x4 WVPMatrixSprite = Multiply(
       worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
   *transformationMatrixDataSprite = WVPMatrixSprite; // データを設定
+
+  bool isSprite = false;
 
   //==========================
   // VertexResourceを生成する
@@ -961,6 +987,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   bool enableRotateY = false;
   bool enableRotateZ = false;
 
+  bool isTriangle1 = false;
+  bool isTriangle2 = false;
+
   //===============================
   // Imguiの初期化
   //===============================
@@ -1026,67 +1055,72 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // 三角形とSpriteでタブを分ける
       if (ImGui::BeginTabBar("Setting")) {
-        //if (ImGui::BeginTabItem("Triangle")) {
-        //  // 三角形の描画設定
-        //  ImGui::Text("Triangle Settings");
-        //  if (ImGui::CollapsingHeader("Color",
-        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
-        //    // 色を操作するカラーピッカー
-        //    ImGui::ColorEdit3("Color", color);
-        //    // 色をリセットするボタン
-        //    if (ImGui::Button("Reset Color")) {
-        //      color[0] = 1.0f;
-        //      color[1] = 1.0f;
-        //      color[2] = 1.0f;
-        //      color[3] = 1.0f;
-        //    }
-        //  }
-        //
-        //  if (ImGui::CollapsingHeader("Translation",
-        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
-        //    ImGui::Text("Transform Translation");
-        //    ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
-        //                        2.0f);
-        //    if (ImGui::Button("Reset Translation")) {
-        //      transform.translation = {0.0f, 0.0f, 0.0f};
-        //    }
-        //  }
-        //
-        //  if (ImGui::CollapsingHeader("Rotation",
-        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
-        //    ImGui::Text("Transform Rotation");
-        //    ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
-        //    if (ImGui::Button("Reset Rotation")) {
-        //      transform.rotation = {0.0f, 0.0f, 0.0f};
-        //    }
-        //    ImGui::SameLine();
-        //    ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-        //    ImGui::SameLine();
-        //    ImGui::Checkbox("RotateX", &enableRotateX);
-        //    ImGui::SameLine();
-        //    ImGui::Checkbox("RotateY", &enableRotateY);
-        //    ImGui::SameLine();
-        //    ImGui::Checkbox("RotateZ", &enableRotateZ);
-        //  }
-        //
-        //  if (ImGui::CollapsingHeader("Scale",
-        //                              ImGuiTreeNodeFlags_DefaultOpen)) {
-        //    ImGui::Text("Transform Scale");
-        //    ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
-        //    if (ImGui::Button("Reset Scale")) {
-        //      transform.scale = {1.0f, 1.0f, 1.0f};
-        //    }
-        //  }
-        //  ImGui::EndTabItem();
-        //}
+        if (ImGui::BeginTabItem("Triangle")) {
+          // 三角形の描画設定
+          ImGui::Text("Triangle Settings");
+          if (ImGui::CollapsingHeader("Color",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            // 色を操作するカラーピッカー
+            ImGui::ColorEdit3("Color", color);
+            // 色をリセットするボタン
+            if (ImGui::Button("Reset Color")) {
+              color[0] = 1.0f;
+              color[1] = 1.0f;
+              color[2] = 1.0f;
+              color[3] = 1.0f;
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Translation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Transform Translation");
+            ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
+                                2.0f);
+            if (ImGui::Button("Reset Translation")) {
+              transform.translation = {0.0f, 0.0f, 0.0f};
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Rotation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Transform Rotation");
+            ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
+            if (ImGui::Button("Reset Rotation")) {
+              transform.rotation = {0.0f, 0.0f, 0.0f};
+            }
+            ImGui::SameLine();
+            ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateX", &enableRotateX);
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateY", &enableRotateY);
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateZ", &enableRotateZ);
+          }
+
+          if (ImGui::CollapsingHeader("Scale",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Transform Scale");
+            ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
+            if (ImGui::Button("Reset Scale")) {
+              transform.scale = {1.0f, 1.0f, 1.0f};
+            }
+          }
+
+          ImGui::Checkbox("isTriangle1", &isTriangle1);
+          ImGui::SameLine();
+          ImGui::Checkbox("isTriangle2", &isTriangle2);
+
+          ImGui::EndTabItem();
+        }
 
         if (ImGui::BeginTabItem("Sprite")) {
           // スプライトの描画設定
           ImGui::Text("Settings");
           if (ImGui::CollapsingHeader("Translation",
                                       ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::SliderFloat3("Translation",
-                                &transformSprite.translation.x, 0.0f, 1080.0f);
+            ImGui::SliderFloat3("Translation", &transformSprite.translation.x,
+                                0.0f, 1080.0f);
             if (ImGui::Button("Reset Translation")) {
               transformSprite.translation = {0.0f, 0.0f, 0.0f};
             }
@@ -1095,8 +1129,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           if (ImGui::CollapsingHeader("Rotation",
                                       ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Rotation");
-            ImGui::SliderFloat3("Rotation", &transformSprite.rotation.x,
-                                0.0f, 10.0f);
+            ImGui::SliderFloat3("Rotation", &transformSprite.rotation.x, 0.0f,
+                                10.0f);
             if (ImGui::Button("Reset Rotation")) {
               transformSprite.rotation = {0.0f, 0.0f, 0.0f};
             }
@@ -1110,6 +1144,54 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
               transformSprite.scale = {1.0f, 1.0f, 1.0f};
             }
           }
+
+          ImGui::Checkbox("isSprite", &isSprite);
+
+          ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Shere")) {
+          // 球体の描画設定
+          ImGui::Text("Settings");
+          if (ImGui::CollapsingHeader("Translation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+
+            ImGui::SliderFloat3("Translation",
+                                &sphere->sphereTransform.translation.x, -3.0f,
+                                3.0f);
+            if (ImGui::Button("Reset Translation")) {
+              sphere->sphereTransform.translation = {0.0f, 0.0f, 0.0f};
+            }
+          }
+
+          if (ImGui::CollapsingHeader("Rotation",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Rotation");
+            ImGui::SliderFloat3("Rotation",
+                                &sphere->sphereTransform.rotation.x, 0.0f, 10.0f);
+            if (ImGui::Button("Reset Rotation")) {
+              sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
+            }
+            ImGui::SameLine();
+            ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateX", &eanableSphereRotateX);
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateY", &eanableSphereRotateY);
+            ImGui::SameLine();
+            ImGui::Checkbox("RotateZ", &eanableSphereRotateZ);
+          }
+
+          if (ImGui::CollapsingHeader("Scale",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::SliderFloat3("Scale", &sphere->sphereTransform.scale.x, 0.0f,
+                                10.0f);
+            if (ImGui::Button("Reset Scale")) {
+              sphere->sphereTransform.scale = {1.0f, 1.0f, 1.0f};
+            }
+          }
+
+          ImGui::Checkbox("isSphere", &isSphere);
 
           ImGui::EndTabItem();
         }
@@ -1197,18 +1279,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
       commandList->SetGraphicsRootDescriptorTable(2, srvHandleGPU);
 
-      // --- スプライト描画 ---
-      commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-      commandList->SetGraphicsRootConstantBufferView(
-          1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-      commandList->DrawInstanced(6, 1, 0, 0);
+      if (isSprite) {
+        // --- スプライト描画 ---
+        commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+        commandList->SetGraphicsRootConstantBufferView(
+            1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+        commandList->DrawInstanced(6, 1, 0, 0);
+      }
 
-      // --- 三角形描画 ---
-      //commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-      //commandList->SetGraphicsRootConstantBufferView(
-      //    1, wvpResource->GetGPUVirtualAddress());
-      //commandList->DrawInstanced(6, 1, 0, 0);
+      if (isTriangle1) {
+        // 1枚目（三角形1）だけ描画（頂点0,1,2）
+        commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        commandList->SetGraphicsRootConstantBufferView(
+            1, wvpResource->GetGPUVirtualAddress());
+        commandList->DrawInstanced(3, 1, 0, 0); // 3頂点、開始インデックス0
+      }
+      if (isTriangle2) {
+        // 2枚目（三角形2）だけ描画（頂点3,4,5）
+        commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        commandList->SetGraphicsRootConstantBufferView(
+            1, wvpResource->GetGPUVirtualAddress());
+        commandList->DrawInstanced(3, 1, 3, 0); // 3頂点、開始インデックス3
+      }
 
+      if (isSphere) {
+        commandList->SetGraphicsRootConstantBufferView(
+            1, sphereWvpResource->GetGPUVirtualAddress());
+        sphere->Draw(commandList);
+      }
       ImGui::Render();
 
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -1298,6 +1396,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           Multiply(worldMatrixSprite,
                    Multiply(viewMatrixSprite, projectionMatrixSprite));
       *transformationMatrixDataSprite = WVPMatrixSprite;
+
+      // --- Sphere用の更新 ---
+
+      if (eanableSphereRotateX) {
+        sphere->sphereTransform.rotation.x += 0.001f;
+      }
+
+      if (eanableSphereRotateY) {
+        sphere->sphereTransform.rotation.y += 0.001f;
+      }
+
+      if (eanableSphereRotateZ) {
+        sphere->sphereTransform.rotation.z += 0.001f;
+      }
+
+      Matrix4x4 sphereWorldMatrix = MakeAffineMatrix(
+          sphere->sphereTransform.scale, sphere->sphereTransform.rotation,
+          sphere->sphereTransform.translation);
+
+      Matrix4x4 sphereWvpMatrix =
+          Multiply(sphereWorldMatrix, Multiply(viewMatrix, projectionMatrix));
+
+      *sphereWvpData = sphereWvpMatrix;
     }
   }
 
@@ -1310,6 +1431,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===========================
 
   vertexResource->Release();
+  vertexResourceSprite->Release();
+  transformationMatrixResourceSprite->Release();
+  depthStencilResource->Release();
+  dsvDescriptorHeap->Release();
+  sphereWvpResource->Release();
+
   graphicsPipelineState->Release();
   signatureBlob->Release();
   if (errorBlob) {
@@ -1337,6 +1464,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   dxgiFactory->Release();
   useAdapter->Release();
   device->Release();
+
+  delete sphere;
 
   // COMの終了処理
   CoUninitialize();
