@@ -321,6 +321,26 @@ ID3D12Resource *CreateDepthStencilTextureResource(ID3D12Device *device,
   return resource;
 }
 
+// CPU用 DescriptorHandle 取得
+D3D12_CPU_DESCRIPTOR_HANDLE
+GetCPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
+                       uint32_t descriptorSize, uint32_t index) {
+  D3D12_CPU_DESCRIPTOR_HANDLE handleCPU =
+      descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+  handleCPU.ptr += (descriptorSize * index);
+  return handleCPU;
+}
+
+// GPU用 DescriptorHandle 取得
+D3D12_GPU_DESCRIPTOR_HANDLE
+GetGPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
+                       uint32_t descriptorSize, uint32_t index) {
+  D3D12_GPU_DESCRIPTOR_HANDLE handleGPU =
+      descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+  handleGPU.ptr += (descriptorSize * index);
+  return handleGPU;
+}
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -439,6 +459,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // デバイスが生成できなかった場合はエラー
   assert(device != nullptr);
   Log("Complete create D3D12Device!!!\n"); // 初期化完了のログ出力
+
+  // DescriptorSizeを取得しておく
+  const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(
+      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  const uint32_t descriptorSizeRTV =
+      device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+  const uint32_t descriptorSizeDSV =
+      device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 #ifdef _DEBUG
   ID3D12InfoQueue *infoQueue = nullptr;
@@ -759,9 +787,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     sphere->Initialize(device, commandList, 0.5f, 16, 16);
   }
 
-  bool eanableSphereRotateX = false;
   bool eanableSphereRotateY = false;
-  bool eanableSphereRotateZ = false;
 
   bool isSphere = true;
 
@@ -1006,6 +1032,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===============================
   // Textureをよんで転送する
   //===============================
+  // 1枚目のTextureを読んで転送する
   DirectX::ScratchImage mipImages = LoadTexture("Resources/uvChecker.png");
   const DirectX::TexMetadata &metadata = mipImages.GetMetadata();
   ID3D12Resource *textureResource = CreateTextureResource(device, metadata);
@@ -1034,6 +1061,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->CreateShaderResourceView(textureResource, &srvDesc,
                                    textureSrvHandleCPU);
 
+  // 2枚目のTextureを読んで転送する
+  DirectX::ScratchImage mipImages2 = LoadTexture("resources/monsterBall.png");
+  const DirectX::TexMetadata metadata2 = mipImages2.GetMetadata();
+  ID3D12Resource *textureResource2 = CreateTextureResource(device, metadata2);
+  UploadTextureData(textureResource2, mipImages2);
+
+  // metadataを元にSRVを生成する
+  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2 = {};
+  srvDesc2.Format = metadata2.format;
+  srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
+  // SRVを作成するDescriptorHeapの場所を決める
+  ::D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 =
+      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+  ::D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
+      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+  textureSrvHandleCPU2.ptr += 2 * device->GetDescriptorHandleIncrementSize(
+                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  textureSrvHandleGPU2.ptr += 2 * device->GetDescriptorHandleIncrementSize(
+                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  // SRVを生成する
+  device->CreateShaderResourceView(textureResource2, &srvDesc2,
+                                   textureSrvHandleCPU2);
+
+  bool useMonsterBall = false;
+
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
     // メッセージがある場合は、メッセージを取得
@@ -1052,6 +1106,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       ImGui::NewFrame();
 
       ImGui::Begin("Settings"); // ImGuiのウィンドウを開始
+
+      ImGui::Checkbox("Use Monster Ball", &useMonsterBall);
 
       // 三角形とSpriteでタブを分ける
       if (ImGui::BeginTabBar("Setting")) {
@@ -1174,12 +1230,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
             ImGui::SameLine();
             ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateX", &eanableSphereRotateX);
-            ImGui::SameLine();
             ImGui::Checkbox("RotateY", &eanableSphereRotateY);
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateZ", &eanableSphereRotateZ);
           }
 
           if (ImGui::CollapsingHeader("Scale",
@@ -1252,11 +1303,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // SRVのDescriptorTableを設定する 03_00
       //===========================================
 
+      D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU =
+          GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
+
       // SRVディスクリプタヒープの先頭GPUハンドルを取得
       D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU =
-          srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+          GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
 
-      commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+      // 二枚目のテクスチャのSRVを設定する
+      D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 =
+          GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV ,2);
+
+      D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
+          GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
+
+      device->CreateShaderResourceView(
+          textureResource2, &srvDesc2, textureSrvHandleCPU2);
 
       // TransitionBarrierを設定する
       D3D12_RESOURCE_BARRIER barrier{};
@@ -1273,19 +1335,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // TransitionBarrierを振る
       commandList->ResourceBarrier(1, &barrier);
 
-      D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU =
-          srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-      srvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(
-          D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-      commandList->SetGraphicsRootDescriptorTable(2, srvHandleGPU);
-
-      if (isSprite) {
-        // --- スプライト描画 ---
-        commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
-        commandList->SetGraphicsRootConstantBufferView(
-            1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-        commandList->DrawInstanced(6, 1, 0, 0);
-      }
+      // textureResourceのSRVを設定する
+      commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall
+                                                      ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 
       if (isTriangle1) {
         // 1枚目（三角形1）だけ描画（頂点0,1,2）
@@ -1307,6 +1359,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             1, sphereWvpResource->GetGPUVirtualAddress());
         sphere->Draw(commandList);
       }
+
+      if (isSprite) {
+
+          // 常にuvCheckerを表示する
+          commandList->SetGraphicsRootDescriptorTable(
+              2, textureSrvHandleGPU);
+
+        // --- スプライト描画 ---
+        commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+        commandList->SetGraphicsRootConstantBufferView(
+            1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+        commandList->DrawInstanced(6, 1, 0, 0);
+      }
+
       ImGui::Render();
 
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -1399,16 +1465,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // --- Sphere用の更新 ---
 
-      if (eanableSphereRotateX) {
-        sphere->sphereTransform.rotation.x += 0.001f;
-      }
-
-      if (eanableSphereRotateY) {
+     if (eanableSphereRotateY) {
         sphere->sphereTransform.rotation.y += 0.001f;
-      }
-
-      if (eanableSphereRotateZ) {
-        sphere->sphereTransform.rotation.z += 0.001f;
       }
 
       Matrix4x4 sphereWorldMatrix = MakeAffineMatrix(
