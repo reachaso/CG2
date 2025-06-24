@@ -32,20 +32,17 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     float4 textureColor = gTexture.Sample(gSampler, input.texcoord);
     
-    if (gMaterial.enableLighting != 0) { // ライティング有効時
+    if (gMaterial.enableLighting != 0)
+    { // ライティング有効時
+        float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction.xyz);
     // コサイン項を計算（入力法線は正規化しておく）
-        float cosTerm = saturate(
-    dot(
-        normalize(input.normal),
-        -gDirectionalLight.direction.xyz
-    )
-);
+        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
     // マテリアル色 × テクスチャ色 × 光の色 × コサイン項 × 光強度
         output.color =
         gMaterial.color 
       * textureColor
       * gDirectionalLight.color 
-      * cosTerm
+      * cos
       * gDirectionalLight.intensity;
     }
     else

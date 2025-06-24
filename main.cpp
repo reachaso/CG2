@@ -1195,17 +1195,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
            }
          }
 
-        //if (ImGui::CollapsingHeader("Intensity",
-        //                            ImGuiTreeNodeFlags_DefaultOpen)) {
-        //  ImGui::Text("Light Intensity");
-        //  // 平行光源の強度を設定するスライダー
-        //  ImGui::SliderFloat("Intensity", &directionalLight.intensity, 0.0f,
-        //                     1.0f);
-        //  // 強度をリセットするボタン
-        //  if (ImGui::Button("Reset Intensity")) {
-        //    directionalLight.intensity = 1.0f;
-        //  }
-        //}
+        if (ImGui::CollapsingHeader("Intensity",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+          ImGui::Text("Light Intensity");
+          
+          //ImGui::SliderFloat("Intensity", &directionalLight.intensity, 0.0f,1.0f);
+        }
 
           ImGui::EndTabItem();
         }
