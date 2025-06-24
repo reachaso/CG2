@@ -4,7 +4,7 @@ struct Material
 {
     float4 color; // 色 (RGBA)
     int enableLighting; // ライティングの有効化フラグ
-    float padding[3];
+    float4x4 uvTransform;
 };
 
 struct DirectionalLight
@@ -29,26 +29,27 @@ struct PixelShaderOutput
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
-    
-    float4 textureColor = gTexture.Sample(gSampler, input.texcoord);
-    
+
+    // UV 変換＆テクスチャサンプル
+    float4 uv = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
+    float2 transformedUV = uv.xy;
+    float4 textureColor = gTexture.Sample(gSampler, transformedUV);
+
     if (gMaterial.enableLighting != 0)
     { // ライティング有効時
         float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction.xyz);
-    // コサイン項を計算（入力法線は正規化しておく）
         float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-    // マテリアル色 × テクスチャ色 × 光の色 × コサイン項 × 光強度
         output.color =
-        gMaterial.color 
-      * textureColor
-      * gDirectionalLight.color 
-      * cos
-      * gDirectionalLight.intensity;
+            gMaterial.color
+            * textureColor
+            * gDirectionalLight.color
+            * cos
+            * gDirectionalLight.intensity;
     }
     else
-    { // ライティング無効時（前回までと同じ演算）
+    { // ライティング無効時
         output.color = gMaterial.color * textureColor;
     }
-    
+
     return output;
 }

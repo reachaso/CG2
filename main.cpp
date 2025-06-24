@@ -837,6 +837,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // Materialの初期化
   sphereMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
   sphereMaterialData->enableLighting = true; // ライティングを有効にする
+  sphereMaterialData->uvTransform = MakeIdentity4x4(); // UV変換行列を単位行列で初期化
 
   // --- DirectionalLight用のCBVリソースを作成 ---
   ID3D12Resource *directionalLightResource =
@@ -917,6 +918,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // Materialの初期化
   spriteMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
   spriteMaterialData->enableLighting = false; // ライティングを無効にする
+  spriteMaterialData->uvTransform = MakeIdentity4x4();
 
   // インデックス用バッファリソースを作成（6頂点分の uint32_t インデックス）
   ID3D12Resource *indexResourceSprite =
@@ -941,6 +943,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   indexDataSprite[3] = 1; // 左上
   indexDataSprite[4] = 3; // 左上
   indexDataSprite[5] = 2; // 右上
+
+
+  //===========================
+  // uv用
+  //===========================
+
+  Transform uvTransformSprite{
+      {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
 
   bool isSprite = true;
 
@@ -1320,10 +1330,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           ImGui::Checkbox("isSprite", &isSprite);
 
+          ImGui::Text("UV Transform Settings");
+          ImGui::DragFloat2("UV Translation", &uvTransformSprite.translation.x,0.01f, -10.0f, 10.0f);
+          ImGui::DragFloat2("UV Scale", &uvTransformSprite.scale.x, 0.01f, -10.0f,
+                            10.0f);
+          ImGui::SliderAngle("UV Rotation", &uvTransformSprite.rotation.z);
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Shere")) {
+        if (ImGui::BeginTabItem("Sphere")) {
           // 球体の描画設定
           ImGui::Text("Settings");
           if (ImGui::CollapsingHeader("Translation",
@@ -1599,6 +1614,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           Multiply(worldMatrixSprite,
                    Multiply(viewMatrixSprite, projectionMatrixSprite));
       *transformationMatrixDataSprite = WVPMatrixSprite;
+
+      Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+      uvTransformMatrix = Multiply(uvTransformMatrix, MakeRotateMatrix(Z,uvTransformSprite.rotation.z));
+      uvTransformMatrix = Multiply(uvTransformMatrix,
+                   MakeTranslateMatrix(uvTransformSprite.translation));
+      spriteMaterialData->uvTransform = uvTransformMatrix;
 
       // --- Sphere用の更新 ---
 
