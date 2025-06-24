@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <vector>
+#include <string>
 
 // クライアント領域のサイズ
 const int32_t kClientWidth = 1280;
@@ -119,4 +121,13 @@ struct DirectionalLight {
   Vector4 color; // 光の色 (RGBA)
   Vector3 direction; // 光の方向
   float intensity;   // 光の強度
+};
+
+struct MaterialData {
+  std::string textureFilePath; // テクスチャファイルのパス
+};
+
+struct ModelData {
+  std::vector<VertexData> vertices; // 頂点データの配列
+  MaterialData material;            // マテリアルデータ
 };
