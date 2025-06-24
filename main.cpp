@@ -851,7 +851,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===========================
 
   ID3D12Resource *vertexResourceSprite =
-      CreateBufferResource(device, sizeof(VertexData) * 6);
+      CreateBufferResource(device, sizeof(VertexData) * 4);
 
   // 頂点バッファビューを作成する
   D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSprite{};
@@ -859,7 +859,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   vertexBufferViewSprite.BufferLocation =
       vertexResourceSprite->GetGPUVirtualAddress();
   // 使用するリソースのサイズは頂点6つ分のサイズ
-  vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 6;
+  vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
   // 1つの頂点のサイズ
   vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
 
@@ -868,20 +868,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   vertexResourceSprite->Map(0, nullptr,
                             reinterpret_cast<void **>(&vertexDataSprite));
 
-  // 一枚目の三角形
+ // 4点の情報
   vertexDataSprite[0].Position = Vector4(0.0f, 360.0f, 0.0f, 1.0f); // 左下
   vertexDataSprite[0].Texcoord = Vector2(0.0f, 1.0f); // 左下のテクスチャ座標
+  vertexDataSprite[0].Normal = Vector3(0.0f, 0.0f, -1.0f);
   vertexDataSprite[1].Position = Vector4(0.0f, 0.0f, 0.0f, 1.0f); // 左上
   vertexDataSprite[1].Texcoord = Vector2(0.0f, 0.0f); // 左上のテクスチャ座標
+  vertexDataSprite[1].Normal = Vector3(0.0f, 0.0f, -1.0f);
   vertexDataSprite[2].Position = Vector4(640.0f, 360.0f, 0.0f, 1.0f); // 右下
   vertexDataSprite[2].Texcoord = Vector2(1.0f, 1.0f); // 右下のテクスチャ座標
-  // 二枚目の三角形
-  vertexDataSprite[3].Position = Vector4(0.0f, 0.0f, 0.0f, 1.0f); // 左上
-  vertexDataSprite[3].Texcoord = Vector2(0.0f, 0.0f); // 左上のテクスチャ座標
-  vertexDataSprite[4].Position = Vector4(640.0f, 0.0f, 0.0f, 1.0f); // 右上
-  vertexDataSprite[4].Texcoord = Vector2(1.0f, 0.0f); // 右上のテクスチャ座標
-  vertexDataSprite[5].Position = Vector4(640.0f, 360.0f, 0.0f, 1.0f); // 右下
-  vertexDataSprite[5].Texcoord = Vector2(1.0f, 1.0f); // 右下のテクスチャ座標
+  vertexDataSprite[2].Normal = Vector3(0.0f, 0.0f, -1.0f);
+  vertexDataSprite[3].Position = Vector4(640.0f, 0.0f, 0.0f, 1.0f); // 右上
+  vertexDataSprite[3].Texcoord = Vector2(1.0f, 0.0f); // 右上のテクスチャ座標
+  vertexDataSprite[3].Normal = Vector3(0.0f, 0.0f, -1.0f);
+ 
 
   // Transform
   ID3D12Resource *transformationMatrixResourceSprite =
@@ -918,7 +918,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   spriteMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
   spriteMaterialData->enableLighting = false; // ライティングを無効にする
 
-  bool isSprite = false;
+  // インデックス用バッファリソースを作成（6頂点分の uint32_t インデックス）
+  ID3D12Resource *indexResourceSprite =
+      CreateBufferResource(device, sizeof(uint32_t) * 6);
+
+  // インデックスバッファビューを作成
+  D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
+  indexBufferViewSprite.BufferLocation =
+      indexResourceSprite->GetGPUVirtualAddress(); // バッファの先頭アドレス
+  indexBufferViewSprite.SizeInBytes =
+      sizeof(uint32_t) * 6; // インデックス数×サイズ
+  indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
+
+  // インデックスリソースにデータを転送する
+  uint32_t *indexDataSprite = nullptr;
+  indexResourceSprite->Map(0, nullptr,
+                           reinterpret_cast<void **>(&indexDataSprite));
+
+  indexDataSprite[0] = 0; // 左下
+  indexDataSprite[1] = 1; // 左上
+  indexDataSprite[2] = 2; // 右下
+  indexDataSprite[3] = 1; // 左上
+  indexDataSprite[4] = 3; // 左上
+  indexDataSprite[5] = 2; // 右上
+
+  bool isSprite = true;
 
   //==========================
   // VertexResourceを生成する
@@ -1465,14 +1489,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       if (isSprite) {
 
+          // spriteのMaterial用CBVを設定
+          commandList->SetGraphicsRootConstantBufferView(
+              0, spriteMaterialResource->GetGPUVirtualAddress());
+          // spriteのWVP用CBVを設定
+          commandList->SetGraphicsRootConstantBufferView(
+              1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
+          // spriteのSRVを設定
+          commandList->SetGraphicsRootDescriptorTable(
+              2, textureSrvHandleGPU); // テクスチャのSRVを設定
+
         // 常にuvCheckerを表示する
         commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
         // --- スプライト描画 ---
         commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
+        commandList->IASetIndexBuffer(&indexBufferViewSprite);
         commandList->SetGraphicsRootConstantBufferView(
             1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
-        commandList->DrawInstanced(6, 1, 0, 0);
+        commandList->DrawIndexedInstanced(6, 1, 0, 0,0); // 6頂点、開始インデックス0
       }
 
       ImGui::Render();
