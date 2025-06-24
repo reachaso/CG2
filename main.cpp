@@ -611,7 +611,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // RootParameter作成。複数設定できるので配列。今回は結果1つだけなので長さ1のは配列
   // 02-01
-  D3D12_ROOT_PARAMETER rootParameters[3] = {};
+  D3D12_ROOT_PARAMETER rootParameters[4] = {};
   rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVを使う
   rootParameters[0].ShaderVisibility =
       D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダーからアクセスする
@@ -639,6 +639,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       descriptorRange; // Tableの中身の配列を指定
   rootParameters[2].DescriptorTable.NumDescriptorRanges =
       _countof(descriptorRange); // Tableの中身の数を指定
+
+  rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+  rootParameters[3].ShaderVisibility =
+      D3D12_SHADER_VISIBILITY_PIXEL; // ピクセルシェーダーからアクセスする
+  rootParameters[3].Descriptor.ShaderRegister = 1; // シェーダーのレジスタ番号
 
   //=========================
   // RootSignatureを生成する
@@ -686,7 +691,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // inputLayoutを設定する
   //=========================
 
-  D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
+  D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
   inputElementDescs[0].SemanticName = "POSITION"; // セマンティクス名
   inputElementDescs[0].SemanticIndex = 0;         // セマンティクスインデックス
   inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -695,6 +700,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   inputElementDescs[1].SemanticIndex = 0;         // セマンティクスインデックス
   inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
   inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+  inputElementDescs[2].SemanticName = "NORMAL"; // セマンティクス名
+  inputElementDescs[2].SemanticIndex = 0;       // セマンティクスインデックス
+  inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+  inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
   D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
   inputLayoutDesc.pInputElementDescs = inputElementDescs;
@@ -778,6 +787,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   assert(SUCCEEDED(hr));
 
   //===========================
+  // 平行光源用のデータを作成
+  //===========================
+
+  DirectionalLight directionalLight;
+
+  directionalLight.color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+  directionalLight.direction = Vector3(0.0f, -1.0f, 0.0f);  // 下向き
+  directionalLight.intensity = 1.0f;                        // 強度1.0
+
+  float len =
+      std::sqrt(directionalLight.direction.x * directionalLight.direction.x +
+                directionalLight.direction.y * directionalLight.direction.y +
+                directionalLight.direction.z * directionalLight.direction.z);
+  if (len > 0.0f) {
+    directionalLight.direction.x /= len;
+    directionalLight.direction.y /= len;
+    directionalLight.direction.z /= len;
+  }
+
+  //===========================
   // Sphere用
   //===========================
 
@@ -793,10 +822,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // --- Sphere用のCBVリソースを作成 ---
   ID3D12Resource *sphereWvpResource =
-      CreateBufferResource(device, sizeof(Matrix4x4));
-  Matrix4x4 *sphereWvpData = nullptr;
+      CreateBufferResource(device, sizeof(TransformationMatrix));
+  TransformationMatrix *sphereWvpData = nullptr;
   sphereWvpResource->Map(0, nullptr, reinterpret_cast<void **>(&sphereWvpData));
-  *sphereWvpData = MakeIdentity4x4();
+  sphereWvpData->WVP = MakeIdentity4x4(); // 単位行列で初期化
+  sphereWvpData->World = MakeIdentity4x4(); // 単位行列で初期化
+
+  // --- Sphere用のMaterialリソースを作成 ---
+  ID3D12Resource *sphereMaterialResource =
+      CreateBufferResource(device, sizeof(Material));
+  Material *sphereMaterialData = nullptr;
+  sphereMaterialResource->Map(0, nullptr,
+                              reinterpret_cast<void **>(&sphereMaterialData));
+  // Materialの初期化
+  sphereMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+  sphereMaterialData->enableLighting = true; // ライティングを有効にする
+
+  // --- DirectionalLight用のCBVリソースを作成 ---
+  ID3D12Resource *directionalLightResource =
+      CreateBufferResource(device, sizeof(DirectionalLight));
+  DirectionalLight *directionalLightData = nullptr;
+  directionalLightResource->Map(
+      0, nullptr, reinterpret_cast<void **>(&directionalLightData));
+  *directionalLightData = directionalLight; // 初期値をコピー
 
   //===========================
   // sprite用の頂点リソースを作る
@@ -859,6 +907,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   Matrix4x4 WVPMatrixSprite = Multiply(
       worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
   *transformationMatrixDataSprite = WVPMatrixSprite; // データを設定
+
+  // sprite用のMaterialを作成する
+  ID3D12Resource *spriteMaterialResource =
+      CreateBufferResource(device, sizeof(Material));
+  Material *spriteMaterialData = nullptr;
+  spriteMaterialResource->Map(0, nullptr,
+                              reinterpret_cast<void **>(&spriteMaterialData));
+  // Materialの初期化
+  spriteMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+  spriteMaterialData->enableLighting = false; // ライティングを無効にする
 
   bool isSprite = false;
 
@@ -1111,6 +1169,46 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // 三角形とSpriteでタブを分ける
       if (ImGui::BeginTabBar("Setting")) {
+
+        if (ImGui::BeginTabItem("Light")) {
+          ImGui::Text("Directional Light Settings");
+
+          if (ImGui::CollapsingHeader("Color",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            // 平行光源の色を設定するカラーピッカー
+            ImGui::ColorEdit3("Color", &directionalLight.color.x);
+            // 色をリセットするボタン
+            if (ImGui::Button("Reset Color")) {
+              directionalLight.color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+            }
+          }
+
+         if (ImGui::CollapsingHeader("Direction",
+                                     ImGuiTreeNodeFlags_DefaultOpen)) {
+           ImGui::Text("Light Direction");
+           // 平行光源の方向を設定するスライダー
+           ImGui::SliderFloat3("Direction", &directionalLight.direction.x, -1.0f,
+                               1.0f);
+           // 方向をリセットするボタン
+           if (ImGui::Button("Reset Direction")) {
+             directionalLight.direction = {0.0f, -1.0f, 0.0f};
+           }
+         }
+
+        //if (ImGui::CollapsingHeader("Intensity",
+        //                            ImGuiTreeNodeFlags_DefaultOpen)) {
+        //  ImGui::Text("Light Intensity");
+        //  // 平行光源の強度を設定するスライダー
+        //  ImGui::SliderFloat("Intensity", &directionalLight.intensity, 0.0f,
+        //                     1.0f);
+        //  // 強度をリセットするボタン
+        //  if (ImGui::Button("Reset Intensity")) {
+        //    directionalLight.intensity = 1.0f;
+        //  }
+        //}
+
+          ImGui::EndTabItem();
+        }
         if (ImGui::BeginTabItem("Triangle")) {
           // 三角形の描画設定
           ImGui::Text("Triangle Settings");
@@ -1223,8 +1321,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           if (ImGui::CollapsingHeader("Rotation",
                                       ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Rotation");
-            ImGui::SliderFloat3("Rotation",
-                                &sphere->sphereTransform.rotation.x, 0.0f, 10.0f);
+            ImGui::SliderFloat3("Rotation", &sphere->sphereTransform.rotation.x,
+                                0.0f, 10.0f);
             if (ImGui::Button("Reset Rotation")) {
               sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
             }
@@ -1312,13 +1410,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // 二枚目のテクスチャのSRVを設定する
       D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 =
-          GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV ,2);
+          GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
 
       D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
           GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
 
-      device->CreateShaderResourceView(
-          textureResource2, &srvDesc2, textureSrvHandleCPU2);
+      device->CreateShaderResourceView(textureResource2, &srvDesc2,
+                                       textureSrvHandleCPU2);
 
       // TransitionBarrierを設定する
       D3D12_RESOURCE_BARRIER barrier{};
@@ -1336,8 +1434,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       commandList->ResourceBarrier(1, &barrier);
 
       // textureResourceのSRVを設定する
-      commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall
-                                                      ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+      commandList->SetGraphicsRootDescriptorTable(
+          2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 
       if (isTriangle1) {
         // 1枚目（三角形1）だけ描画（頂点0,1,2）
@@ -1354,17 +1452,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         commandList->DrawInstanced(3, 1, 3, 0); // 3頂点、開始インデックス3
       }
 
-      if (isSphere) {
+     if (isSphere) {
+        // Material用CBV
+        commandList->SetGraphicsRootConstantBufferView(
+            0, sphereMaterialResource->GetGPUVirtualAddress());
+        // WVP用CBV
         commandList->SetGraphicsRootConstantBufferView(
             1, sphereWvpResource->GetGPUVirtualAddress());
+        // SRV（テクスチャ）をセット（必要に応じて）
+        commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+        // DirectionalLight用CBV
+        commandList->SetGraphicsRootConstantBufferView(
+            3, directionalLightResource->GetGPUVirtualAddress());
+
         sphere->Draw(commandList);
       }
 
       if (isSprite) {
 
-          // 常にuvCheckerを表示する
-          commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU);
+        // 常にuvCheckerを表示する
+        commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
         // --- スプライト描画 ---
         commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
@@ -1465,7 +1572,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // --- Sphere用の更新 ---
 
-     if (eanableSphereRotateY) {
+      if (eanableSphereRotateY) {
         sphere->sphereTransform.rotation.y += 0.001f;
       }
 
@@ -1476,7 +1583,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       Matrix4x4 sphereWvpMatrix =
           Multiply(sphereWorldMatrix, Multiply(viewMatrix, projectionMatrix));
 
-      *sphereWvpData = sphereWvpMatrix;
+      sphereWvpData->WVP = sphereWvpMatrix;
+      sphereWvpData->World = sphereWorldMatrix;
+
+      *directionalLightData = directionalLight;
     }
   }
 

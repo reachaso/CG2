@@ -100,4 +100,21 @@ struct Plane {
 struct VertexData {
   Vector4 Position; // 頂点の位置
   Vector2 Texcoord; // テクスチャ座標
+  Vector3 Normal;   // 法線ベクトル
+};
+
+struct Material {
+  Vector4 color; // 色 (RGBA)
+  int enableLighting; // ライティングの有効化フラグ
+};
+
+struct TransformationMatrix {
+  Matrix4x4 WVP;
+  Matrix4x4 World;
+};
+
+struct DirectionalLight {
+  Vector4 color; // 光の色 (RGBA)
+  Vector3 direction; // 光の方向
+  float intensity;   // 光の強度
 };

@@ -19,6 +19,19 @@ void Sphere::Initialize(ID3D12Device *device,
   // 頂点・インデックス生成
   BuildGeometry(radius, sliceCount, stackCount);
 
+  for (auto &v : mVertices) {
+    float len =
+        std::sqrt(v.Position.x * v.Position.x + v.Position.y * v.Position.y +
+                  v.Position.z * v.Position.z);
+    if (len > 0.0f) {
+      v.Normal.x = v.Position.x / len;
+      v.Normal.y = v.Position.y / len;
+      v.Normal.z = v.Position.z / len;
+    } else {
+      v.Normal = {0.0f, 1.0f, 0.0f};
+    }
+  }
+
   // --- 頂点バッファ作成 ---
   {
     const UINT vbBytes = UINT(mVertices.size() * sizeof(VertexData));
@@ -98,7 +111,7 @@ void Sphere::BuildGeometry(float radius, UINT sliceCount, UINT stackCount) {
   // スタック（緯度）の中間円
   for (UINT latIndex = 1; latIndex < stackCount; ++latIndex) {
     float phi = latIndex * (float(M_PI) / float(stackCount));
-    float v = float(latIndex) / float(stackCount); // 真上0, 真下1
+    float v = float(latIndex) / float(stackCount);
 
     for (UINT lonIndex = 0; lonIndex <= sliceCount; ++lonIndex) {
       float theta = lonIndex * (2.0f * float(M_PI) / float(sliceCount));
