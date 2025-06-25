@@ -343,7 +343,7 @@ GetGPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
 }
 
 MaterialData LoadMaterialTemplateFile(const std::string &directoryPath,
-                                           const std::string &filename) {
+                                      const std::string &filename) {
   MaterialData materialData{};
   std::string line; // ファイルから読んだ 1 行
   std::ifstream file(directoryPath + "/" + filename);
@@ -1211,28 +1211,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   bool isModelPlane = true;   // Planeモデルを使用する
   bool enableLighting = true; // ライティングを有効にするかどうか
 
- // モデルデータを読み込む
-ModelData modelData = LoadObjFile("Resources", "plane.obj");
+  // モデルデータを読み込む
+  ModelData modelData = LoadObjFile("Resources", "plane.obj");
 
-// モデル用テクスチャを読み込む
-DirectX::ScratchImage mipImagesModel = LoadTexture(modelData.material.textureFilePath);
-const DirectX::TexMetadata& metadataModel = mipImagesModel.GetMetadata();
-ID3D12Resource* textureResourceModel = CreateTextureResource(device, metadataModel);
-UploadTextureData(textureResourceModel, mipImagesModel);
+  // モデル用テクスチャを読み込む
+  DirectX::ScratchImage mipImagesModel =
+      LoadTexture(modelData.material.textureFilePath);
+  const DirectX::TexMetadata &metadataModel = mipImagesModel.GetMetadata();
+  ID3D12Resource *textureResourceModel =
+      CreateTextureResource(device, metadataModel);
+  UploadTextureData(textureResourceModel, mipImagesModel);
 
-// SRVを作成
-D3D12_SHADER_RESOURCE_VIEW_DESC srvDescModel = {};
-srvDescModel.Format = metadataModel.format;
-srvDescModel.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-srvDescModel.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-srvDescModel.Texture2D.MipLevels = UINT(metadataModel.mipLevels);
+  // SRVを作成
+  D3D12_SHADER_RESOURCE_VIEW_DESC srvDescModel = {};
+  srvDescModel.Format = metadataModel.format;
+  srvDescModel.Shader4ComponentMapping =
+      D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srvDescModel.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srvDescModel.Texture2D.MipLevels = UINT(metadataModel.mipLevels);
 
-D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUModel =
-    GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
-D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUModel =
-    GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+  D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUModel =
+      GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUModel =
+      GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
 
-device->CreateShaderResourceView(textureResourceModel, &srvDescModel, textureSrvHandleCPUModel);
+  device->CreateShaderResourceView(textureResourceModel, &srvDescModel,
+                                   textureSrvHandleCPUModel);
 
   // 頂点リソースを作る
   ID3D12Resource *vertexResourceModel = CreateBufferResource(
@@ -1416,7 +1420,8 @@ device->CreateShaderResourceView(textureResourceModel, &srvDescModel, textureSrv
                                       ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Light Intensity");
 
-            //ImGui::DragFloat("Intensity", &directionalLight.intensity, 0.01f,0.0f, 1.0f);
+            // ImGui::DragFloat("Intensity", &directionalLight.intensity,
+            // 0.01f,0.0f, 1.0f);
           }
 
           ImGui::EndTabItem();
@@ -1609,6 +1614,25 @@ device->CreateShaderResourceView(textureResourceModel, &srvDescModel, textureSrv
             }
           }
 
+          if (ImGui::CollapsingHeader("Lighting",
+                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Enable Lighting", &enableLighting);
+            if (enableLighting) {
+              ImGui::Text("Directional Light Settings");
+              ImGui::ColorEdit3("Light Color",
+                                &modelDirectionalLightData->color.x);
+              ImGui::SliderFloat3("Light Direction",
+                                  &modelDirectionalLightData->direction.x,
+                                  -1.0f, 1.0f);
+            }
+
+            if (ImGui::Button("Reset Lighting")) {
+              modelDirectionalLightData->color =
+                  Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+              modelDirectionalLightData->direction = {0.0f, -1.0f, 0.0f};
+            }
+          }
+
           ImGui::Checkbox("isModelPlane", &isModelPlane);
           ImGui::EndTabItem();
         }
@@ -1736,7 +1760,7 @@ device->CreateShaderResourceView(textureResourceModel, &srvDescModel, textureSrv
         sphere->Draw(commandList);
       }
 
-            if (isModelPlane) {
+      if (isModelPlane) {
         // Model用のMaterialのCBVを設定
         commandList->SetGraphicsRootConstantBufferView(
             0, modelMaterialResource->GetGPUVirtualAddress());
@@ -1745,8 +1769,8 @@ device->CreateShaderResourceView(textureResourceModel, &srvDescModel, textureSrv
             1, modelWvpResource->GetGPUVirtualAddress());
         // Model用のSRVを設定
         commandList->SetGraphicsRootDescriptorTable(
-            2, useMonsterBall ? textureSrvHandleGPU2
-                              : textureSrvHandleGPUModel);
+            2,
+            useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPUModel);
 
         // DirectionalLight用CBVを設定（追加）
         commandList->SetGraphicsRootConstantBufferView(
