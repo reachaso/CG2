@@ -16,17 +16,23 @@
     <Filter Include="Shader">
       <UniqueIdentifier>{62b34166-6d1e-4731-a82e-2052c3aacf7a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Affine">
-      <UniqueIdentifier>{837e9f71-7e9c-4aba-8ee4-e4a33ead2874}</UniqueIdentifier>
-    </Filter>
     <Filter Include="imgui">
       <UniqueIdentifier>{8585f2e6-20ff-46aa-92e5-0921a7ed643e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Window">
+    <Filter Include="mySource">
+      <UniqueIdentifier>{dd411666-8278-4864-8f35-f2a7c770a038}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Sphere">
+      <UniqueIdentifier>{be017e9a-89cd-4a6c-b2fd-b1547098472b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Affine">
+      <UniqueIdentifier>{837e9f71-7e9c-4aba-8ee4-e4a33ead2874}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Window">
       <UniqueIdentifier>{d832c6c2-4566-4623-a353-26a0acd3445a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Sphere">
-      <UniqueIdentifier>{be017e9a-89cd-4a6c-b2fd-b1547098472b}</UniqueIdentifier>
+    <Filter Include="mySource\Util">
+      <UniqueIdentifier>{becb17b1-166a-417d-b6ed-149169cb7182}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -55,13 +61,16 @@
       <Filter>imgui</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Window\Window.cpp">
-      <Filter>Window</Filter>
+      <Filter>mySource\Window</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Affine\Affine.cpp">
-      <Filter>Affine</Filter>
+      <Filter>mySource\Affine</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Sphere\Sphere.cpp">
-      <Filter>Sphere</Filter>
+      <Filter>mySource\Sphere</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Util\ResourceUtil.cpp">
+      <Filter>mySource\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -98,16 +107,19 @@
       <Filter>imgui</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Window\Window.h">
-      <Filter>Window</Filter>
+      <Filter>mySource\Window</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Affine\Affine.h">
-      <Filter>Affine</Filter>
+      <Filter>mySource\Affine</Filter>
     </ClInclude>
     <ClInclude Include="mySource\struct.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Sphere\Sphere.h">
-      <Filter>Sphere</Filter>
+      <Filter>mySource\Sphere</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Util\ResourceUtil.h">
+      <Filter>mySource\Util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

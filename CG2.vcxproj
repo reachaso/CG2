@@ -101,6 +101,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mySource\Affine\Affine.cpp" />
     <ClCompile Include="mySource\Sphere\Sphere.cpp" />
+    <ClCompile Include="mySource\Util\ResourceUtil.cpp" />
     <ClCompile Include="mySource\Window\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -131,6 +132,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="mySource\Affine\Affine.h" />
     <ClInclude Include="mySource\Sphere\Sphere.h" />
     <ClInclude Include="mySource\struct.h" />
+    <ClInclude Include="mySource\Util\ResourceUtil.h" />
     <ClInclude Include="mySource\Window\Window.h" />
   </ItemGroup>
   <ItemGroup>
