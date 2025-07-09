@@ -1018,17 +1018,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   scissorRect.bottom = kClientHeight;
 
   //===============================
-  // Material用のResourceを生成する
+  // Material用のResourceを生成する（三角形用）
   //===============================
-  // マテリアル用のリソースを作る
-  ID3D12Resource *materialResource =
-      CreateBufferResource(device, sizeof(Vector4));
-  // マテリアル用のリソースにデータを書き込む
-  Vector4 *materialData = nullptr;
-  // 書き込むためのアドレスを取得
-  materialResource->Map(0, nullptr, reinterpret_cast<void **>(&materialData));
-  // マテリアルの色を設定
-  *materialData = Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+  ID3D12Resource *triangleMaterialResource =
+      CreateBufferResource(device, sizeof(Material));
+  Material *triangleMaterialData = nullptr;
+  triangleMaterialResource->Map(
+      0, nullptr, reinterpret_cast<void **>(&triangleMaterialData));
+  // Materialの初期化
+  triangleMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
+  triangleMaterialData->enableLighting =
+      false; // 三角形はライティング無効（必要に応じてtrueに）
+  triangleMaterialData->uvTransform = MakeIdentity4x4();
 
   //=================================================
   // TransformationMatrix用のResourceを生成する 02_02
@@ -1263,11 +1264,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           if (ImGui::CollapsingHeader("Color",
                                       ImGuiTreeNodeFlags_DefaultOpen)) {
-            // 平行光源の色を設定するカラーピッカー
-            ImGui::ColorEdit3("Color", &directionalLight.color.x);
-            // 色をリセットするボタン
+            ImGui::ColorEdit3("Color", &triangleMaterialData->color.x);
             if (ImGui::Button("Reset Color")) {
-              directionalLight.color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+              triangleMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
             }
           }
 
@@ -1516,7 +1515,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // これから書き込むバックバッファのインデックスを取得
       UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-      *materialData = Vector4(color[0], color[1], color[2], color[3]);
       // 指定した色でクリアする
       float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
 
@@ -1548,7 +1546,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // マテリアル用のCBVを設定する 02_01
       //===============================
       commandList->SetGraphicsRootConstantBufferView(
-          0, materialResource->GetGPUVirtualAddress());
+          0, triangleMaterialResource->GetGPUVirtualAddress());
 
       //===========================================
       // TransformationMatrix用のCBVを設定する 02_02
@@ -1597,18 +1595,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 
       if (isTriangle1) {
-        // 1枚目（三角形1）だけ描画（頂点0,1,2）
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        // Material用CBVをセット
+        commandList->SetGraphicsRootConstantBufferView(
+            0, triangleMaterialResource->GetGPUVirtualAddress());
         commandList->SetGraphicsRootConstantBufferView(
             1, wvpResource->GetGPUVirtualAddress());
-        commandList->DrawInstanced(3, 1, 0, 0); // 3頂点、開始インデックス0
+        commandList->DrawInstanced(3, 1, 0, 0);
       }
       if (isTriangle2) {
-        // 2枚目（三角形2）だけ描画（頂点3,4,5）
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        // Material用CBVをセット
+        commandList->SetGraphicsRootConstantBufferView(
+            0, triangleMaterialResource->GetGPUVirtualAddress());
         commandList->SetGraphicsRootConstantBufferView(
             1, wvpResource->GetGPUVirtualAddress());
-        commandList->DrawInstanced(3, 1, 3, 0); // 3頂点、開始インデックス3
+        commandList->DrawInstanced(3, 1, 3, 0);
       }
 
       if (isSphere) {
@@ -1834,7 +1836,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   rootSignature->Release();
   pixelShaderBlob->Release();
   vertexShaderBlob->Release();
-  materialResource->Release();
 
   srvDescriptorHeap->Release();
   rtvDescriptorHeap->Release();
