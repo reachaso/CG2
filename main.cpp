@@ -1056,8 +1056,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // ModelData
   //===============================
 
-  bool isModelPlane = true;   // Planeモデルを使用する
-  bool enableLighting = true; // ライティングを有効にするかどうか
+  bool isModelPlane = false;
+  bool enableLighting = true;
 
   // モデルデータを読み込む
   ModelData modelData = LoadObjFile("Resources", "plane.obj");
@@ -1150,6 +1150,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
+
+  // ImGuiのフォント設定
+  ImGuiIO &io = ImGui::GetIO();
+  ImFont *fontJP = io.Fonts->AddFontFromFileTTF(
+      "Resources/fonts/Huninn/Huninn-Regular.ttf", 15.0f, nullptr,
+      io.Fonts->GetGlyphRangesJapanese());
+  io.FontDefault = fontJP;
+
+  // プラットフォーム／レンダラーの初期化
   ImGui_ImplWin32_Init(hwnd);
   ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format,
                       srvDescriptorHeap,
@@ -1232,258 +1241,323 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       ImGui_ImplWin32_NewFrame();
       ImGui::NewFrame();
 
-      ImGui::Begin("Settings"); // ImGuiのウィンドウを開始
+      ImGui::Begin("各種設定"); // ImGuiのウィンドウを開始
 
-      ImGui::Checkbox("Use Monster Ball", &useMonsterBall);
+      if (ImGui::BeginTabBar("各種設定")) {
+        if (ImGui::BeginTabItem("三角形")) {
 
-      // 三角形とSpriteでタブを分ける
-      if (ImGui::BeginTabBar("Setting")) {
-
-        if (ImGui::BeginTabItem("Light")) {
-          ImGui::Text("Directional Light Settings");
-
-          if (ImGui::CollapsingHeader("Color",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::ColorEdit3("Color", &triangleMaterialData->color.x);
-            if (ImGui::Button("Reset Color")) {
-              triangleMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Direction",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Light Direction");
-            // 平行光源の方向を設定するスライダー
-            ImGui::SliderFloat3("Direction", &directionalLight.direction.x,
-                                -1.0f, 1.0f);
-            // 方向をリセットするボタン
-            if (ImGui::Button("Reset Direction")) {
-              directionalLight.direction = {0.0f, -1.0f, 0.0f};
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Intensity",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Light Intensity");
-
-            // ImGui::DragFloat("Intensity", &directionalLight.intensity,
-            // 0.01f,0.0f, 1.0f);
-          }
-
-          ImGui::EndTabItem();
-        }
-        if (ImGui::BeginTabItem("Triangle")) {
-          // 三角形の描画設定
-          ImGui::Text("Triangle Settings");
-          if (ImGui::CollapsingHeader("Color",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            // 色を操作するカラーピッカー
-            ImGui::ColorEdit3("Color", color);
-            // 色をリセットするボタン
-            if (ImGui::Button("Reset Color")) {
-              color[0] = 1.0f;
-              color[1] = 1.0f;
-              color[2] = 1.0f;
-              color[3] = 1.0f;
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Translation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Transform Translation");
-            ImGui::SliderFloat3("Translation", &transform.translation.x, -2.0f,
-                                2.0f);
-            if (ImGui::Button("Reset Translation")) {
-              transform.translation = {0.0f, 0.0f, 0.0f};
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Rotation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Transform Rotation");
-            ImGui::SliderFloat3("Rotation", &transform.rotation.x, -2.0f, 2.0f);
-            if (ImGui::Button("Reset Rotation")) {
-              transform.rotation = {0.0f, 0.0f, 0.0f};
-            }
-            ImGui::SameLine();
-            ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateX", &enableRotateX);
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateY", &enableRotateY);
-            ImGui::SameLine();
-            ImGui::Checkbox("RotateZ", &enableRotateZ);
-          }
-
-          if (ImGui::CollapsingHeader("Scale",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Transform Scale");
-            ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 4.0f);
-            if (ImGui::Button("Reset Scale")) {
-              transform.scale = {1.0f, 1.0f, 1.0f};
-            }
-          }
-
-          ImGui::Checkbox("isTriangle1", &isTriangle1);
+          ImGui::Checkbox("1枚目の三角形を表示", &isTriangle1);
           ImGui::SameLine();
-          ImGui::Checkbox("isTriangle2", &isTriangle2);
+          ImGui::Checkbox("2枚目の三角形を表示", &isTriangle2);
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+          ImGui::Checkbox("モンスターボールに変更", &useMonsterBall);
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+          // 三角形の描画設定
+          if (ImGui::BeginTabBar("設定")) {
+            if (ImGui::BeginTabItem("設定")) {
+
+              if (ImGui::CollapsingHeader("色",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::ColorEdit3("", &triangleMaterialData->color.x);
+                if (ImGui::Button("色をリセット")) {
+                  triangleMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                }
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("移動",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Translation", &transform.translation.x,
+                                    -2.0f, 2.0f);
+                if (ImGui::Button("元の場所に戻す")) {
+                  transform.translation = {0.0f, 0.0f, 0.0f};
+                }
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("回転",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Rotation", &transform.rotation.x, -2.0f,
+                                    2.0f);
+                if (ImGui::Button("回転行列のリセット")) {
+                  transform.rotation = {0.0f, 0.0f, 0.0f};
+                  enableRotateX = false;
+                  enableRotateY = false;
+                  enableRotateZ = false;
+                }
+                ImGui::SameLine();
+                ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+                ImGui::SameLine();
+                ImGui::Checkbox("X軸回転", &enableRotateX);
+                ImGui::SameLine();
+                ImGui::Checkbox("Y軸回転", &enableRotateY);
+                ImGui::SameLine();
+                ImGui::Checkbox("Z軸回転", &enableRotateZ);
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("大きさ",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Scale", &transform.scale.x, 0.0f, 4.0f);
+                if (ImGui::Button("大きさをリセット")) {
+                  transform.scale = {1.0f, 1.0f, 1.0f};
+                }
+              }
+              ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+          }
 
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Sprite")) {
+        if (ImGui::BeginTabItem("スプライト")) {
+
+          ImGui::Checkbox("スプライトの表示", &isSprite);
+
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
           // スプライトの描画設定
-          ImGui::Text("Settings");
-          if (ImGui::CollapsingHeader("Translation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::SliderFloat3("Translation", &transformSprite.translation.x,
-                                0.0f, 1080.0f);
-            if (ImGui::Button("Reset Translation")) {
-              transformSprite.translation = {0.0f, 0.0f, 0.0f};
-            }
-          }
+          if (ImGui::BeginTabBar("設定")) {
+            if (ImGui::BeginTabItem("スプライトの設定")) {
 
-          if (ImGui::CollapsingHeader("Rotation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Rotation");
-            ImGui::SliderFloat3("Rotation", &transformSprite.rotation.x, 0.0f,
+              if (ImGui::CollapsingHeader("位置",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Translation",
+                                    &transformSprite.translation.x, 0.0f,
+                                    1080.0f);
+                if (ImGui::Button("位置をリセット")) {
+                  transformSprite.translation = {0.0f, 0.0f, 0.0f};
+                }
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("回転",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Rotation", &transformSprite.rotation.x,
+                                    0.0f, 10.0f);
+                if (ImGui::Button("回転をリセット")) {
+                  transformSprite.rotation = {0.0f, 0.0f, 0.0f};
+                }
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("大きさ",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Scale", &transformSprite.scale.x, 0.0f,
+                                    10.0f);
+
+                if (ImGui::Button("大きさをリセット")) {
+                  transformSprite.scale = {1.0f, 1.0f, 1.0f};
+                }
+              }
+              ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("テクスチャの設定")) {
+              ImGui::DragFloat2("テクスチャの表示位置",
+                                &uvTransformSprite.translation.x, 0.01f, -10.0f,
                                 10.0f);
-            if (ImGui::Button("Reset Rotation")) {
-              transformSprite.rotation = {0.0f, 0.0f, 0.0f};
+              ImGui::DragFloat2("テクスチャの大きさ",
+                                &uvTransformSprite.scale.x, 0.01f, -10.0f,
+                                10.0f);
+              ImGui::SliderAngle("テクスチャの回転",
+                                 &uvTransformSprite.rotation.z);
+              ImGui::EndTabItem();
             }
+            ImGui::EndTabItem();
           }
-
-          if (ImGui::CollapsingHeader("Scale",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::SliderFloat3("Scale", &transformSprite.scale.x, 0.0f, 10.0f);
-
-            if (ImGui::Button("Reset Scale")) {
-              transformSprite.scale = {1.0f, 1.0f, 1.0f};
-            }
-          }
-
-          ImGui::Checkbox("isSprite", &isSprite);
-
-          ImGui::Text("UV Transform Settings");
-          ImGui::DragFloat2("UV Translation", &uvTransformSprite.translation.x,
-                            0.01f, -10.0f, 10.0f);
-          ImGui::DragFloat2("UV Scale", &uvTransformSprite.scale.x, 0.01f,
-                            -10.0f, 10.0f);
-          ImGui::SliderAngle("UV Rotation", &uvTransformSprite.rotation.z);
-          ImGui::EndTabItem();
+          ImGui::EndTabBar();
         }
 
-        if (ImGui::BeginTabItem("Sphere")) {
+        if (ImGui::BeginTabItem("球")) {
+
+          ImGui::Checkbox("球の表示", &isSphere);
+
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
           // 球体の描画設定
-          ImGui::Text("Settings");
-          if (ImGui::CollapsingHeader("Translation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
+          if (ImGui::BeginTabBar("設定")) {
+            if (ImGui::BeginTabItem("球の設定")) {
+              if (ImGui::CollapsingHeader("位置",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
 
-            ImGui::SliderFloat3("Translation",
-                                &sphere->sphereTransform.translation.x, -3.0f,
-                                3.0f);
-            if (ImGui::Button("Reset Translation")) {
-              sphere->sphereTransform.translation = {0.0f, 0.0f, 0.0f};
+                ImGui::SliderFloat3("##Translation",
+                                    &sphere->sphereTransform.translation.x,
+                                    -3.0f, 3.0f);
+                if (ImGui::Button("位置のリセット")) {
+                  sphere->sphereTransform.translation = {0.0f, 0.0f, 0.0f};
+                }
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("回転",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Rotation",
+                                    &sphere->sphereTransform.rotation.x, 0.0f,
+                                    10.0f);
+                if (ImGui::Button("回転のリセット")) {
+                  sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
+                }
+                ImGui::SameLine();
+                ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+                ImGui::Checkbox("Y軸回転", &eanableSphereRotateY);
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("大きさ",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Scale", &sphere->sphereTransform.scale.x,
+                                    0.0f, 10.0f);
+                if (ImGui::Button("大きさのリセット")) {
+                  sphere->sphereTransform.scale = {1.0f, 1.0f, 1.0f};
+                }
+              }
+              ImGui::EndTabItem();
             }
-          }
 
-          if (ImGui::CollapsingHeader("Rotation",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Rotation");
-            ImGui::SliderFloat3("Rotation", &sphere->sphereTransform.rotation.x,
-                                0.0f, 10.0f);
-            if (ImGui::Button("Reset Rotation")) {
-              sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+            if (ImGui::BeginTabItem("ライトの設定")) {
+
+              if (ImGui::CollapsingHeader("ライトの向き",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                // 平行光源の方向を設定するスライダー
+                ImGui::SliderFloat3("##Direction",
+                                    &directionalLight.direction.x, -1.0f, 1.0f);
+                // 方向をリセットするボタン
+                if (ImGui::Button("向きのリセット")) {
+                  directionalLight.direction = {0.0f, -1.0f, 0.0f};
+                }
+              }
+
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+              if (ImGui::CollapsingHeader("ライトの強さ",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                // ImGui::DragFloat("Intensity", &directionalLight.intensity,
+                // 0.01f,0.0f, 1.0f);
+              }
+
+              ImGui::EndTabItem();
             }
-            ImGui::SameLine();
-            ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-            ImGui::Checkbox("RotateY", &eanableSphereRotateY);
+            ImGui::EndTabBar();
           }
-
-          if (ImGui::CollapsingHeader("Scale",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::SliderFloat3("Scale", &sphere->sphereTransform.scale.x, 0.0f,
-                                10.0f);
-            if (ImGui::Button("Reset Scale")) {
-              sphere->sphereTransform.scale = {1.0f, 1.0f, 1.0f};
-            }
-          }
-
-          ImGui::Checkbox("isSphere", &isSphere);
-
           ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Model")) {
-          // モデルの描画設定
-          ImGui::Text("Model Settings");
-          if (ImGui::CollapsingHeader("Camera",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Camera Transform Settings");
-            ImGui::SliderFloat3("Camera Translation",
-                                &cameraTransform.translation.x, -10.0f, 10.0f);
-            if (ImGui::Button("Reset Camera Translation")) {
-              cameraTransform.translation = {0.0f, 0.0f, -5.0f};
+        if (ImGui::BeginTabItem("3Dモデル")) {
+
+          ImGui::Checkbox("3Dモデルの表示", &isModelPlane);
+
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+          if (ImGui::BeginTabBar("設定")) {
+
+            if (ImGui::BeginTabItem("カメラの設定")) {
+              if (ImGui::CollapsingHeader("Camera",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Text("Camera Transform Settings");
+                ImGui::SliderFloat3("Camera Translation",
+                                    &cameraTransform.translation.x, -10.0f,
+                                    10.0f);
+
+                if (ImGui::Button("Reset Camera Translation")) {
+                  cameraTransform.translation = {0.0f, 0.0f, -5.0f};
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                ImGui::SliderFloat3("Camera Rotation",
+                                    &cameraTransform.rotation.x, -10.0f, 10.0f);
+                if (ImGui::Button("Reset Camera Rotation")) {
+                  cameraTransform.rotation = {0.0f, 0.0f, 0.0f};
+                }
+              }
+              ImGui::EndTabItem(); // カメラの設定タブを終了
             }
-            ImGui::SliderFloat3("Camera Rotation", &cameraTransform.rotation.x,
-                                -10.0f, 10.0f);
-            if (ImGui::Button("Reset Camera Rotation")) {
-              cameraTransform.rotation = {0.0f, 0.0f, 0.0f};
+
+            if (ImGui::BeginTabItem("3Dモデル設定")) {
+              if (ImGui::CollapsingHeader("Model",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("Translation",
+                                    &modelTransform.translation.x, -10.0f,
+                                    10.0f);
+                if (ImGui::Button("Reset Translation")) {
+                  modelTransform.translation = {0.0f, 0.0f, 0.0f};
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                ImGui::SliderFloat3("Rotation", &modelTransform.rotation.x,
+                                    -10.0f, 10.0f);
+                if (ImGui::Button("Reset Rotation")) {
+                  modelTransform.rotation = {0.0f, 0.0f, 0.0f};
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                ImGui::SliderFloat3("Scale", &modelTransform.scale.x, 0.1f,
+                                    10.0f);
+                if (ImGui::Button("Reset Scale")) {
+                  modelTransform.scale = {1.0f, 1.0f, 1.0f};
+                }
+              }
+              ImGui::EndTabItem(); // 3Dモデル - 設定タブを終了
             }
+
+            if (ImGui::BeginTabItem("マテリアル設定")) {
+              if (ImGui::CollapsingHeader("Material",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::ColorEdit3("Color", &modelMaterialData->color.x);
+                if (ImGui::Button("Reset Color")) {
+                  modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                }
+              }
+              ImGui::EndTabItem(); // マテリアル設定タブを終了
+            }
+
+            if (ImGui::BeginTabItem("ライト設定")) {
+              if (ImGui::CollapsingHeader("Lighting",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Checkbox("Enable Lighting", &enableLighting);
+                if (enableLighting) {
+                  ImGui::Text("Directional Light Settings");
+                  ImGui::ColorEdit3("Light Color",
+                                    &modelDirectionalLightData->color.x);
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                  ImGui::SliderFloat3("Light Direction",
+                                      &modelDirectionalLightData->direction.x,
+                                      -1.0f, 1.0f);
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::Button("Reset Lighting")) {
+                  modelDirectionalLightData->color =
+                      Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                  modelDirectionalLightData->direction = {0.0f, -1.0f, 0.0f};
+                }
+              }
+              ImGui::EndTabItem(); // ライト設定タブを終了
+            }
+            ImGui::EndTabBar(); // 3Dモデル - 設定タブを終了
           }
-
-          if (ImGui::CollapsingHeader("Model",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Model Transform Settings");
-            ImGui::SliderFloat3("Translation", &modelTransform.translation.x,
-                                -10.0f, 10.0f);
-            if (ImGui::Button("Reset Translation")) {
-              modelTransform.translation = {0.0f, 0.0f, 0.0f};
-            }
-            ImGui::SliderFloat3("Rotation", &modelTransform.rotation.x, -10.0f,
-                                10.0f);
-            if (ImGui::Button("Reset Rotation")) {
-              modelTransform.rotation = {0.0f, 0.0f, 0.0f};
-            }
-            ImGui::SliderFloat3("Scale", &modelTransform.scale.x, 0.1f, 10.0f);
-            if (ImGui::Button("Reset Scale")) {
-              modelTransform.scale = {1.0f, 1.0f, 1.0f};
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Material",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Model Material Settings");
-            ImGui::ColorEdit3("Color", &modelMaterialData->color.x);
-            if (ImGui::Button("Reset Color")) {
-              modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-            }
-          }
-
-          if (ImGui::CollapsingHeader("Lighting",
-                                      ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Checkbox("Enable Lighting", &enableLighting);
-            if (enableLighting) {
-              ImGui::Text("Directional Light Settings");
-              ImGui::ColorEdit3("Light Color",
-                                &modelDirectionalLightData->color.x);
-              ImGui::SliderFloat3("Light Direction",
-                                  &modelDirectionalLightData->direction.x,
-                                  -1.0f, 1.0f);
-            }
-
-            if (ImGui::Button("Reset Lighting")) {
-              modelDirectionalLightData->color =
-                  Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-              modelDirectionalLightData->direction = {0.0f, -1.0f, 0.0f};
-            }
-          }
-
-          ImGui::Checkbox("isModelPlane", &isModelPlane);
-          ImGui::EndTabItem();
+          ImGui::EndTabItem(); // 3Dモデルタブを終了
         }
 
-        ImGui::EndTabBar();
+        ImGui::EndTabBar(); // 各種設定タブを終了
       }
 
       ImGui::End(); // ImGuiのウィンドウを終了
@@ -1610,6 +1684,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       }
 
       if (isModelPlane) {
+
         // Model用のMaterialのCBVを設定
         commandList->SetGraphicsRootConstantBufferView(
             0, modelMaterialResource->GetGPUVirtualAddress());
