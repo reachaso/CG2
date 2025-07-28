@@ -20,6 +20,12 @@
 #include <fstream>    //ファイル入出力を行うライブラリ
 #include <sstream>
 #include <string>
+#include <wrl/client.h>
+#include <xaudio2.h>
+
+using Microsoft::WRL::ComPtr;
+
+#pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
@@ -337,6 +343,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                            nullptr,              // メニューハンドル
                            wc.hInstance,         // インスタンスハンドル
                            nullptr);             // オプション
+
+  // 音声用
+  ComPtr<IXAudio2> xAudio2;
+  IXAudio2MasteringVoice *masteringVoice = nullptr;
+
+  HRESULT result = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+  assert(SUCCEEDED(result));
+
+  result = xAudio2->CreateMasteringVoice(&masteringVoice);
+
+  SoundData Alarm01 = SoundLoadWave("Resources/Sounds/Alarm01.wav");
+  bool Alarm01Loop = false;
+  IXAudio2SourceVoice *voice = nullptr;
 
 #ifdef _DEBUG
   ID3D12Debug1 *debugContoroller = nullptr;
@@ -902,7 +921,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //==========================
 
   ID3D12Resource *vertexResource =
-      CreateBufferResource(device, sizeof(Vector4) * 6);
+      CreateBufferResource(device, sizeof(VertexData) * 6);
 
   // 深度ステンシル用のResourceを生成する
   ID3D12Resource *depthStencilResource =
@@ -1224,6 +1243,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   bool useMonsterBall = false;
 
+  // ウィンドウの表示
+  ShowWindow(hwnd, SW_SHOW);
+
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
     // メッセージがある場合は、メッセージを取得
@@ -1429,6 +1451,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             if (ImGui::BeginTabItem("ライトの設定")) {
 
+              if (ImGui::CollapsingHeader("ライトの色",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::ColorEdit3("##Color", &directionalLight.color.x);
+                if (ImGui::Button("色のリセット")) {
+                  directionalLight.color = {1.0f, 1.0f, 1.0f};
+                }
+              }
+
               if (ImGui::CollapsingHeader("ライトの向き",
                                           ImGuiTreeNodeFlags_DefaultOpen)) {
                 // 平行光源の方向を設定するスライダー
@@ -1557,13 +1587,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           ImGui::EndTabItem(); // 3Dモデルタブを終了
         }
 
+        if (ImGui::BeginTabItem("音声")) {
+
+          ImGui::Checkbox("Alarm01のループ再生", &Alarm01Loop);
+
+          if (ImGui::Button("Alarm01再生")) {
+            voice = SoundPlayWave(xAudio2.Get(), Alarm01, Alarm01Loop);
+          }
+
+          ImGui::SameLine();
+
+          if (ImGui::Button("Alarm01停止")) {
+            SoundStopWave(voice);
+          }
+
+          ImGui::EndTabItem(); // その他タブを終了
+        }
+
         ImGui::EndTabBar(); // 各種設定タブを終了
       }
 
       ImGui::End(); // ImGuiのウィンドウを終了
 
-      // ウィンドウの表示
-      ShowWindow(hwnd, SW_SHOW);
       // ログの出力
       // Log(ofs, "ウィンドウが表示されました");
       // これから書き込むバックバッファのインデックスを取得
@@ -1571,6 +1616,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       // 指定した色でクリアする
       float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
+
+      // TransitionBarrierを設定する
+      D3D12_RESOURCE_BARRIER barrier{};
+      // 今回のバリアはトランジションバリア
+      barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+      // Noneにしておく
+      barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+      // バリアを張る対象のリソース。現在のバックバッファに対して行う
+      barrier.Transition.pResource = swapChainResource[backBufferIndex];
+      // 遷移前のResourceState
+      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+      // 遷移後のResourceState
+      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+      // TransitionBarrierを振る
+      commandList->ResourceBarrier(1, &barrier);
 
       // 描画先のRTVを設定
       commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
@@ -1628,21 +1688,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       device->CreateShaderResourceView(textureResource2, &srvDesc2,
                                        textureSrvHandleCPU2);
-
-      // TransitionBarrierを設定する
-      D3D12_RESOURCE_BARRIER barrier{};
-      // 今回のバリアはトランジションバリア
-      barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-      // Noneにしておく
-      barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-      // バリアを張る対象のリソース。現在のバックバッファに対して行う
-      barrier.Transition.pResource = swapChainResource[backBufferIndex];
-      // 遷移前のResourceState
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-      // 遷移後のResourceState
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-      // TransitionBarrierを振る
-      commandList->ResourceBarrier(1, &barrier);
 
       // textureResourceのSRVを設定する
       commandList->SetGraphicsRootDescriptorTable(
@@ -1733,17 +1778,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
-      // コマンドリストの内容を確定させる。全てのコマンドを詰んでからCloseする
-      hr = commandList->Close();
-      // コマンドリストの確定に失敗した場合はエラー
-      assert(SUCCEEDED(hr));
-
       // 画面に各処理は全て終わり、画面に映すので、状態を遷移
       // 今回はRenderTargetからPresentにする
       barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
       barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
       // TransitionBarrierを張る
       commandList->ResourceBarrier(1, &barrier);
+
+      // コマンドリストの内容を確定させる。全てのコマンドを詰んでからCloseする
+      hr = commandList->Close();
+      // コマンドリストの確定に失敗した場合はエラー
+      assert(SUCCEEDED(hr));
 
       // GPUにコマンドリストの実行を行わせる
       ID3D12CommandList *commandLists[] = {commandList};
@@ -1911,6 +1956,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->Release();
 
   delete sphere;
+
+  xAudio2.Reset();
+  SoundUnload(&Alarm01);
 
   // COMの終了処理
   CoUninitialize();

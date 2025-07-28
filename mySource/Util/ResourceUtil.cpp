@@ -1,5 +1,6 @@
 #include "ResourceUtil.h"
 #include <cassert>
+#include <fstream>
 
 ID3D12Resource *CreateBufferResource(ID3D12Device *device, size_t sizeInBytes) {
   D3D12_HEAP_PROPERTIES heapProperties{};
@@ -121,3 +122,112 @@ GetGPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
   handleGPU.ptr += (descriptorSize * index);
   return handleGPU;
 }
+
+SoundData SoundLoadWave(const char *filename) {
+
+    //HRESULT result;
+
+    // ==========================
+    // ファイルオープン
+    // ==========================
+
+    std::ifstream file;
+
+    file.open(filename, std::ios_base::binary);
+
+    assert(file.is_open());
+
+    // ==========================
+    // .wavデータの読み込み
+    // ==========================
+
+    RiffHeader riff;
+    file.read((char*)&riff, sizeof(riff));
+
+    if (strncmp(riff.chunk.id, "RIFF", 4) != 0) {
+        assert(0);
+    }
+
+    if (strncmp(riff.type, "WAVE", 4) != 0) {
+        assert(0);
+    }
+
+    FormatChunk format = {};
+
+    file.read((char *)&format, sizeof(ChunkHeader));
+    if (strncmp(format.chunk.id, "fmt ", 4) != 0) {
+        assert(0);
+    }
+
+    assert(format.chunk.size <= sizeof(format.fmt));
+    file.read((char *)&format.fmt, format.chunk.size);
+
+    ChunkHeader data;
+    file.read((char *)&data, sizeof(data));
+
+    if (strncmp(data.id, "JUNK", 4) == 0) {
+        // JUNK チャンクが存在する場合は読み飛ばす
+        file.seekg(data.size, std::ios_base::cur);
+        file.read((char *)&data, sizeof(data));
+    }
+
+    if (strncmp(data.id, "data", 4) != 0) {
+        assert(0);
+    }
+
+    char *pBuffer = new char[data.size];
+    file.read(pBuffer, data.size);
+
+    file.close();
+
+    // ==========================
+    // 読み込んだ音声データをreturn
+    // ==========================
+
+    SoundData soundData = {};
+
+    soundData.wfex = format.fmt;
+    soundData.pBuffer = reinterpret_cast<BYTE *>(pBuffer);
+    soundData.bufferSize = data.size;
+
+    return soundData; 
+}
+
+void SoundUnload(SoundData *soundData) {
+
+    delete[] soundData->pBuffer;
+
+    soundData->pBuffer = 0;
+    soundData->bufferSize = 0;
+    soundData->wfex = {};
+}
+
+IXAudio2SourceVoice *SoundPlayWave(IXAudio2 *xaudio2,
+                                   const SoundData &soundData, bool loop) {
+  HRESULT result;
+
+  IXAudio2SourceVoice *pSourceVoice = nullptr;
+  result = xaudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
+  assert(SUCCEEDED(result));
+
+  XAUDIO2_BUFFER buf{};
+  buf.pAudioData = soundData.pBuffer;
+  buf.AudioBytes = soundData.bufferSize;
+  buf.Flags = XAUDIO2_END_OF_STREAM;
+  buf.LoopCount = loop ? XAUDIO2_LOOP_INFINITE : 0;
+
+  result = pSourceVoice->SubmitSourceBuffer(&buf);
+  assert(SUCCEEDED(result));
+  result = pSourceVoice->Start();
+  assert(SUCCEEDED(result));
+
+  return pSourceVoice;
+}
+
+void SoundStopWave(IXAudio2SourceVoice *pSourceVoice) {
+  if (pSourceVoice) {
+    pSourceVoice->Stop();
+    pSourceVoice->DestroyVoice();
+  }
+}
+

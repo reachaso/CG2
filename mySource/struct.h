@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <windows.h>
 
 // クライアント領域のサイズ
 const int32_t kClientWidth = 1280;
@@ -130,4 +131,25 @@ struct MaterialData {
 struct ModelData {
   std::vector<VertexData> vertices; // 頂点データの配列
   MaterialData material;            // マテリアルデータ
+};
+
+struct ChunkHeader {
+  char id[4];   // チャンクの識別子
+  int32_t size; // チャンクのサイズ
+};
+
+struct RiffHeader {
+  ChunkHeader chunk; // チャンクヘッダー
+  char type[4];      // RIFFのタイプ（例: "WAVE"）
+};
+
+struct FormatChunk {
+  ChunkHeader chunk; // チャンクヘッダー
+  WAVEFORMATEX fmt;
+};
+
+struct SoundData {
+  WAVEFORMATEX wfex;
+  BYTE *pBuffer; // 音声データのバッファ
+  unsigned int bufferSize; // バッファのサイズ
 };

@@ -1,5 +1,12 @@
 #pragma once
 #include "../../externals/DirectXTex/DirectXTex.h"
+#include "../struct.h"
+#include <wrl/client.h>
+#include <xaudio2.h>
+
+using Microsoft::WRL::ComPtr;
+
+#pragma comment(lib, "xaudio2.lib")
 #include <d3d12.h>
 
 // バッファリソース作成
@@ -31,3 +38,12 @@ GetCPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
 D3D12_GPU_DESCRIPTOR_HANDLE
 GetGPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
                        uint32_t descriptorSize, uint32_t index);
+
+SoundData SoundLoadWave(const char *filename);
+
+void SoundUnload(SoundData *soundData);
+
+IXAudio2SourceVoice *SoundPlayWave(IXAudio2 *xaudio2,
+                                   const SoundData &soundData, bool loop);
+
+void SoundStopWave(IXAudio2SourceVoice *pSourceVoice);
