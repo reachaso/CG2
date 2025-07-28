@@ -21,12 +21,7 @@
 #include <fstream>    //ファイル入出力を行うライブラリ
 #include <sstream>
 #include <string>
-#include <wrl/client.h>
-#include <xaudio2.h>
 
-using Microsoft::WRL::ComPtr;
-
-#pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxcompiler.lib")
