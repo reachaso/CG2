@@ -7,6 +7,7 @@
 #include "mySource/Affine/Affine.h"
 #include "mySource/Sphere/Sphere.h"
 #include "mySource/Util/ResourceUtil.h"
+#include "mySource/Sound/Sound.h"
 #include "mySource/struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -344,18 +345,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                            wc.hInstance,         // インスタンスハンドル
                            nullptr);             // オプション
 
-  // 音声用
-  ComPtr<IXAudio2> xAudio2;
-  IXAudio2MasteringVoice *masteringVoice = nullptr;
+  
+  Sound Alarm01;
+  Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
 
-  HRESULT result = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-  assert(SUCCEEDED(result));
+  Sound Alarm02;
+  Alarm02.Initialize("Resources/Sounds/Alarm02.wav"); // サウンドの初期化
 
-  result = xAudio2->CreateMasteringVoice(&masteringVoice);
-
-  SoundData Alarm01 = SoundLoadWave("Resources/Sounds/Alarm01.wav");
-  bool Alarm01Loop = false;
-  IXAudio2SourceVoice *voice = nullptr;
 
 #ifdef _DEBUG
   ID3D12Debug1 *debugContoroller = nullptr;
@@ -1587,21 +1583,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           ImGui::EndTabItem(); // 3Dモデルタブを終了
         }
 
-        if (ImGui::BeginTabItem("音声")) {
+        if (ImGui::BeginTabItem("サウンド")) {
 
-          ImGui::Checkbox("Alarm01のループ再生", &Alarm01Loop);
+          Alarm01.SoundImGui("Alarm01");
+          Alarm02.SoundImGui("Alarm02");
 
-          if (ImGui::Button("Alarm01再生")) {
-            voice = SoundPlayWave(xAudio2.Get(), Alarm01, Alarm01Loop);
-          }
-
-          ImGui::SameLine();
-
-          if (ImGui::Button("Alarm01停止")) {
-            SoundStopWave(voice);
-          }
-
-          ImGui::EndTabItem(); // その他タブを終了
+          ImGui::EndTabItem(); // サウンドタブを終了
         }
 
         ImGui::EndTabBar(); // 各種設定タブを終了
@@ -1956,9 +1943,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->Release();
 
   delete sphere;
-
-  xAudio2.Reset();
-  SoundUnload(&Alarm01);
 
   // COMの終了処理
   CoUninitialize();

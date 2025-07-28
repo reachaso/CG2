@@ -100,6 +100,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mySource\Affine\Affine.cpp" />
+    <ClCompile Include="mySource\Sound\Sound.cpp" />
     <ClCompile Include="mySource\Sphere\Sphere.cpp" />
     <ClCompile Include="mySource\Util\ResourceUtil.cpp" />
     <ClCompile Include="mySource\Window\Window.cpp" />
@@ -130,6 +131,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="mySource\Affine\Affine.h" />
+    <ClInclude Include="mySource\Sound\Sound.h" />
     <ClInclude Include="mySource\Sphere\Sphere.h" />
     <ClInclude Include="mySource\struct.h" />
     <ClInclude Include="mySource\Util\ResourceUtil.h" />
