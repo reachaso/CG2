@@ -37,6 +37,9 @@
     <Filter Include="mySource\Sound">
       <UniqueIdentifier>{2f749b2c-cac3-482a-b54f-e7d2bab3cf3b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="mySource\Input">
+      <UniqueIdentifier>{ffb8b074-5a38-4d82-9639-f3f2e3f4bb0b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -77,6 +80,9 @@
     </ClCompile>
     <ClCompile Include="mySource\Sound\Sound.cpp">
       <Filter>mySource\Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Input\Input.cpp">
+      <Filter>mySource\Input</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -129,6 +135,9 @@
     </ClInclude>
     <ClInclude Include="mySource\Sound\Sound.h">
       <Filter>mySource\Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Input\Input.h">
+      <Filter>mySource\Input</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -8,6 +8,7 @@
 #include "mySource/Sphere/Sphere.h"
 #include "mySource/Util/ResourceUtil.h"
 #include "mySource/Sound/Sound.h"
+#include "mySource/Input/Input.h"
 #include "mySource/struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -341,12 +342,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                            nullptr);             // オプション
 
   
-  Sound Alarm01;
+  Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
 
-  Sound Alarm02;
+  Sound Alarm02 = Sound();
   Alarm02.Initialize("Resources/Sounds/Alarm02.wav"); // サウンドの初期化
 
+  Input input = Input(hwnd); // 入力の初期化
 
 #ifdef _DEBUG
   ID3D12Debug1 *debugContoroller = nullptr;
@@ -1585,11 +1587,28 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           ImGui::EndTabItem(); // サウンドタブを終了
         }
-
+        
         ImGui::EndTabBar(); // 各種設定タブを終了
       }
 
       ImGui::End(); // ImGuiのウィンドウを終了
+
+      input.Update(); // キー入力の更新
+
+      if (input.IsKeyTrigger(DIK_0)) {
+        if (isTriangle1) {
+          isTriangle1 = false;
+        } else {
+          isTriangle1 = true;
+        }
+      }
+      if (input.IsKeyRelease(DIK_1)) {
+        if (isTriangle2) {
+          isTriangle2 = false;
+        } else {
+          isTriangle2 = true;
+        }
+      }
 
       // ログの出力
       // Log(ofs, "ウィンドウが表示されました");
