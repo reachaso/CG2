@@ -1615,6 +1615,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         OutputDebugStringA("Release!)\n");
       }
 
+      if (input.IsMouseTrigger(0)) {
+        OutputDebugStringA("Left Mouse Trigger!\n");
+      }
+
+      // マウス右ボタン（button=1）が離された瞬間
+      if (input.IsMouseRelease(1)) {
+        OutputDebugStringA("Right Mouse Release!\n");
+      }
+
       if (input.IsKeyTrigger(DIK_TAB)) {
         useDebugCamera = !useDebugCamera;
       }

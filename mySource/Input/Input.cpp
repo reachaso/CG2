@@ -11,15 +11,25 @@ Input::Input(HWND hwnd) {
   // キーボードデバイスの生成
   hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
   assert(SUCCEEDED(hr));
-  // 入力データ形式の設定
   hr = keyboard->SetDataFormat(&c_dfDIKeyboard);
   assert(SUCCEEDED(hr));
-  // 排他制御レベルの設定
   hr = keyboard->SetCooperativeLevel(
       hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+
+  // マウスデバイスの生成
+  hr = directInput->CreateDevice(GUID_SysMouse, &mouse, NULL);
+  assert(SUCCEEDED(hr));
+  hr = mouse->SetDataFormat(&c_dfDIMouse);
+  assert(SUCCEEDED(hr));
+  hr = mouse->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
 }
 
 Input::~Input() {
+  if (mouse) {
+    mouse->Unacquire();
+    mouse->Release();
+    mouse = nullptr;
+  }
   if (keyboard) {
     keyboard->Unacquire();
     keyboard->Release();
@@ -35,6 +45,10 @@ void Input::Update() {
   memcpy(preKey, key, sizeof(key));
   keyboard->Acquire();
   keyboard->GetDeviceState(sizeof(key), &key);
+
+  preMouseState = mouseState;
+  mouse->Acquire();
+  mouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
 }
 
 bool Input::IsKeyPressed(uint8_t keyCode) const {
@@ -52,3 +66,22 @@ bool Input::IsKeyTrigger(uint8_t keyCode) const {
 bool Input::IsKeyRelease(uint8_t keyCode) const {
   return keyCode < 256 && !(key[keyCode] & 0x80) && (preKey[keyCode] & 0x80);
 }
+
+
+// マウスボタン
+bool Input::IsMousePressed(int button) const {
+  return (mouseState.rgbButtons[button] & 0x80);
+}
+bool Input::IsMouseTrigger(int button) const {
+  return (mouseState.rgbButtons[button] & 0x80) &&
+         !(preMouseState.rgbButtons[button] & 0x80);
+}
+bool Input::IsMouseRelease(int button) const {
+  return !(mouseState.rgbButtons[button] & 0x80) &&
+         (preMouseState.rgbButtons[button] & 0x80);
+}
+
+// マウス座標・ホイール
+LONG Input::GetMouseX() const { return mouseState.lX; }
+LONG Input::GetMouseY() const { return mouseState.lY; }
+LONG Input::GetMouseZ() const { return mouseState.lZ; }
