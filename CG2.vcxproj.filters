@@ -40,6 +40,18 @@
     <Filter Include="mySource\Input">
       <UniqueIdentifier>{ffb8b074-5a38-4d82-9639-f3f2e3f4bb0b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="mySource\Camera">
+      <UniqueIdentifier>{dfd3f30f-7b48-4da7-a14f-052a8eb6d75a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Camera\DebugCamera">
+      <UniqueIdentifier>{d1231415-a393-41a4-b062-414a7805f7bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Camera\MainCamera">
+      <UniqueIdentifier>{db439094-418b-4cb1-ab78-41b982cb0bc2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Log">
+      <UniqueIdentifier>{efb89020-66b8-4362-b5a7-dfc3d6bb7843}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -83,6 +95,15 @@
     </ClCompile>
     <ClCompile Include="mySource\Input\Input.cpp">
       <Filter>mySource\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\DebugCamera\DebugCamera.cpp">
+      <Filter>mySource\Camera\DebugCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\MainCamera\MainCamera.cpp">
+      <Filter>mySource\Camera\MainCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Log\Log.cpp">
+      <Filter>mySource\Log</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -138,6 +159,15 @@
     </ClInclude>
     <ClInclude Include="mySource\Input\Input.h">
       <Filter>mySource\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\DebugCamera\DebugCamera.h">
+      <Filter>mySource\Camera\DebugCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\MainCamera\MainCamera.h">
+      <Filter>mySource\Camera\MainCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Log\Log.h">
+      <Filter>mySource\Log</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

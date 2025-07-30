@@ -1,15 +1,17 @@
 #pragma warning(push)
 #pragma warning(disable : 28251)
+#include "Affine/Affine.h"
+#include "DebugCamera/DebugCamera.h"
+#include "Input/Input.h"
+#include "MainCamera/MainCamera.h"
+#include "Sound/Sound.h"
+#include "Sphere/Sphere.h"
+#include "Util/ResourceUtil.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
-#include "mySource/Affine/Affine.h"
-#include "mySource/Sphere/Sphere.h"
-#include "mySource/Util/ResourceUtil.h"
-#include "mySource/Sound/Sound.h"
-#include "mySource/Input/Input.h"
-#include "mySource/struct.h"
+#include "struct.h"
 #include <Windows.h>
 #include <cassert>
 #include <chrono> //時間を扱うライブラリ
@@ -341,14 +343,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                            wc.hInstance,         // インスタンスハンドル
                            nullptr);             // オプション
 
-  
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
 
   Sound Alarm02 = Sound();
   Alarm02.Initialize("Resources/Sounds/Alarm02.wav"); // サウンドの初期化
 
+  Sound fanfare = Sound();
+  fanfare.Initialize("Resources/Sounds/fanfare.wav"); // サウンドの初期化
+
   Input input = Input(hwnd); // 入力の初期化
+
+  DebugCamera debugCamera;
+  debugCamera.Initialize(&input,
+                         0.45f, // FOV
+                         float(kClientWidth) / kClientHeight, 0.1f,
+                         100.0f); // near, far
+
+  MainCamera mainCamera;
+
+  bool useDebugCamera = false; // デバッグカメラを使うかどうかのフラグ
+
+  mainCamera.Initialize({0.0f, 0.0f, -5.0f}, // pos
+                        {0.0f, 0.0f, 0.0f},  // rot
+                        0.45f,               // fovY
+                        float(kClientWidth) / kClientHeight, 0.1f,
+                        100.0f // nearZ, farZ
+  );
 
 #ifdef _DEBUG
   ID3D12Debug1 *debugContoroller = nullptr;
@@ -1045,12 +1066,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       {0.0f, 0.0f, 0.0f}, // スケール
   };
 
-  Transform cameraTransform{
-      {1.0f, 1.0f, 1.0f},  // 位置
-      {0.0f, 0.0f, 0.0f},  // 回転
-      {0.0f, 0.0f, -5.0f}, // スケール
-  };
-
   //=====================================================
   // 三角形用
   //=====================================================
@@ -1467,8 +1482,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
               if (ImGui::CollapsingHeader("ライトの強さ",
                                           ImGuiTreeNodeFlags_DefaultOpen)) {
-                // ImGui::DragFloat("Intensity", &directionalLight.intensity,
-                // 0.01f,0.0f, 1.0f);
+                ImGui::DragFloat("Intensity", &directionalLight.intensity,
+                                 0.01f, 0.0f, 1.0f);
               }
 
               ImGui::EndTabItem();
@@ -1486,63 +1501,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           if (ImGui::BeginTabBar("設定")) {
 
-            if (ImGui::BeginTabItem("カメラの設定")) {
-              if (ImGui::CollapsingHeader("Camera",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("Camera Transform Settings");
-                ImGui::SliderFloat3("Camera Translation",
-                                    &cameraTransform.translation.x, -10.0f,
-                                    10.0f);
-
-                if (ImGui::Button("Reset Camera Translation")) {
-                  cameraTransform.translation = {0.0f, 0.0f, -5.0f};
-                }
-
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                ImGui::SliderFloat3("Camera Rotation",
-                                    &cameraTransform.rotation.x, -10.0f, 10.0f);
-                if (ImGui::Button("Reset Camera Rotation")) {
-                  cameraTransform.rotation = {0.0f, 0.0f, 0.0f};
-                }
-              }
-              ImGui::EndTabItem(); // カメラの設定タブを終了
-            }
-
             if (ImGui::BeginTabItem("3Dモデル設定")) {
-              if (ImGui::CollapsingHeader("Model",
+              if (ImGui::CollapsingHeader("位置",
                                           ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("Translation",
+                ImGui::SliderFloat3("##Translation",
                                     &modelTransform.translation.x, -10.0f,
                                     10.0f);
-                if (ImGui::Button("Reset Translation")) {
+                if (ImGui::Button("位置のリセット")) {
                   modelTransform.translation = {0.0f, 0.0f, 0.0f};
                 }
+              }
 
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-                ImGui::SliderFloat3("Rotation", &modelTransform.rotation.x,
+              if (ImGui::CollapsingHeader("回転",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Rotation", &modelTransform.rotation.x,
                                     -10.0f, 10.0f);
-                if (ImGui::Button("Reset Rotation")) {
+                if (ImGui::Button("回転のリセット")) {
                   modelTransform.rotation = {0.0f, 0.0f, 0.0f};
                 }
+              }
 
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+              ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-                ImGui::SliderFloat3("Scale", &modelTransform.scale.x, 0.1f,
+              if (ImGui::CollapsingHeader("大きさ",
+                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat3("##Scale", &modelTransform.scale.x, 0.1f,
                                     10.0f);
-                if (ImGui::Button("Reset Scale")) {
+                if (ImGui::Button("大きさのリセット")) {
                   modelTransform.scale = {1.0f, 1.0f, 1.0f};
                 }
               }
+
               ImGui::EndTabItem(); // 3Dモデル - 設定タブを終了
             }
 
             if (ImGui::BeginTabItem("マテリアル設定")) {
-              if (ImGui::CollapsingHeader("Material",
+              if (ImGui::CollapsingHeader("色",
                                           ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::ColorEdit3("Color", &modelMaterialData->color.x);
-                if (ImGui::Button("Reset Color")) {
+                ImGui::ColorEdit3("##Color", &modelMaterialData->color.x);
+                if (ImGui::Button("色のリセット")) {
                   modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
                 }
               }
@@ -1554,7 +1553,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                                           ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Checkbox("Enable Lighting", &enableLighting);
                 if (enableLighting) {
-                  ImGui::Text("Directional Light Settings");
                   ImGui::ColorEdit3("Light Color",
                                     &modelDirectionalLightData->color.x);
 
@@ -1584,31 +1582,53 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           Alarm01.SoundImGui("Alarm01");
           Alarm02.SoundImGui("Alarm02");
+          fanfare.SoundImGui("Fanfare");
 
           ImGui::EndTabItem(); // サウンドタブを終了
         }
-        
+
         ImGui::EndTabBar(); // 各種設定タブを終了
       }
 
       ImGui::End(); // ImGuiのウィンドウを終了
 
+      ImGui::Begin("カメラモード : Tab");
+
+      if (useDebugCamera) {
+        ImGui::Text("デバッグカメラモード");
+        ImGui::Dummy(ImVec2(0.0f, 5.0f));
+        if (ImGui::Button("リセット")) {
+          debugCamera.Reset(); // デバッグカメラの位置をリセット
+        }
+      } else {
+        ImGui::Text("メインカメラモード");
+      }
+
+      ImGui::End(); // 各種設定ウィンドウを終了
+
       input.Update(); // キー入力の更新
 
       if (input.IsKeyTrigger(DIK_0)) {
-        if (isTriangle1) {
-          isTriangle1 = false;
-        } else {
-          isTriangle1 = true;
-        }
+        OutputDebugStringA("Trigger!)\n");
       }
       if (input.IsKeyRelease(DIK_1)) {
-        if (isTriangle2) {
-          isTriangle2 = false;
-        } else {
-          isTriangle2 = true;
-        }
+        OutputDebugStringA("Release!)\n");
       }
+
+      if (input.IsKeyTrigger(DIK_TAB)) {
+        useDebugCamera = !useDebugCamera;
+      }
+
+      if (useDebugCamera) {
+        debugCamera.Update(); // デバックカメラの入力
+      } else {
+        mainCamera.Update(); // メインカメラの入力
+      }
+
+      const Matrix4x4 &view =
+          useDebugCamera ? debugCamera.GetView() : mainCamera.GetView();
+      const Matrix4x4 &proj = useDebugCamera ? debugCamera.GetProjection()
+                                             : mainCamera.GetProjection();
 
       // ログの出力
       // Log(ofs, "ウィンドウが表示されました");
@@ -1837,19 +1857,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       Matrix4x4 worldMatrix = MakeAffineMatrix(
           transform.scale, transform.rotation, transform.translation);
 
-      Matrix4x4 cameraMatrix =
-          MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotation,
-                           cameraTransform.translation);
-
-      Matrix4x4 viewMatrix = Inverse(cameraMatrix);
-
-      Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(
-          0.45f,
-          static_cast<float>(kClientWidth) / static_cast<float>(kClientHeight),
-          0.1f, 100.0f);
-
-      Matrix4x4 wvpMatrix =
-          Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+      Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(view, proj));
 
       *wvpData = wvpMatrix;
 
@@ -1857,12 +1865,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       Matrix4x4 worldMatrixSprite =
           MakeAffineMatrix(transformSprite.scale, transformSprite.rotation,
                            transformSprite.translation);
-      Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
-      Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(
-          0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
       Matrix4x4 WVPMatrixSprite =
-          Multiply(worldMatrixSprite,
-                   Multiply(viewMatrixSprite, projectionMatrixSprite));
+          Multiply(worldMatrixSprite, Multiply(view, proj));
       *transformationMatrixDataSprite = WVPMatrixSprite;
 
       Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
@@ -1884,34 +1888,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           sphere->sphereTransform.translation);
 
       Matrix4x4 sphereWvpMatrix =
-          Multiply(sphereWorldMatrix, Multiply(viewMatrix, projectionMatrix));
+          Multiply(sphereWorldMatrix, Multiply(view, proj));
 
       sphereWvpData->WVP = sphereWvpMatrix;
       sphereWvpData->World = sphereWorldMatrix;
 
       *directionalLightData = directionalLight;
+
+      // --- modelの更新 ---
+
+      Matrix4x4 modelWorldMatrix =
+          MakeAffineMatrix(modelTransform.scale, modelTransform.rotation,
+                           modelTransform.translation);
+
+      Matrix4x4 modelWvpMatrix =
+          Multiply(modelWorldMatrix, Multiply(view, proj));
+
+      modelWvpData->WVP = modelWvpMatrix;
+      modelWvpData->World = modelWorldMatrix;
     }
-
-    // --- modelの更新 ---
-
-    Matrix4x4 modelWorldMatrix =
-        MakeAffineMatrix(modelTransform.scale, modelTransform.rotation,
-                         modelTransform.translation);
-
-    Matrix4x4 modelViewMatrix = Inverse(
-        MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotation,
-                         cameraTransform.translation));
-
-    Matrix4x4 modelProjectionMatrix = MakePerspectiveFovMatrix(
-        0.45f,
-        static_cast<float>(kClientWidth) / static_cast<float>(kClientHeight),
-        0.1f, 100.0f);
-
-    Matrix4x4 modelWvpMatrix = Multiply(
-        modelWorldMatrix, Multiply(modelViewMatrix, modelProjectionMatrix));
-
-    modelWvpData->WVP = modelWvpMatrix;
-    modelWvpData->World = modelWorldMatrix;
   }
 
   ImGui_ImplDX12_Shutdown();

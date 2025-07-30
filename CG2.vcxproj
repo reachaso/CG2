@@ -54,6 +54,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>mySource/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -77,6 +78,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>mySource/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -100,7 +102,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mySource\Affine\Affine.cpp" />
+    <ClCompile Include="mySource\DebugCamera\DebugCamera.cpp" />
     <ClCompile Include="mySource\Input\Input.cpp" />
+    <ClCompile Include="mySource\Log\Log.cpp" />
+    <ClCompile Include="mySource\MainCamera\MainCamera.cpp" />
     <ClCompile Include="mySource\Sound\Sound.cpp" />
     <ClCompile Include="mySource\Sphere\Sphere.cpp" />
     <ClCompile Include="mySource\Util\ResourceUtil.cpp" />
@@ -132,7 +137,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="mySource\Affine\Affine.h" />
+    <ClInclude Include="mySource\DebugCamera\DebugCamera.h" />
     <ClInclude Include="mySource\Input\Input.h" />
+    <ClInclude Include="mySource\Log\Log.h" />
+    <ClInclude Include="mySource\MainCamera\MainCamera.h" />
     <ClInclude Include="mySource\Sound\Sound.h" />
     <ClInclude Include="mySource\Sphere\Sphere.h" />
     <ClInclude Include="mySource\struct.h" />

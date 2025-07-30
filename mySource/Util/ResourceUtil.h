@@ -1,6 +1,6 @@
 #pragma once
 #include "../../externals/DirectXTex/DirectXTex.h"
-#include "../struct.h"
+#include "struct.h"
 #include <d3d12.h>
 
 // バッファリソース作成
