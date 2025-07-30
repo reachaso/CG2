@@ -110,7 +110,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="mySource\MainCamera\MainCamera.cpp" />
     <ClCompile Include="mySource\Sound\Sound.cpp" />
     <ClCompile Include="mySource\Sphere\Sphere.cpp" />
-    <ClCompile Include="mySource\Sprite\Sprite.cpp" />
     <ClCompile Include="mySource\Window\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -147,7 +146,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="mySource\MainCamera\MainCamera.h" />
     <ClInclude Include="mySource\Sound\Sound.h" />
     <ClInclude Include="mySource\Sphere\Sphere.h" />
-    <ClInclude Include="mySource\Sprite\Sprite.h" />
     <ClInclude Include="mySource\struct.h" />
     <ClInclude Include="mySource\Window\Window.h" />
   </ItemGroup>

@@ -32,10 +32,6 @@
 #pragma comment(lib, "dxcompiler.lib")
 #pragma warning(pop)
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd,
-                                                             UINT msg,
-                                                             WPARAM wparam,
-                                                             LPARAM lparam);
 Log logger;
 
 IDxcBlob *CompileShader(
@@ -237,6 +233,8 @@ ModelData LoadObjFile(const std::string &directoryPath,
   return modelData; // 読み込んだModelDataを返す
 }
 
+const char kWindowTitle[] = "CG2";
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -246,8 +244,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   HRESULT hrCoInt = CoInitializeEx(0, COINIT_MULTITHREADED);
 
   Window window; // ウィンドウの初期化
-
-  window.Initialize();
+  window.Initialize(kWindowTitle,kClientWidth,kClientHeight);
 
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
@@ -1510,26 +1507,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       ImGui::End(); // 各種設定ウィンドウを終了
 
       input.Update(); // キー入力の更新
-
-      if (input.IsKeyTrigger(DIK_0)) {
-        OutputDebugStringA("Trigger!)\n");
-      }
-      if (input.IsKeyRelease(DIK_1)) {
-        OutputDebugStringA("Release!)\n");
-      }
-
-      if (input.IsMouseTrigger(0)) {
-        OutputDebugStringA("Left Mouse Trigger!\n");
-      }
-
-      // マウス右ボタン（button=1）が離された瞬間
-      if (input.IsMouseRelease(1)) {
-        OutputDebugStringA("Right Mouse Release!\n");
-      }
-
-      if (input.IsKeyTrigger(DIK_TAB)) {
-        useDebugCamera = !useDebugCamera;
-      }
 
       if (useDebugCamera) {
         debugCamera.Update(); // デバックカメラの入力

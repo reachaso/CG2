@@ -11,9 +11,6 @@ void DX12::Initialize() {
   // 初期化の根本的な部分でエラーが出た場合はプログラムが間違っているか、どうにもできない場合多いのでassertでエラーを出す
   assert(SUCCEEDED(hr));
 
-  // 使用すうるアダプタ用の変数。最初にnullptrを入れておく
-  IDXGIAdapter4 *useAdapter = nullptr;
-
   // 良い順にアダプタを頼む
   for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(
                        i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,

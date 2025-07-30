@@ -49,9 +49,6 @@
     <Filter Include="mySource\Log">
       <UniqueIdentifier>{efb89020-66b8-4362-b5a7-dfc3d6bb7843}</UniqueIdentifier>
     </Filter>
-    <Filter Include="mySource\Sprite">
-      <UniqueIdentifier>{a974dcd4-74cf-49c0-884c-211546ccfbb4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="mySource\function">
       <UniqueIdentifier>{becb17b1-166a-417d-b6ed-149169cb7182}</UniqueIdentifier>
     </Filter>
@@ -104,9 +101,6 @@
     </ClCompile>
     <ClCompile Include="mySource\Log\Log.cpp">
       <Filter>mySource\Log</Filter>
-    </ClCompile>
-    <ClCompile Include="mySource\Sprite\Sprite.cpp">
-      <Filter>mySource\Sprite</Filter>
     </ClCompile>
     <ClCompile Include="mySource\function\function.cpp">
       <Filter>mySource\function</Filter>
@@ -174,9 +168,6 @@
     </ClInclude>
     <ClInclude Include="mySource\Log\Log.h">
       <Filter>mySource\Log</Filter>
-    </ClInclude>
-    <ClInclude Include="mySource\Sprite\Sprite.h">
-      <Filter>mySource\Sprite</Filter>
     </ClInclude>
     <ClInclude Include="mySource\function\function.h">
       <Filter>mySource\function</Filter>

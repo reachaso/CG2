@@ -110,6 +110,7 @@ struct Material {
   Vector4 color; // 色 (RGBA)
   int enableLighting; // ライティングの有効化フラグ
   float padding[3];
+  Matrix4x4 uvTransform; // UV変換行列
 };
 
 struct TransformationMatrix {

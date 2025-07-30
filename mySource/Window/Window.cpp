@@ -1,8 +1,17 @@
 #include "Window.h"
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd,
+                                                             UINT msg,
+                                                             WPARAM wparam,
+                                                             LPARAM lparam);
+
 // ウィンドウプロシージャ
 LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam,
                                     LPARAM lparam) {
+  if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+    return true; // ImGuiが処理した場合はtrueを返す
+  }
+
   switch (msg) {
   case WM_DESTROY:
     PostQuitMessage(0);
