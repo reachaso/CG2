@@ -6,7 +6,7 @@
 #include "MainCamera/MainCamera.h"
 #include "Sound/Sound.h"
 #include "Sphere/Sphere.h"
-#include "Util/ResourceUtil.h"
+#include "function/function.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
@@ -848,18 +848,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                             reinterpret_cast<void **>(&vertexDataSprite));
 
   // 4点の情報
-  vertexDataSprite[0].Position = Vector4(0.0f, 360.0f, 0.0f, 1.0f); // 左下
-  vertexDataSprite[0].Texcoord = Vector2(0.0f, 1.0f); // 左下のテクスチャ座標
-  vertexDataSprite[0].Normal = Vector3(0.0f, 0.0f, -1.0f);
-  vertexDataSprite[1].Position = Vector4(0.0f, 0.0f, 0.0f, 1.0f); // 左上
-  vertexDataSprite[1].Texcoord = Vector2(0.0f, 0.0f); // 左上のテクスチャ座標
-  vertexDataSprite[1].Normal = Vector3(0.0f, 0.0f, -1.0f);
-  vertexDataSprite[2].Position = Vector4(640.0f, 360.0f, 0.0f, 1.0f); // 右下
-  vertexDataSprite[2].Texcoord = Vector2(1.0f, 1.0f); // 右下のテクスチャ座標
-  vertexDataSprite[2].Normal = Vector3(0.0f, 0.0f, -1.0f);
-  vertexDataSprite[3].Position = Vector4(640.0f, 0.0f, 0.0f, 1.0f); // 右上
-  vertexDataSprite[3].Texcoord = Vector2(1.0f, 0.0f); // 右上のテクスチャ座標
-  vertexDataSprite[3].Normal = Vector3(0.0f, 0.0f, -1.0f);
+  vertexDataSprite[0].position = Vector4(0.0f, 360.0f, 0.0f, 1.0f); // 左下
+  vertexDataSprite[0].texcoord = Vector2(0.0f, 1.0f); // 左下のテクスチャ座標
+  vertexDataSprite[0].normal = Vector3(0.0f, 0.0f, -1.0f);
+  vertexDataSprite[1].position = Vector4(0.0f, 0.0f, 0.0f, 1.0f); // 左上
+  vertexDataSprite[1].texcoord = Vector2(0.0f, 0.0f); // 左上のテクスチャ座標
+  vertexDataSprite[1].normal = Vector3(0.0f, 0.0f, -1.0f);
+  vertexDataSprite[2].position = Vector4(640.0f, 360.0f, 0.0f, 1.0f); // 右下
+  vertexDataSprite[2].texcoord = Vector2(1.0f, 1.0f); // 右下のテクスチャ座標
+  vertexDataSprite[2].normal = Vector3(0.0f, 0.0f, -1.0f);
+  vertexDataSprite[3].position = Vector4(640.0f, 0.0f, 0.0f, 1.0f); // 右上
+  vertexDataSprite[3].texcoord = Vector2(1.0f, 0.0f); // 右上のテクスチャ座標
+  vertexDataSprite[3].normal = Vector3(0.0f, 0.0f, -1.0f);
 
   // Transform
   ID3D12Resource *transformationMatrixResourceSprite =
@@ -983,29 +983,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // １枚目
   //  左下
-  vertexData[0].Position = Vector4(-0.5f, -0.5f, 0.0f, 1.0f);
-  vertexData[0].Texcoord = Vector2(0.0f, 1.0f);
+  vertexData[0].position = Vector4(-0.5f, -0.5f, 0.0f, 1.0f);
+  vertexData[0].texcoord = Vector2(0.0f, 1.0f);
 
   // 上
-  vertexData[1].Position = Vector4(0.0f, 0.5f, 0.0f, 1.0f);
-  vertexData[1].Texcoord = Vector2(0.5f, 0.0f);
+  vertexData[1].position = Vector4(0.0f, 0.5f, 0.0f, 1.0f);
+  vertexData[1].texcoord = Vector2(0.5f, 0.0f);
 
   // 右下
-  vertexData[2].Position = Vector4(0.5f, -0.5f, 0.0f, 1.0f);
-  vertexData[2].Texcoord = Vector2(1.0f, 1.0f);
+  vertexData[2].position = Vector4(0.5f, -0.5f, 0.0f, 1.0f);
+  vertexData[2].texcoord = Vector2(1.0f, 1.0f);
 
   // ２枚目
   //   左下
-  vertexData[3].Position = Vector4(-0.5f, -0.5f, 0.5f, 1.0f);
-  vertexData[3].Texcoord = Vector2(0.0f, 1.0f);
+  vertexData[3].position = Vector4(-0.5f, -0.5f, 0.5f, 1.0f);
+  vertexData[3].texcoord = Vector2(0.0f, 1.0f);
 
   // 上
-  vertexData[4].Position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
-  vertexData[4].Texcoord = Vector2(0.5f, 0.0f);
+  vertexData[4].position = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+  vertexData[4].texcoord = Vector2(0.5f, 0.0f);
 
   // 右下
-  vertexData[5].Position = Vector4(0.5f, -0.5f, -0.5f, 1.0f);
-  vertexData[5].Texcoord = Vector2(1.0f, 1.0f);
+  vertexData[5].position = Vector4(0.5f, -0.5f, -0.5f, 1.0f);
+  vertexData[5].texcoord = Vector2(1.0f, 1.0f);
 
   //============================
   // Viewportを設定する

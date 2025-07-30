@@ -21,14 +21,14 @@ void Sphere::Initialize(ID3D12Device *device,
 
   for (auto &v : mVertices) {
     float len =
-        std::sqrt(v.Position.x * v.Position.x + v.Position.y * v.Position.y +
-                  v.Position.z * v.Position.z);
+        std::sqrt(v.position.x * v.position.x + v.position.y * v.position.y +
+                  v.position.z * v.position.z);
     if (len > 0.0f) {
-      v.Normal.x = v.Position.x / len;
-      v.Normal.y = v.Position.y / len;
-      v.Normal.z = v.Position.z / len;
+      v.normal.x = v.position.x / len;
+      v.normal.y = v.position.y / len;
+      v.normal.z = v.position.z / len;
     } else {
-      v.Normal = {0.0f, 1.0f, 0.0f};
+      v.normal = {0.0f, 1.0f, 0.0f};
     }
   }
 

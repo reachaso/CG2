@@ -101,9 +101,9 @@ struct Plane {
 };
 
 struct VertexData {
-  Vector4 Position; // 頂点の位置
-  Vector2 Texcoord; // テクスチャ座標
-  Vector3 Normal;   // 法線ベクトル
+  Vector4 position; // 頂点の位置
+  Vector2 texcoord; // テクスチャ座標
+  Vector3 normal;   // 法線ベクトル
 };
 
 struct Material {
@@ -126,9 +126,16 @@ struct DirectionalLight {
 
 struct MaterialData {
   std::string textureFilePath; // テクスチャファイルのパス
+  Transform uvTransform;       // UV変換を含む変換
 };
 
 struct ModelData {
   std::vector<VertexData> vertices; // 頂点データの配列
   MaterialData material;            // マテリアルデータ
+};
+
+struct SpriteData {
+  Transform transform; // 位置、回転、スケールを含む変換
+  Transform uvTransform; // UV変換を含む変換
+  Matrix4x4 wvpMatrix;   // ワールド・ビュー・プロジェクション行列
 };

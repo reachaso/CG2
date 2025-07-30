@@ -31,9 +31,6 @@
     <Filter Include="mySource\Window">
       <UniqueIdentifier>{d832c6c2-4566-4623-a353-26a0acd3445a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="mySource\Util">
-      <UniqueIdentifier>{becb17b1-166a-417d-b6ed-149169cb7182}</UniqueIdentifier>
-    </Filter>
     <Filter Include="mySource\Sound">
       <UniqueIdentifier>{2f749b2c-cac3-482a-b54f-e7d2bab3cf3b}</UniqueIdentifier>
     </Filter>
@@ -51,6 +48,12 @@
     </Filter>
     <Filter Include="mySource\Log">
       <UniqueIdentifier>{efb89020-66b8-4362-b5a7-dfc3d6bb7843}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\Sprite">
+      <UniqueIdentifier>{a974dcd4-74cf-49c0-884c-211546ccfbb4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="mySource\function">
+      <UniqueIdentifier>{becb17b1-166a-417d-b6ed-149169cb7182}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -87,9 +90,6 @@
     <ClCompile Include="mySource\Sphere\Sphere.cpp">
       <Filter>mySource\Sphere</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Util\ResourceUtil.cpp">
-      <Filter>mySource\Util</Filter>
-    </ClCompile>
     <ClCompile Include="mySource\Sound\Sound.cpp">
       <Filter>mySource\Sound</Filter>
     </ClCompile>
@@ -104,6 +104,12 @@
     </ClCompile>
     <ClCompile Include="mySource\Log\Log.cpp">
       <Filter>mySource\Log</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Sprite\Sprite.cpp">
+      <Filter>mySource\Sprite</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\function\function.cpp">
+      <Filter>mySource\function</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -151,9 +157,6 @@
     <ClInclude Include="mySource\Sphere\Sphere.h">
       <Filter>mySource\Sphere</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Util\ResourceUtil.h">
-      <Filter>mySource\Util</Filter>
-    </ClInclude>
     <ClInclude Include="mySource\Sound\Sound.h">
       <Filter>mySource\Sound</Filter>
     </ClInclude>
@@ -168,6 +171,12 @@
     </ClInclude>
     <ClInclude Include="mySource\Log\Log.h">
       <Filter>mySource\Log</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Sprite\Sprite.h">
+      <Filter>mySource\Sprite</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\function\function.h">
+      <Filter>mySource\function</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
