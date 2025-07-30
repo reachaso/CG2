@@ -110,7 +110,6 @@ struct Material {
   Vector4 color; // 色 (RGBA)
   int enableLighting; // ライティングの有効化フラグ
   float padding[3];
-  Matrix4x4 uvTransform; // UV変換行列
 };
 
 struct TransformationMatrix {
@@ -126,16 +125,9 @@ struct DirectionalLight {
 
 struct MaterialData {
   std::string textureFilePath; // テクスチャファイルのパス
-  Transform uvTransform;       // UV変換を含む変換
 };
 
 struct ModelData {
   std::vector<VertexData> vertices; // 頂点データの配列
   MaterialData material;            // マテリアルデータ
-};
-
-struct SpriteData {
-  Transform transform; // 位置、回転、スケールを含む変換
-  Transform uvTransform; // UV変換を含む変換
-  Matrix4x4 wvpMatrix;   // ワールド・ビュー・プロジェクション行列
 };

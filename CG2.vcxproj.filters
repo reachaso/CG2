@@ -55,6 +55,9 @@
     <Filter Include="mySource\function">
       <UniqueIdentifier>{becb17b1-166a-417d-b6ed-149169cb7182}</UniqueIdentifier>
     </Filter>
+    <Filter Include="mySource\DX12">
+      <UniqueIdentifier>{2cfedf24-bbc2-4594-9b18-91360f8d447d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -80,9 +83,6 @@
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="mySource\Window\Window.cpp">
-      <Filter>mySource\Window</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Affine\Affine.cpp">
       <Filter>mySource\Affine</Filter>
@@ -110,6 +110,12 @@
     </ClCompile>
     <ClCompile Include="mySource\function\function.cpp">
       <Filter>mySource\function</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\DX12\DX12.cpp">
+      <Filter>mySource\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Window\Window.cpp">
+      <Filter>mySource\Window</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -145,9 +151,6 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Window\Window.h">
-      <Filter>mySource\Window</Filter>
-    </ClInclude>
     <ClInclude Include="mySource\Affine\Affine.h">
       <Filter>mySource\Affine</Filter>
     </ClInclude>
@@ -177,6 +180,12 @@
     </ClInclude>
     <ClInclude Include="mySource\function\function.h">
       <Filter>mySource\function</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\DX12\DX12.h">
+      <Filter>mySource\DX12</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Window\Window.h">
+      <Filter>mySource\Window</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

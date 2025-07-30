@@ -14,7 +14,7 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam,
 void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
                         const int32_t kClientHeight) {
    
-  dx12.Initialize();
+  //dx12.Initialize();
   log.Initialize();
 
   // ==============================
@@ -43,6 +43,7 @@ void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
   // ウィンドウクラスを登録
   RegisterClass(&wc);
 
+  // ウィンドウのクライアント領域のサイズを設定
   wrc = {0, 0, kClientWidth, kClientHeight};
 
   AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);

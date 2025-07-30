@@ -7,6 +7,8 @@
 #include "Sound/Sound.h"
 #include "Sphere/Sphere.h"
 #include "function/function.h"
+#include "Window/Window.h"
+#include "Log/Log.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
@@ -34,62 +36,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd,
                                                              UINT msg,
                                                              WPARAM wparam,
                                                              LPARAM lparam);
-
-// ウィンドウサイズを表す構造体にクライアント領域を入れる
-RECT wrc = {0, 0, kClientWidth, kClientHeight};
-
-// ウィンドウプロシージャ
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-  if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
-    return true;
-  }
-
-  // メッセージに応じてゲーム固有の処理を行う
-  switch (msg) {
-    // ウィンドウが破棄された
-  case WM_DESTROY:
-    // OSに対して、アプリの終了を伝える
-    PostQuitMessage(0);
-    return 0;
-  }
-
-  // 標準のメッセージ処理を行う
-  return DefWindowProc(hwnd, msg, wparam, lparam);
-}
-
-// ログをファイルに書き出す
-void Log(std::ostream &os, const std::string &message) {
-  // ログファイルにメッセージを書き込む
-  os << message << std::endl;
-  // 出力ウィンドウにもメッセージを書き込む
-  OutputDebugStringA(message.c_str());
-}
-
-void Log(const std::string &message) { OutputDebugStringA(message.c_str()); }
-
-// stringをwstringに変換する関数
-std::wstring ConvertString(const std::string &str) {
-  // stringのサイズを取得
-  int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-  // wstringのサイズを取得
-  std::wstring wstr(size, L'\0');
-  // stringをwstringに変換
-  MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], size);
-  return wstr;
-}
-
-// wstringをstringに変換する関数
-std::string ConvertString(const std::wstring &wstr) {
-  // wstringのサイズを取得
-  int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0,
-                                 nullptr, nullptr);
-  // stringのサイズを取得
-  std::string str(size, '\0');
-  // wstringをstringに変換
-  WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], size, nullptr,
-                      nullptr);
-  return str;
-}
+Log logger;
 
 IDxcBlob *CompileShader(
     // CompilerするShaderファイルへのパス
@@ -100,7 +47,7 @@ IDxcBlob *CompileShader(
     IDxcUtils *dxcUtils, IDxcCompiler3 *dxcCompiler,
     IDxcIncludeHandler *includeHandler) {
   // 　これからシェーダーをコンパイルする旨をログに出力
-  Log(ConvertString(std::format(L"Begin CompileShader, path:{},profile: {}\n",
+  logger.WriteLog(logger.ConvertString(std::format(L"Begin CompileShader, path:{},profile: {}\n",
                                 filePath, profile)));
   //================================
   // hlslファイルを読む
@@ -147,7 +94,7 @@ IDxcBlob *CompileShader(
   IDxcBlobUtf8 *shaderError = nullptr;
   shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
   if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
-    Log(shaderError->GetStringPointer());
+    logger.WriteLog(shaderError->GetStringPointer());
     // 警告・エラーだめ絶対
     assert(false);
   }
@@ -163,7 +110,7 @@ IDxcBlob *CompileShader(
   assert(SUCCEEDED(hr));
 
   // 成功したログを出す
-  Log(ConvertString(std::format(L"Compile Suceeded, path:{},profile: {}\n",
+  logger.WriteLog(logger.ConvertString(std::format(L"Compile Suceeded, path:{},profile: {}\n",
                                 filePath, profile)));
   // もう使わないリソースを解放
   shaderSource->Release();
@@ -176,7 +123,7 @@ IDxcBlob *CompileShader(
 DirectX::ScratchImage LoadTexture(const std::string &filePath) {
   // テクスチャを読み込む
   DirectX::ScratchImage image{};
-  std::wstring filePathW = ConvertString(filePath);
+  std::wstring filePathW = logger.ConvertString(filePath);
   HRESULT hr = DirectX::LoadFromWICFile(
       filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
   // 読み込みに失敗したらエラー
@@ -298,50 +245,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // COMライブラリの初期化に失敗したらエラー
   HRESULT hrCoInt = CoInitializeEx(0, COINIT_MULTITHREADED);
 
-  // ログのディレクトリを用意
-  std::filesystem::create_directory("logs");
-  // 現在の時間を取得(UTC)
-  std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-  // ログファイルの名前にコンマ何秒はいらないので、削って秒にする
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>
-      nowSeconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
-  // 日本時間に変換
-  std::chrono::zoned_time localTime{std::chrono::current_zone(), nowSeconds};
-  // formatを使って年月日_時分秒の文字列に変換
-  std::string dateString = std::format("{:%Y%m%d_%H%M%S}", localTime);
-  // 時間を使ってファイル名を決定
-  std::string logFilePath = std::string("logs/") + dateString + ".log";
-  // ファイルを作って書き込み準備
-  std::ofstream ofs(logFilePath);
+  Window window; // ウィンドウの初期化
 
-  WNDCLASS wc{};
-  // ウィンドウプロシージャ
-  wc.lpfnWndProc = WindowProc;
-  // ウィンドウクラス名
-  wc.lpszClassName = L"CG2WindowClass";
-  // インスタンスハンドル
-  wc.hInstance = GetModuleHandle(nullptr);
-  // カーソル
-  wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-
-  // ウィンドウクラスの登録
-  RegisterClass(&wc);
-
-  // クライアント領域を元に実際のサイズにwrcを変更してもらう
-  AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
-
-  // ウィンドウの生成
-  HWND hwnd = CreateWindow(wc.lpszClassName,     // ウィンドウクラス名
-                           L"CG2",               // ウィンドウ名
-                           WS_OVERLAPPEDWINDOW,  // ウィンドウスタイル
-                           CW_USEDEFAULT,        // x座標
-                           CW_USEDEFAULT,        // y座標
-                           wrc.right - wrc.left, // 幅
-                           wrc.bottom - wrc.top, // 高さ
-                           nullptr,              // 親ウィンドウハンドル
-                           nullptr,              // メニューハンドル
-                           wc.hInstance,         // インスタンスハンドル
-                           nullptr);             // オプション
+  window.Initialize();
 
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
@@ -352,7 +258,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   Sound fanfare = Sound();
   fanfare.Initialize("Resources/Sounds/fanfare.wav"); // サウンドの初期化
 
-  Input input = Input(hwnd); // 入力の初期化
+  Input input = Input(window.hwnd); // 入力の初期化
 
   DebugCamera debugCamera;
   debugCamera.Initialize(&input,
@@ -406,7 +312,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     // ソフトウェアアダプタは除外
     if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
       // 採用したアダプタの情報をログに出力。wstringの方なので注意
-      Log(ConvertString(
+      logger.WriteLog(logger.ConvertString(
           std::format(L"Use Adapater:{}\n", adapterDesc.Description)));
       break;
     }
@@ -429,13 +335,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     // 指定した機能レベルでデバイスが生成できた場合
     if (SUCCEEDED(hr)) {
       // 生成できたのでログ出力を行ってループを抜ける
-      Log(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
+      logger.WriteLog(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
       break;
     }
   }
   // デバイスが生成できなかった場合はエラー
   assert(device != nullptr);
-  Log("Complete create D3D12Device!!!\n"); // 初期化完了のログ出力
+  logger.WriteLog("Complete create D3D12Device!!!\n"); // 初期化完了のログ出力
 
   // DescriptorSizeを取得しておく
   const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(
@@ -511,7 +417,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // コマンドキュー、ウィンドウハンドル設定を潰して生成する
   hr = dxgiFactory->CreateSwapChainForHwnd(
-      commandQueue, hwnd, &swapChainDesc, nullptr, nullptr,
+      commandQueue, window.hwnd, &swapChainDesc, nullptr, nullptr,
       reinterpret_cast<IDXGISwapChain1 **>(&swapChain));
   // スワップチェーンの生成に失敗した場合はエラー
   assert(SUCCEEDED(hr));
@@ -651,7 +557,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                                    &errorBlob);
 
   if (FAILED(hr)) {
-    Log(reinterpret_cast<char *>(errorBlob->GetBufferPointer()));
+    logger.WriteLog(reinterpret_cast<char *>(errorBlob->GetBufferPointer()));
     assert(false);
   }
 
@@ -1186,7 +1092,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   io.FontDefault = fontJP;
 
   // プラットフォーム／レンダラーの初期化
-  ImGui_ImplWin32_Init(hwnd);
+  ImGui_ImplWin32_Init(window.hwnd);
   ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format,
                       srvDescriptorHeap,
                       srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -1250,9 +1156,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                                    textureSrvHandleCPU2);
 
   bool useMonsterBall = false;
-
-  // ウィンドウの表示
-  ShowWindow(hwnd, SW_SHOW);
 
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {

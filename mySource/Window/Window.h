@@ -2,8 +2,8 @@
 #include <Windows.h>
 #include <cstdint>
 #include <string>
-#include "../DX12/DX12.h"
-#include "../Log/Log.h"
+#include "DX12/DX12.h"
+#include "Log/Log.h"
 
 class Window {
 
@@ -15,13 +15,13 @@ public:
                   const int32_t kClientWidth = 1280,
                   const int32_t kClientHeight = 720);
 
-  RECT wrc;
-  HWND hwnd;
+  RECT wrc = {};
+  HWND hwnd = nullptr;
 
   // ==============================
   // dx12の初期化
   // ==============================
-  DX12 dx12;
+  //DX12 dx12;
 
   // ==============================
   // ログの初期化
