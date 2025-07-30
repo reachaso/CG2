@@ -85,12 +85,15 @@ void SoundUnload(SoundData *soundData) {
 }
 
 IXAudio2SourceVoice *SoundPlayWave(IXAudio2 *xaudio2,
-                                   const SoundData &soundData, bool loop) {
+                                   const SoundData &soundData, float volume,
+                                   bool loop) {
   HRESULT result;
 
   IXAudio2SourceVoice *pSourceVoice = nullptr;
   result = xaudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
   assert(SUCCEEDED(result));
+
+  pSourceVoice->SetVolume(volume);
 
   XAUDIO2_BUFFER buf{};
   buf.pAudioData = soundData.pBuffer;
@@ -154,8 +157,15 @@ void Sound::SoundImGui(const char *soundname) {
   if (ImGui::CollapsingHeader(Label.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
     ImGui::Checkbox((std::string("ループ再生##") + Label).c_str(), &isLoop);
 
+    // 音量スライダー追加
+    ImGui::SliderFloat((std::string("音量##") + Label).c_str(), &volume, 0.0f,
+                       1.0f, "%.2f");
+    if (voice) {
+      voice->SetVolume(volume); // 再生中はリアルタイムで反映
+    }
+
     if (ImGui::Button((std::string("再生##") + Label).c_str())) {
-      voice = SoundPlayWave(xAudio2.Get(), soundData, isLoop);
+      voice = SoundPlayWave(xAudio2.Get(), soundData, volume, isLoop);
     }
 
     ImGui::SameLine();
@@ -164,5 +174,16 @@ void Sound::SoundImGui(const char *soundname) {
       SoundStopWave(voice);
       voice = nullptr;
     }
+
+    ImGui::Dummy(ImVec2(0.0f, 5.0f));
   }
 }
+
+void Sound::SetVolume(float volume_) {
+  volume = volume_;
+  if (voice) {
+    voice->SetVolume(volume);
+  }
+}
+
+float Sound::GetVolume() const { return volume; }

@@ -1578,7 +1578,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           ImGui::EndTabItem(); // 3Dモデルタブを終了
         }
 
-        if (ImGui::BeginTabItem("サウンド")) {
+        if (ImGui::BeginTabItem("サウンド")) { // サウンドタブを開始
 
           Alarm01.SoundImGui("Alarm01");
           Alarm02.SoundImGui("Alarm02");

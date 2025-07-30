@@ -34,7 +34,8 @@ SoundData SoundLoadWave(const char *filename);
 void SoundUnload(SoundData *soundData);
 
 IXAudio2SourceVoice *SoundPlayWave(IXAudio2 *xaudio2,
-                                   const SoundData &soundData, bool loop);
+                                   const SoundData &soundData, float volume,
+                                   bool loop);
 
 void SoundStopWave(IXAudio2SourceVoice *pSourceVoice);
 
@@ -46,13 +47,17 @@ public:
 
   void Initialize(const char *filename);
 
-  ComPtr<IXAudio2> xAudio2;
-  IXAudio2MasteringVoice *masteringVoice = nullptr;
-
   void SoundImGui(const char *soundname);
 
+  void SetVolume(float volume); // 音量設定用メソッド追加
+  float GetVolume() const;      // 音量取得用メソッド追加
+
 private:
-  bool isLoop = false;
+  ComPtr<IXAudio2> xAudio2;
+  IXAudio2MasteringVoice *masteringVoice = nullptr;
   IXAudio2SourceVoice *voice = nullptr;
   SoundData soundData;
+
+  bool isLoop = false;
+  float volume = 1.0f;
 };
