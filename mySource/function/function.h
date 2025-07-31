@@ -1,7 +1,9 @@
 #pragma once
 #include "../../externals/DirectXTex/DirectXTex.h"
-#include "struct.h"
+#include "struct.h"     
 #include <d3d12.h>
+#include <dxcapi.h>
+
 
 // バッファリソース作成
 ID3D12Resource *CreateBufferResource(ID3D12Device *device, size_t sizeInBytes);
@@ -32,3 +34,22 @@ GetCPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
 D3D12_GPU_DESCRIPTOR_HANDLE
 GetGPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
                        uint32_t descriptorSize, uint32_t index);
+
+
+IDxcBlob *CompileShader(
+    // CompilerするShaderファイルへのパス
+    const std::wstring &filePath,
+    // CompilerにしようするProfile
+    const wchar_t *profile,
+    // 初期化で生成したものを3つ
+    IDxcUtils *dxcUtils, IDxcCompiler3 *dxcCompiler,
+    IDxcIncludeHandler *includeHandler);
+
+DirectX::ScratchImage LoadTexture(const std::string &filePath);
+
+MaterialData LoadMaterialTemplateFile(const std::string &directoryPath,
+                                      const std::string &filename);
+
+// objファイルを読み込む関数
+ModelData LoadObjFile(const std::string &directoryPath,
+                      const std::string &filename);
