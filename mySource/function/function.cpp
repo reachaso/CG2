@@ -1,8 +1,9 @@
 #include "function.h"
-#include <cassert>
-#include <fstream>
-#include <filesystem>
 #include "Log/Log.h"
+#include "vector"
+#include <cassert>
+#include <filesystem>
+#include <fstream>
 
 extern Log logger;
 
@@ -210,23 +211,32 @@ IDxcBlob *CompileShader(
 }
 
 DirectX::ScratchImage LoadTexture(const std::string &filePath) {
-  // テクスチャを読み込む
+
+  // —————————————————————————————
+  // ★ パスが空、またはファイルが存在しないなら
+  //   真っ白画像を生成してそのまま返す
+  // —————————————————————————————
+  if (filePath.empty() || !std::filesystem::exists(filePath)) {
+    logger.WriteLog("[Warn] テクスチャが見つかりません。白画像を生成します");
+    return CreateWhiteTextureImage();
+  }
+
   DirectX::ScratchImage image{};
   std::wstring filePathW = logger.ConvertString(filePath);
   HRESULT hr = DirectX::LoadFromWICFile(
       filePathW.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
-  // 読み込みに失敗したらエラー
-  assert(SUCCEEDED(hr));
+  if (FAILED(hr)) {
+    return CreateWhiteTextureImage(); // ここも白画像にフォールバック
+  }
 
-  // ミニマップの作成
   DirectX::ScratchImage mipImages{};
   hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(),
                                 image.GetMetadata(), DirectX::TEX_FILTER_SRGB,
                                 0, mipImages);
-  // ミニマップの作成に失敗したらエラー
-  assert(SUCCEEDED(hr));
+  if (FAILED(hr)) {
+    return image; // ミップだけ落ちても最低オリジナル画像は返す
+  }
 
-  // ミニマップを返す
   return mipImages;
 }
 
@@ -292,24 +302,43 @@ ModelData LoadObjFile(const std::string &directoryPath,
       normal.x = -normal.x;
       normals.push_back(normal);
     } else if (identifier == "f") {
-      // 三角形の頂点情報を一時保存
+      // 三角形３頂点分読み込み
       VertexData triangle[3];
-      for (int32_t faceVertex = 0; faceVertex < 3; ++faceVertex) {
-        std::string vertexDefinition;
-        s >> vertexDefinition;
-        std::istringstream v(vertexDefinition);
-        uint32_t elementIndices[3];
-        for (int32_t element = 0; element < 3; ++element) {
-          std::string index;
-          std::getline(v, index, '/');
-          elementIndices[element] = std::stoi(index);
+      for (int vi = 0; vi < 3; ++vi) {
+        std::string vertDef;
+        s >> vertDef; // 例: "18//18" や "18/34/18" など
+
+        // “/” 区切りで最大 3 要素に分割
+        std::string idxStr[3] = {"", "", ""};
+        size_t prev = 0, pos;
+        int field = 0;
+        while (field < 2 &&
+               (pos = vertDef.find('/', prev)) != std::string::npos) {
+          idxStr[field++] = vertDef.substr(prev, pos - prev);
+          prev = pos + 1;
         }
-        Vector4 position = positions[elementIndices[0] - 1];
-        Vector2 texcoord = texcoords[elementIndices[1] - 1];
-        Vector3 normal = normals[elementIndices[2] - 1];
-        triangle[faceVertex] = {position, texcoord, normal};
+        // 最後の要素（あるいは “/” がなかった場合）
+        if (prev < vertDef.size() && field < 3) {
+          idxStr[field++] = vertDef.substr(prev);
+        }
+
+        // 頂点／テクスチャ／法線インデックスを安全に変換
+        int pi = std::stoi(idxStr[0]); // “v” は必ず存在する前提
+        int ti = (!idxStr[1].empty()) ? std::stoi(idxStr[1]) : 0;
+        int ni = (!idxStr[2].empty()) ? std::stoi(idxStr[2]) : 0;
+
+        // 配列は 0 始まりなので -1
+        Vector4 position = positions[pi - 1];
+        Vector2 texcoord = (ti > 0 && ti - 1 < (int)texcoords.size())
+                               ? texcoords[ti - 1]
+                               : Vector2{0.0f, 0.0f}; // vt がなければデフォルト
+        Vector3 normal = (ni > 0 && ni - 1 < (int)normals.size())
+                             ? normals[ni - 1]
+                             : Vector3{0.0f, 0.0f, 0.0f};
+
+        triangle[vi] = {position, texcoord, normal};
       }
-      // 頂点を逆順でpush_backして回り順を逆にする
+      // 描画向きが逆なので３頂点を反転して格納
       modelData.vertices.push_back(triangle[2]);
       modelData.vertices.push_back(triangle[1]);
       modelData.vertices.push_back(triangle[0]);
@@ -324,4 +353,24 @@ ModelData LoadObjFile(const std::string &directoryPath,
   }
 
   return modelData; // 読み込んだModelDataを返す
+}
+
+DirectX::ScratchImage CreateWhiteTextureImage() {
+  DirectX::ScratchImage whiteImage;
+  // 1×1、ミップレベル１、配列サイズ１、フォーマットは RGBA8
+  HRESULT hr = whiteImage.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM,
+                                       /*width*/ 1, /*height*/ 1,
+                                       /*arraySize*/ 1, /*mipLevels*/ 1);
+  assert(SUCCEEDED(hr));
+
+  // 先頭レベルの画像データ取得
+  auto img = whiteImage.GetImage(0, 0, 0);
+  // ピクセル 4 バイトずつすべて 255 に
+  uint8_t *p = img->pixels;
+  p[0] = 255; // R
+  p[1] = 255; // G
+  p[2] = 255; // B
+  p[3] = 255; // A
+
+  return whiteImage;
 }

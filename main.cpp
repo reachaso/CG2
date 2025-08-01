@@ -957,6 +957,67 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
               sizeof(VertexData) *
                   bunnyModel.vertices.size()); // 頂点データをリソースにコピー
 
+  //=========================
+  // suzanneModel用の頂点リソースを作る
+  //=========================
+  ModelData suzanneModel = LoadObjFile("Resources", "suzanne.obj");
+
+  // UV 未設定モデルなら球面マッピングを生成
+  bool hasUV = false;
+  for (const auto &v : suzanneModel.vertices) {
+    if (v.texcoord.x != 0.0f || v.texcoord.y != 0.0f) {
+      hasUV = true;
+      break;
+    }
+  }
+  if (!hasUV) {
+    const float PI = 3.14159265358979323846f;
+    for (auto &v : suzanneModel.vertices) {
+      // xyz を取り出し
+      Vector3 p = {v.position.x, v.position.y, v.position.z};
+      float len = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+      // θ = atan2(z, x), φ = acos(y / r)
+      float theta = std::atan2(p.z, p.x);
+      float phi = std::acos(p.y / len);
+      // [0,1] に正規化
+      v.texcoord.x = 0.5f + (theta / (2.0f * PI));
+      v.texcoord.y = phi / PI;
+    }
+  }
+
+  // モデル用テクスチャを読み込む
+  DirectX::ScratchImage mipImagesSuzanneModel =
+      LoadTexture(suzanneModel.material.textureFilePath);
+  const DirectX::TexMetadata &metadataSuzanneModel =
+      mipImagesSuzanneModel.GetMetadata();
+  ID3D12Resource *textureResourceSuzanneModel =
+      CreateTextureResource(device, metadataSuzanneModel);
+  UploadTextureData(textureResourceSuzanneModel, mipImagesSuzanneModel);
+
+  // 頂点リソースを作る
+  ID3D12Resource *vertexResourceSuzanneModel = CreateBufferResource(
+      device, sizeof(VertexData) * suzanneModel.vertices.size());
+  // 頂点バッファビューを作成する
+  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSuzanneModel{};
+  vertexBufferViewSuzanneModel.BufferLocation =
+      vertexResourceSuzanneModel
+          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
+  vertexBufferViewSuzanneModel.SizeInBytes =
+      UINT(sizeof(VertexData) *
+           suzanneModel.vertices.size()); // 頂点リソースは頂点のサイズ
+  vertexBufferViewSuzanneModel.StrideInBytes =
+      sizeof(VertexData); // 1頂点あたりのサイズ
+
+  // 頂点リソースにデータを書き込む
+  VertexData *vertexDataSuzanneModel = nullptr;
+  vertexResourceSuzanneModel->Map(
+      0, nullptr,
+      reinterpret_cast<void **>(
+          &vertexDataSuzanneModel)); // 書き込むためのアドレスを取得
+  std::memcpy(vertexDataSuzanneModel, suzanneModel.vertices.data(),
+              sizeof(VertexData) *
+                  suzanneModel.vertices.size()); // 頂点データをリソースにコピー
+
 
 
   // SRVを作成
@@ -1498,7 +1559,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           if (isModelPlane) {
 
-            const char *modelItems[] = {"Plane", "axis", "ティーポット", "バニー"};
+            const char *modelItems[] = {"Plane", "axis", "ティーポット",
+                                        "バニー", "スザンヌ"};
             ImGui::Combo("モデル選択", &modelIndex, modelItems,
                          IM_ARRAYSIZE(modelItems));
 
@@ -1862,6 +1924,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           // バニー
           commandList->IASetVertexBuffers(0, 1, &vertexBufferViewBunnyModel);
           commandList->DrawInstanced(UINT(bunnyModel.vertices.size()), 1, 0, 0);
+        } else if (modelIndex == 4) {
+          // Suzanne
+          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSuzanneModel);
+          commandList->DrawInstanced(UINT(suzanneModel.vertices.size()), 1, 0,
+                                     0);
         }
       }
 

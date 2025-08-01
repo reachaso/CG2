@@ -53,3 +53,5 @@ MaterialData LoadMaterialTemplateFile(const std::string &directoryPath,
 // objファイルを読み込む関数
 ModelData LoadObjFile(const std::string &directoryPath,
                       const std::string &filename);
+
+DirectX::ScratchImage CreateWhiteTextureImage();
