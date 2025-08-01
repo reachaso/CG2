@@ -29,6 +29,6 @@ private:
 
   float deltaTIme_ = 1.0f / 60.0f;
 
-  const float moveSpeed_ = 0.2f;
+  const float moveSpeed_ = 0.5f;
   const float rotateSpeed_ = 0.02f;
 };

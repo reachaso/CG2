@@ -63,6 +63,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   MainCamera mainCamera;
 
   bool useDebugCamera = false; // デバッグカメラを使うかどうかのフラグ
+  bool isGuide = false;        // ガイドを表示するかどうかのフラグ
 
   mainCamera.Initialize({0.0f, 0.0f, -5.0f}, // pos
                         {0.0f, 0.0f, 0.0f},  // rot
@@ -928,7 +929,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // モデル用テクスチャを読み込む
   DirectX::ScratchImage mipImagesBunnyModel =
       LoadTexture(bunnyModel.material.textureFilePath);
-  const DirectX::TexMetadata &metadataBunnyModel = mipImagesBunnyModel.GetMetadata();
+  const DirectX::TexMetadata &metadataBunnyModel =
+      mipImagesBunnyModel.GetMetadata();
   ID3D12Resource *textureResourceBunnyModel =
       CreateTextureResource(device, metadataBunnyModel);
   UploadTextureData(textureResourceBunnyModel, mipImagesBunnyModel);
@@ -1017,8 +1019,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   std::memcpy(vertexDataSuzanneModel, suzanneModel.vertices.data(),
               sizeof(VertexData) *
                   suzanneModel.vertices.size()); // 頂点データをリソースにコピー
-
-
 
   // SRVを作成
   D3D12_SHADER_RESOURCE_VIEW_DESC srvDescModel = {};
@@ -1173,6 +1173,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->CreateShaderResourceView(textureResource3, &srvDesc3,
                                    textureSrvHandleCPU3);
 
+  // 4枚目のTextureを読んで転送する
+  DirectX::ScratchImage mipImages4 = LoadTexture("Resources/white1x1.png");
+  const DirectX::TexMetadata metadata4 = mipImages4.GetMetadata();
+  ID3D12Resource *textureResource4 = CreateTextureResource(device, metadata4);
+  UploadTextureData(textureResource4, mipImages4);
+
+  // metadataを元にSRVを生成する
+  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc4 = {};
+  srvDesc4.Format = metadata4.format;
+  srvDesc4.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+  srvDesc4.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+  srvDesc4.Texture2D.MipLevels = UINT(metadata4.mipLevels);
+  // SRVを作成するDescriptorHeapの場所を決める
+  ::D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU4 =
+      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+  ::D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU4 =
+      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+  textureSrvHandleCPU4.ptr += 4 * device->GetDescriptorHandleIncrementSize(
+                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  textureSrvHandleGPU4.ptr += 4 * device->GetDescriptorHandleIncrementSize(
+                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  // SRVを生成する
+  device->CreateShaderResourceView(textureResource4, &srvDesc4,
+                                   textureSrvHandleCPU4);
+
   // 0: uvChecker, 1: モンスターボール
   int triangleTextureIndex = 0;
   int sphereTextureIndex = 0;
@@ -1209,7 +1234,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           if (isTriangle1 || isTriangle2) {
 
-            const char *triangleTextureItems[] = {"uvChecker", "モンスターボール", "checkerBoard"};
+            const char *triangleTextureItems[] = {
+                "white1x1", "uvChecker", "モンスターボール", "checkerBoard"};
             ImGui::Combo("テクスチャ選択", &triangleTextureIndex,
                          triangleTextureItems,
                          IM_ARRAYSIZE(triangleTextureItems));
@@ -1446,8 +1472,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
           if (isSphere) {
 
-            const char *sphereTextureItems[] = {"uvChecker", "モンスターボール",
-                                                "checkerBoard"};
+            const char *sphereTextureItems[] = {
+                "white1x1", "uvChecker", "モンスターボール", "checkerBoard"};
             ImGui::Combo("テクスチャ選択", &sphereTextureIndex,
                          sphereTextureItems, IM_ARRAYSIZE(sphereTextureItems));
 
@@ -1566,8 +1592,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-            const char *modelTextureItems[] = {"uvChecker", "モンスターボール",
-                                               "checkerBoard"};
+            const char *modelTextureItems[] = {
+                "white1x1", "uvChecker", "モンスターボール", "checkerBoard"};
             ImGui::Combo("テクスチャ選択", &modelTextureIndex,
                          modelTextureItems, IM_ARRAYSIZE(modelTextureItems));
 
@@ -1706,11 +1732,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         if (ImGui::Button("リセット")) {
           debugCamera.Reset(); // デバッグカメラの位置をリセット
         }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("操作方法")) {
+          isGuide = !isGuide; // 操作方法の表示を切り替え
+        }
       } else {
         ImGui::Text("メインカメラモード");
       }
 
-      ImGui::End(); // 各種設定ウィンドウを終了
+      ImGui::End();
+
+      if (isGuide) {
+        ImGui::Begin("操作方法", &isGuide, ImGuiWindowFlags_AlwaysAutoResize);
+
+        ImGui::Text(" WASD : 前後左右移動");
+        ImGui::Text(" QE : 上下移動");
+        ImGui::Text(" 十字キー : カメラの回転");
+        ImGui::Text(" マウスホイール : 前後移動");
+        ImGui::Text(" 左クリックしながらドラッグ : 回転");
+        ImGui::Text(" マウスホイール押しながらドラッグ : 上下左右移動");
+
+        ImGui::End();
+      }
 
       input.Update(); // キー入力の更新
 
@@ -1816,16 +1861,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             0, triangleMaterialResource->GetGPUVirtualAddress());
         commandList->SetGraphicsRootConstantBufferView(
             3, directionalLightResource->GetGPUVirtualAddress());
+
         if (triangleTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, textureSrvHandleGPU4); // white1x1
         } else if (triangleTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, textureSrvHandleGPU); // uvChecker
         } else if (triangleTextureIndex == 2) {
+          commandList->SetGraphicsRootDescriptorTable(
+              2, textureSrvHandleGPU2); // モンスターボール
+        } else if (triangleTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
               2, textureSrvHandleGPU3); // checkerBoard
         }
+
         commandList->SetGraphicsRootConstantBufferView(
             3, triangleDirectionalLightResource->GetGPUVirtualAddress());
         commandList->DrawInstanced(3, 1, 0, 0);
@@ -1840,11 +1890,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (triangleTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, textureSrvHandleGPU4); // white1x1
         } else if (triangleTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, textureSrvHandleGPU); // uvChecker
         } else if (triangleTextureIndex == 2) {
+          commandList->SetGraphicsRootDescriptorTable(
+              2, textureSrvHandleGPU2); // モンスターボール
+        } else if (triangleTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
               2, textureSrvHandleGPU3); // checkerBoard
         }
@@ -1864,14 +1917,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (sphereTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, textureSrvHandleGPU4); // white1x1
         } else if (sphereTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, textureSrvHandleGPU); // uvChecker
         } else if (sphereTextureIndex == 2) {
+          commandList->SetGraphicsRootDescriptorTable(
+              2, textureSrvHandleGPU2); // モンスターボール
+        } else if (sphereTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
               2, textureSrvHandleGPU3); // checkerBoard
         }
+
         // DirectionalLight用CBV
         commandList->SetGraphicsRootConstantBufferView(
             3, directionalLightResource->GetGPUVirtualAddress());
@@ -1893,11 +1950,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (modelTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, textureSrvHandleGPU4); // white1x1
         } else if (modelTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, textureSrvHandleGPU); // uvChecker
         } else if (modelTextureIndex == 2) {
+          commandList->SetGraphicsRootDescriptorTable(
+              2, textureSrvHandleGPU2); // モンスターボール
+        } else if (modelTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
               2, textureSrvHandleGPU3); // checkerBoard
         }
