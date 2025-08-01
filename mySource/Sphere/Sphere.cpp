@@ -129,12 +129,13 @@ void Sphere::BuildGeometry(float radius, UINT sliceCount, UINT stackCount) {
   mVertices.push_back({Vector4(0, -radius, 0, 1), Vector2(0.0f, 1.0f)});
 
   // --- インデックス生成 ---
-  // （この部分はそのままでOK）
+  // 上極点ファン：i と i+1 を入れ替え
   for (UINT i = 1; i <= sliceCount; ++i) {
     mIndices.push_back(0);
-    mIndices.push_back(i);
     mIndices.push_back(i + 1);
+    mIndices.push_back(i);
   }
+
 
   UINT ringVerts = sliceCount + 1;
   for (UINT i = 0; i < stackCount - 2; ++i) {
@@ -156,8 +157,8 @@ void Sphere::BuildGeometry(float radius, UINT sliceCount, UINT stackCount) {
   UINT baseIndex = southPoleIndex - ringVerts;
   for (UINT i = 0; i < sliceCount; ++i) {
     mIndices.push_back(southPoleIndex);
-    mIndices.push_back(baseIndex + i + 1);
     mIndices.push_back(baseIndex + i);
+    mIndices.push_back(baseIndex + i + 1);
   }
 }
 

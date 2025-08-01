@@ -107,9 +107,9 @@ struct VertexData {
 };
 
 struct Material {
-  Vector4 color; // 色 (RGBA)
-  int enableLighting; // ライティングの有効化フラグ
-  float padding[3];
+  Vector4 color;         // 色 (RGBA)
+  int lightingMode;      // 0:なし, 1:Lambert, 2:Half Lambert
+  float padding[3];      // アラインメント調整
   Matrix4x4 uvTransform; // UV変換行列
 };
 

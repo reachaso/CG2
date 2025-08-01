@@ -3,7 +3,8 @@
 struct Material
 {
     float4 color; // 色 (RGBA)
-    int enableLighting; // ライティングの有効化フラグ
+    int lightingMode; // 0:なし, 1:Lambert, 2:Half Lambert
+    float3 padding; // アラインメント調整
     float4x4 uvTransform;
 };
 
@@ -35,19 +36,28 @@ PixelShaderOutput main(VertexShaderOutput input)
     float2 transformedUV = uv.xy;
     float4 textureColor = gTexture.Sample(gSampler, transformedUV);
 
-    if (gMaterial.enableLighting != 0)
-    { // ライティング有効時
+    if (gMaterial.lightingMode != 0)
+    {
         float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction.xyz);
-        float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
+        float lighting = 1.0f;
+        if (gMaterial.lightingMode == 1)
+        {
+            lighting = max(NdotL, 0.0f); // Lambert
+        }
+        else if (gMaterial.lightingMode == 2)
+        {
+            lighting = NdotL * 0.5f + 0.5f; // Half Lambert
+            lighting = lighting * lighting;
+        }
         output.color =
-            gMaterial.color
-            * textureColor
-            * gDirectionalLight.color
-            * cos
-            * gDirectionalLight.intensity;
+        gMaterial.color
+        * textureColor
+        * gDirectionalLight.color
+        * lighting
+        * gDirectionalLight.intensity;
     }
     else
-    { // ライティング無効時
+    {
         output.color = gMaterial.color * textureColor;
     }
 

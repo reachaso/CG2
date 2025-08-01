@@ -3,16 +3,16 @@
 #include "Affine/Affine.h"
 #include "DebugCamera/DebugCamera.h"
 #include "Input/Input.h"
+#include "Log/Log.h"
 #include "MainCamera/MainCamera.h"
 #include "Sound/Sound.h"
 #include "Sphere/Sphere.h"
-#include "function/function.h"
 #include "Window/Window.h"
-#include "Log/Log.h"
 #include "externals/DirectXTex/DirectXTex.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
+#include "function/function.h"
 #include "struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -41,7 +41,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   HRESULT hrCoInt = CoInitializeEx(0, COINIT_MULTITHREADED);
 
   Window window; // ウィンドウの初期化
-  window.Initialize(kWindowTitle,kClientWidth,kClientHeight);
+  window.Initialize(kWindowTitle, kClientWidth, kClientHeight);
 
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
@@ -129,7 +129,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     // 指定した機能レベルでデバイスが生成できた場合
     if (SUCCEEDED(hr)) {
       // 生成できたのでログ出力を行ってループを抜ける
-      logger.WriteLog(std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
+      logger.WriteLog(
+          std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
       break;
     }
   }
@@ -513,9 +514,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                               reinterpret_cast<void **>(&sphereMaterialData));
   // Materialの初期化
   sphereMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-  sphereMaterialData->enableLighting = true; // ライティングを有効にする
   sphereMaterialData->uvTransform =
       MakeIdentity4x4(); // UV変換行列を単位行列で初期化
+  sphereMaterialData->lightingMode = 2;
 
   // --- DirectionalLight用のCBVリソースを作成 ---
   ID3D12Resource *directionalLightResource =
@@ -563,14 +564,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // Transform
   ID3D12Resource *transformationMatrixResourceSprite =
-      CreateBufferResource(device, sizeof(Matrix4x4));
+      CreateBufferResource(device, sizeof(TransformationMatrix));
   // データを書き込む
-  Matrix4x4 *transformationMatrixDataSprite = nullptr;
+  TransformationMatrix *transformationMatrixDataSprite = nullptr;
   // 書き込むためのアドレスを取得
   transformationMatrixResourceSprite->Map(
       0, nullptr, reinterpret_cast<void **>(&transformationMatrixDataSprite));
   // 単位行列を設定
-  *transformationMatrixDataSprite = MakeIdentity4x4();
+  transformationMatrixDataSprite->WVP = MakeIdentity4x4();
+  transformationMatrixDataSprite->World = MakeIdentity4x4();
 
   Transform transformSprite{
       {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
@@ -584,7 +586,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
   Matrix4x4 WVPMatrixSprite = Multiply(
       worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
-  *transformationMatrixDataSprite = WVPMatrixSprite; // データを設定
+  transformationMatrixDataSprite->WVP = WVPMatrixSprite; // データを設定
 
   // sprite用のMaterialを作成する
   ID3D12Resource *spriteMaterialResource =
@@ -594,7 +596,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                               reinterpret_cast<void **>(&spriteMaterialData));
   // Materialの初期化
   spriteMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-  spriteMaterialData->enableLighting = false; // ライティングを無効にする
   spriteMaterialData->uvTransform = MakeIdentity4x4();
 
   // インデックス用バッファリソースを作成（6頂点分の uint32_t インデックス）
@@ -707,6 +708,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   vertexData[5].position = Vector4(0.5f, -0.5f, -0.5f, 1.0f);
   vertexData[5].texcoord = Vector2(1.0f, 1.0f);
 
+  Vector3 triNormal = {0.0f, 0.0f, -1.0f}; // 順序に合わせて符号を調整
+  for (int i = 0; i < 6; ++i) {
+    vertexData[i].normal = triNormal;
+  }
+
   //============================
   // Viewportを設定する
   //============================
@@ -740,21 +746,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       0, nullptr, reinterpret_cast<void **>(&triangleMaterialData));
   // Materialの初期化
   triangleMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-  triangleMaterialData->enableLighting =
-      false; // 三角形はライティング無効（必要に応じてtrueに）
   triangleMaterialData->uvTransform = MakeIdentity4x4();
+  triangleMaterialData->lightingMode = 0;
+
+  // ============================================
+  // 三角形のDirectionalLight用のCBVリソースを作成
+  // ============================================
+
+  ID3D12Resource *triangleDirectionalLightResource =
+      CreateBufferResource(device, sizeof(DirectionalLight));
+  DirectionalLight *triangleDirectionalLightData = nullptr;
+  triangleDirectionalLightResource->Map(
+      0, nullptr, reinterpret_cast<void **>(&triangleDirectionalLightData));
+  *triangleDirectionalLightData = directionalLight; // 初期値をコピー
 
   //=================================================
   // TransformationMatrix用のResourceを生成する 02_02
   //=================================================
 
-  ID3D12Resource *wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+  ID3D12Resource *wvpResource =
+      CreateBufferResource(device, sizeof(TransformationMatrix));
   // データを書き込む
-  Matrix4x4 *wvpData = nullptr;
+  TransformationMatrix *wvpData = nullptr;
   // 書き込むためのアドレスを取得
   wvpResource->Map(0, nullptr, reinterpret_cast<void **>(&wvpData));
   // 単位行列を書き込んでおく
-  *wvpData = MakeIdentity4x4();
+  wvpData->WVP = MakeIdentity4x4();
+  wvpData->World = MakeIdentity4x4();
 
   //===============================
   // Transform変数を作る
@@ -786,16 +804,120 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   bool isModelPlane = false;
   bool enableLighting = true;
 
-  // モデルデータを読み込む
-  ModelData modelData = LoadObjFile("Resources", "plane.obj");
+  int modelIndex = 0;
+
+  //=========================
+  // planeModel用の頂点リソースを作る
+  //=========================
+
+  ModelData planeModel = LoadObjFile("Resources", "plane.obj");
 
   // モデル用テクスチャを読み込む
-  DirectX::ScratchImage mipImagesModel =
-      LoadTexture(modelData.material.textureFilePath);
-  const DirectX::TexMetadata &metadataModel = mipImagesModel.GetMetadata();
+  DirectX::ScratchImage mipImagesPlaneModel =
+      LoadTexture(planeModel.material.textureFilePath);
+  const DirectX::TexMetadata &metadataModel = mipImagesPlaneModel.GetMetadata();
   ID3D12Resource *textureResourceModel =
       CreateTextureResource(device, metadataModel);
-  UploadTextureData(textureResourceModel, mipImagesModel);
+  UploadTextureData(textureResourceModel, mipImagesPlaneModel);
+
+  // 頂点リソースを作る
+  ID3D12Resource *vertexResourcePlaneModel = CreateBufferResource(
+      device, sizeof(VertexData) * planeModel.vertices.size());
+  // 頂点バッファビューを作成する
+  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlaneModel{};
+  vertexBufferViewPlaneModel.BufferLocation =
+      vertexResourcePlaneModel
+          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
+  vertexBufferViewPlaneModel.SizeInBytes =
+      UINT(sizeof(VertexData) *
+           planeModel.vertices.size()); // 頂点リソースは頂点のサイズ
+  vertexBufferViewPlaneModel.StrideInBytes =
+      sizeof(VertexData); // 1頂点あたりのサイズ
+
+  // 頂点リソースにデータを書き込む
+  VertexData *vertexDataPlaneModel = nullptr;
+  vertexResourcePlaneModel->Map(
+      0, nullptr,
+      reinterpret_cast<void **>(
+          &vertexDataPlaneModel)); // 書き込むためのアドレスを取得
+  std::memcpy(vertexDataPlaneModel, planeModel.vertices.data(),
+              sizeof(VertexData) *
+                  planeModel.vertices.size()); // 頂点データをリソースにコピー
+
+  //=============================
+  // axisModel用の頂点リソースを作る
+  //=============================
+
+  ModelData axisModel = LoadObjFile("Resources", "axis.obj");
+
+  DirectX::ScratchImage mipImagesAxisModel =
+      LoadTexture(axisModel.material.textureFilePath);
+  const DirectX::TexMetadata &metadataAxis = mipImagesAxisModel.GetMetadata();
+  ID3D12Resource *textureResourceAxis =
+      CreateTextureResource(device, metadataAxis);
+  UploadTextureData(textureResourceAxis, mipImagesAxisModel);
+
+  // 頂点リソースを作る
+  ID3D12Resource *vertexResourceAxisModel = CreateBufferResource(
+      device, sizeof(VertexData) * axisModel.vertices.size());
+  // 頂点バッファビューを作成する
+  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewAxisModel{};
+  vertexBufferViewAxisModel.BufferLocation =
+      vertexResourceAxisModel
+          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
+  vertexBufferViewAxisModel.SizeInBytes =
+      UINT(sizeof(VertexData) *
+           axisModel.vertices.size()); // 頂点リソースは頂点のサイズ
+  vertexBufferViewAxisModel.StrideInBytes =
+      sizeof(VertexData); // 1頂点あたりのサイズ
+
+  // 頂点リソースにデータを書き込む
+  VertexData *vertexDataAxisModel = nullptr;
+  vertexResourceAxisModel->Map(
+      0, nullptr,
+      reinterpret_cast<void **>(
+          &vertexDataAxisModel)); // 書き込むためのアドレスを取得
+  std::memcpy(vertexDataAxisModel, axisModel.vertices.data(),
+              sizeof(VertexData) *
+                  axisModel.vertices.size()); // 頂点データをリソースにコピー
+
+  //=============================
+  // axisModel用の頂点リソースを作る
+  //=============================
+
+  ModelData teapotModel = LoadObjFile("Resources", "teapot.obj");
+
+  DirectX::ScratchImage mipImagesTeapotModel =
+      LoadTexture(teapotModel.material.textureFilePath);
+  const DirectX::TexMetadata &metadataTeapot =
+      mipImagesTeapotModel.GetMetadata();
+  ID3D12Resource *textureResourceTeapot =
+      CreateTextureResource(device, metadataTeapot);
+  UploadTextureData(textureResourceTeapot, mipImagesTeapotModel);
+
+  // 頂点リソースを作る
+  ID3D12Resource *vertexResourceTeapotModel = CreateBufferResource(
+      device, sizeof(VertexData) * teapotModel.vertices.size());
+  // 頂点バッファビューを作成する
+  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewTeapotModel{};
+  vertexBufferViewTeapotModel.BufferLocation =
+      vertexResourceTeapotModel
+          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
+  vertexBufferViewTeapotModel.SizeInBytes =
+      UINT(sizeof(VertexData) *
+           teapotModel.vertices.size()); // 頂点リソースは頂点のサイズ
+  vertexBufferViewTeapotModel.StrideInBytes =
+      sizeof(VertexData); // 1頂点あたりのサイズ
+
+  // 頂点リソースにデータを書き込む
+  VertexData *vertexDataTeapotModel = nullptr;
+  vertexResourceTeapotModel->Map(
+      0, nullptr,
+      reinterpret_cast<void **>(
+          &vertexDataTeapotModel)); // 書き込むためのアドレスを取得
+  std::memcpy(vertexDataTeapotModel, teapotModel.vertices.data(),
+              sizeof(VertexData) *
+                  teapotModel.vertices.size()); // 頂点データをリソースにコピー
 
   // SRVを作成
   D3D12_SHADER_RESOURCE_VIEW_DESC srvDescModel = {};
@@ -812,30 +934,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   device->CreateShaderResourceView(textureResourceModel, &srvDescModel,
                                    textureSrvHandleCPUModel);
-
-  // 頂点リソースを作る
-  ID3D12Resource *vertexResourceModel = CreateBufferResource(
-      device, sizeof(VertexData) * modelData.vertices.size());
-  // 頂点バッファビューを作成する
-  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewModel{};
-  vertexBufferViewModel.BufferLocation =
-      vertexResourceModel
-          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
-  vertexBufferViewModel.SizeInBytes =
-      UINT(sizeof(VertexData) *
-           modelData.vertices.size()); // 頂点リソースは頂点のサイズ
-  vertexBufferViewModel.StrideInBytes =
-      sizeof(VertexData); // 1頂点あたりのサイズ
-
-  // 頂点リソースにデータを書き込む
-  VertexData *vertexDataModel = nullptr;
-  vertexResourceModel->Map(
-      0, nullptr,
-      reinterpret_cast<void **>(
-          &vertexDataModel)); // 書き込むためのアドレスを取得
-  std::memcpy(vertexDataModel, modelData.vertices.data(),
-              sizeof(VertexData) *
-                  modelData.vertices.size()); // 頂点データをリソースにコピー
 
   Transform modelTransform{
       {1.0f, 1.0f, 1.0f}, // スケール
@@ -858,9 +956,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                              reinterpret_cast<void **>(&modelMaterialData));
   // Materialの初期化
   modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-  modelMaterialData->enableLighting = true; // ライティングを有効にする
   modelMaterialData->uvTransform =
-      MakeIdentity4x4(); // UV変換行列を単位行列で初期化
+      MakeIdentity4x4();               // UV変換行列を単位行列で初期化
+  modelMaterialData->lightingMode = 2; // 0:なし, 1:Lambert, 2:Half Lambert
 
   // --- DirectionalLight用のCBVリソースを作成 ---
   ID3D12Resource *modelDirectionalLightResource =
@@ -949,7 +1047,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->CreateShaderResourceView(textureResource2, &srvDesc2,
                                    textureSrvHandleCPU2);
 
-  bool useMonsterBall = false;
+  // 0: uvChecker, 1: モンスターボール
+  int triangleTextureIndex = 0;
+  int sphereTextureIndex = 0;
+  int modelTextureIndex = 0;
 
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
@@ -973,71 +1074,140 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       if (ImGui::BeginTabBar("各種設定")) {
         if (ImGui::BeginTabItem("三角形")) {
 
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
           ImGui::Checkbox("1枚目の三角形を表示", &isTriangle1);
           ImGui::SameLine();
           ImGui::Checkbox("2枚目の三角形を表示", &isTriangle2);
           ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-          ImGui::Checkbox("モンスターボールに変更", &useMonsterBall);
-          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+          if (isTriangle1 || isTriangle2) {
 
-          // 三角形の描画設定
-          if (ImGui::BeginTabBar("設定")) {
-            if (ImGui::BeginTabItem("設定")) {
+            const char *triangleTextureItems[] = {"uvChecker",
+                                                  "モンスターボール"};
+            ImGui::Combo("テクスチャ選択", &triangleTextureIndex,
+                         triangleTextureItems,
+                         IM_ARRAYSIZE(triangleTextureItems));
 
-              if (ImGui::CollapsingHeader("色",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::ColorEdit3("", &triangleMaterialData->color.x);
-                if (ImGui::Button("色をリセット")) {
-                  triangleMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+            // 三角形の描画設定
+            if (ImGui::BeginTabBar("設定")) {
+              if (ImGui::BeginTabItem("三角形設定")) {
+
+                if (ImGui::CollapsingHeader("色",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::ColorEdit3("", &triangleMaterialData->color.x);
+                  if (ImGui::Button("色をリセット")) {
+                    triangleMaterialData->color =
+                        Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                  }
                 }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("移動",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Translation", &transform.translation.x,
+                                      -2.0f, 2.0f);
+                  if (ImGui::Button("元の場所に戻す")) {
+                    transform.translation = {0.0f, 0.0f, 0.0f};
+                  }
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("回転",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Rotation", &transform.rotation.x,
+                                      -2.0f, 2.0f);
+                  if (ImGui::Button("回転行列のリセット")) {
+                    transform.rotation = {0.0f, 0.0f, 0.0f};
+                    enableRotateX = false;
+                    enableRotateY = false;
+                    enableRotateZ = false;
+                  }
+                  ImGui::SameLine();
+                  ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+                  ImGui::SameLine();
+                  ImGui::Checkbox("X軸回転", &enableRotateX);
+                  ImGui::SameLine();
+                  ImGui::Checkbox("Y軸回転", &enableRotateY);
+                  ImGui::SameLine();
+                  ImGui::Checkbox("Z軸回転", &enableRotateZ);
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("大きさ",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Scale", &transform.scale.x, 0.0f,
+                                      4.0f);
+                  if (ImGui::Button("大きさをリセット")) {
+                    transform.scale = {1.0f, 1.0f, 1.0f};
+                  }
+                }
+                ImGui::EndTabItem();
               }
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-              if (ImGui::CollapsingHeader("移動",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Translation", &transform.translation.x,
-                                    -2.0f, 2.0f);
-                if (ImGui::Button("元の場所に戻す")) {
-                  transform.translation = {0.0f, 0.0f, 0.0f};
+              if (ImGui::BeginTabItem("ライト設定")) {
+                if (ImGui::CollapsingHeader("ライティングモード",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::Combo("##Lighting Mode",
+                               &triangleMaterialData->lightingMode,
+                               "無し\0ランバート反射\0ハーフランバート\0");
                 }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (triangleMaterialData->lightingMode != 0) {
+
+                  if (ImGui::CollapsingHeader("ライトの色",
+                                              ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                    if (ImGui::ColorEdit3(
+                            "##ライトの色",
+                            &triangleDirectionalLightData->color.x)) {
+                      // ライトの色を更新
+                      triangleDirectionalLightData->color =
+                          triangleDirectionalLightData->color;
+                    }
+
+                    if (ImGui::Button("ライトの色のリセット")) {
+                      triangleDirectionalLightData->color = {1.0f, 1.0f, 1.0f};
+                    }
+                  }
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                  if (ImGui::CollapsingHeader("ライトの方向",
+                                              ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                    ImGui::SliderFloat3(
+                        "##ライトの方向",
+                        &triangleDirectionalLightData->direction.x, -1.0f,
+                        1.0f);
+
+                    if (ImGui::Button("ライトの方向をリセット")) {
+                      triangleDirectionalLightData->direction = {0.0f, -1.0f,
+                                                                 0.0f};
+                    }
+
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                  }
+
+                  if (ImGui::CollapsingHeader("ライトの強さ",
+                                              ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::DragFloat("##Intensity",
+                                     &triangleDirectionalLightData->intensity,
+                                     0.01f, 0.0f, 1.0f);
+                  }
+                }
+                ImGui::EndTabItem();
               }
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-              if (ImGui::CollapsingHeader("回転",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Rotation", &transform.rotation.x, -2.0f,
-                                    2.0f);
-                if (ImGui::Button("回転行列のリセット")) {
-                  transform.rotation = {0.0f, 0.0f, 0.0f};
-                  enableRotateX = false;
-                  enableRotateY = false;
-                  enableRotateZ = false;
-                }
-                ImGui::SameLine();
-                ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-                ImGui::SameLine();
-                ImGui::Checkbox("X軸回転", &enableRotateX);
-                ImGui::SameLine();
-                ImGui::Checkbox("Y軸回転", &enableRotateY);
-                ImGui::SameLine();
-                ImGui::Checkbox("Z軸回転", &enableRotateZ);
-              }
-
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-              if (ImGui::CollapsingHeader("大きさ",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Scale", &transform.scale.x, 0.0f, 4.0f);
-                if (ImGui::Button("大きさをリセット")) {
-                  transform.scale = {1.0f, 1.0f, 1.0f};
-                }
-              }
-              ImGui::EndTabItem();
+              ImGui::EndTabBar();
             }
-            ImGui::EndTabBar();
           }
 
           ImGui::EndTabItem();
@@ -1045,232 +1215,344 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (ImGui::BeginTabItem("スプライト")) {
 
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
           ImGui::Checkbox("スプライトの表示", &isSprite);
 
           ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-          // スプライトの描画設定
-          if (ImGui::BeginTabBar("設定")) {
-            if (ImGui::BeginTabItem("スプライトの設定")) {
+          if (isSprite) {
 
-              if (ImGui::CollapsingHeader("位置",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Translation",
-                                    &transformSprite.translation.x, 0.0f,
-                                    1080.0f);
-                if (ImGui::Button("位置をリセット")) {
-                  transformSprite.translation = {0.0f, 0.0f, 0.0f};
+            // スプライトの描画設定
+            if (ImGui::BeginTabBar("設定")) {
+              if (ImGui::BeginTabItem("スプライトの設定")) {
+
+                if (ImGui::CollapsingHeader("位置",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Translation",
+                                      &transformSprite.translation.x, 0.0f,
+                                      1080.0f);
+                  if (ImGui::Button("位置をリセット")) {
+                    transformSprite.translation = {0.0f, 0.0f, 0.0f};
+                  }
                 }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("回転",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Rotation", &transformSprite.rotation.x,
+                                      0.0f, 10.0f);
+                  if (ImGui::Button("回転をリセット")) {
+                    transformSprite.rotation = {0.0f, 0.0f, 0.0f};
+                  }
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("大きさ",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Scale", &transformSprite.scale.x, 0.0f,
+                                      10.0f);
+
+                  if (ImGui::Button("大きさをリセット")) {
+                    transformSprite.scale = {1.0f, 1.0f, 1.0f};
+                  }
+                }
+                ImGui::EndTabItem();
               }
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+              if (ImGui::BeginTabItem("テクスチャの設定")) {
 
-              if (ImGui::CollapsingHeader("回転",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Rotation", &transformSprite.rotation.x,
-                                    0.0f, 10.0f);
-                if (ImGui::Button("回転をリセット")) {
-                  transformSprite.rotation = {0.0f, 0.0f, 0.0f};
+                if (ImGui::CollapsingHeader("テクスチャの表示位置",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                  ImGui::DragFloat2("##テクスチャの表示位置",
+                                    &uvTransformSprite.translation.x, 0.01f,
+                                    -10.0f, 10.0f);
+
+                  if (ImGui::Button("テクスチャの位置をリセット")) {
+                    uvTransformSprite.translation = Vector3(0.0f, 0.0f, 0.0f);
+                  }
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
                 }
-              }
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-              if (ImGui::CollapsingHeader("大きさ",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Scale", &transformSprite.scale.x, 0.0f,
+                if (ImGui::CollapsingHeader("テクスチャの大きさ",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::DragFloat2("##テクスチャの大きさ",
+                                    &uvTransformSprite.scale.x, 0.01f, -10.0f,
                                     10.0f);
 
-                if (ImGui::Button("大きさをリセット")) {
-                  transformSprite.scale = {1.0f, 1.0f, 1.0f};
-                }
-              }
-              ImGui::EndTabItem();
-            }
+                  if (ImGui::Button("テクスチャの大きさをリセット")) {
+                    uvTransformSprite.scale = Vector3(1.0f, 1.0f, 1.0f);
+                  }
 
-            if (ImGui::BeginTabItem("テクスチャの設定")) {
-              ImGui::DragFloat2("テクスチャの表示位置",
-                                &uvTransformSprite.translation.x, 0.01f, -10.0f,
-                                10.0f);
-              ImGui::DragFloat2("テクスチャの大きさ",
-                                &uvTransformSprite.scale.x, 0.01f, -10.0f,
-                                10.0f);
-              ImGui::SliderAngle("テクスチャの回転",
-                                 &uvTransformSprite.rotation.z);
-              ImGui::EndTabItem();
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                }
+
+                if (ImGui::CollapsingHeader("テクスチャの回転",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderAngle("##テクスチャの回転",
+                                     &uvTransformSprite.rotation.z);
+
+                  if (ImGui::Button("テクスチャの回転をリセット")) {
+                    uvTransformSprite.rotation = Vector3(0.0f, 0.0f, 0.0f);
+                  }
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                }
+
+                ImGui::EndTabItem();
+              }
+              ImGui::EndTabBar();
             }
-            ImGui::EndTabItem();
           }
-          ImGui::EndTabBar();
+          ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("球")) {
+
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
           ImGui::Checkbox("球の表示", &isSphere);
 
           ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-          // 球体の描画設定
-          if (ImGui::BeginTabBar("設定")) {
-            if (ImGui::BeginTabItem("球の設定")) {
-              if (ImGui::CollapsingHeader("位置",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
+          if (isSphere) {
 
-                ImGui::SliderFloat3("##Translation",
-                                    &sphere->sphereTransform.translation.x,
-                                    -3.0f, 3.0f);
-                if (ImGui::Button("位置のリセット")) {
-                  sphere->sphereTransform.translation = {0.0f, 0.0f, 0.0f};
+            const char *sphereTextureItems[] = {"uvChecker",
+                                                "モンスターボール"};
+            ImGui::Combo("テクスチャ選択", &sphereTextureIndex,
+                         sphereTextureItems, IM_ARRAYSIZE(sphereTextureItems));
+
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+            // 球体の描画設定
+            if (ImGui::BeginTabBar("設定")) {
+              if (ImGui::BeginTabItem("球の設定")) {
+                if (ImGui::CollapsingHeader("位置",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                  ImGui::SliderFloat3("##Translation",
+                                      &sphere->sphereTransform.translation.x,
+                                      -3.0f, 3.0f);
+                  if (ImGui::Button("位置のリセット")) {
+                    sphere->sphereTransform.translation = {0.0f, 0.0f, 0.0f};
+                  }
                 }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("回転",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Rotation",
+                                      &sphere->sphereTransform.rotation.x, 0.0f,
+                                      10.0f);
+                  if (ImGui::Button("回転のリセット")) {
+                    sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
+                  }
+                  ImGui::SameLine();
+                  ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
+                  ImGui::Checkbox("Y軸回転", &eanableSphereRotateY);
+                }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("大きさ",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3(
+                      "##Scale", &sphere->sphereTransform.scale.x, 0.0f, 10.0f);
+                  if (ImGui::Button("大きさのリセット")) {
+                    sphere->sphereTransform.scale = {1.0f, 1.0f, 1.0f};
+                  }
+                }
+                ImGui::EndTabItem();
               }
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+              ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-              if (ImGui::CollapsingHeader("回転",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Rotation",
-                                    &sphere->sphereTransform.rotation.x, 0.0f,
-                                    10.0f);
-                if (ImGui::Button("回転のリセット")) {
-                  sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
+              if (ImGui::BeginTabItem("ライトの設定")) {
+
+                if (ImGui::CollapsingHeader("ライティングモード",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::Combo("##Lighting Mode",
+                               &sphereMaterialData->lightingMode,
+                               "無し\0ランバート反射\0ハーフランバート\0");
                 }
-                ImGui::SameLine();
-                ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-                ImGui::Checkbox("Y軸回転", &eanableSphereRotateY);
-              }
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-              if (ImGui::CollapsingHeader("大きさ",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Scale", &sphere->sphereTransform.scale.x,
-                                    0.0f, 10.0f);
-                if (ImGui::Button("大きさのリセット")) {
-                  sphere->sphereTransform.scale = {1.0f, 1.0f, 1.0f};
+                if (sphereMaterialData->lightingMode != 0) {
+
+                  if (ImGui::CollapsingHeader("ライトの色",
+                                              ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::ColorEdit3("##Color", &directionalLight.color.x);
+                    if (ImGui::Button("色のリセット")) {
+                      directionalLight.color = {1.0f, 1.0f, 1.0f};
+                    }
+                  }
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                  if (ImGui::CollapsingHeader("ライトの向き",
+                                              ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // 平行光源の方向を設定するスライダー
+                    ImGui::SliderFloat3("##Direction",
+                                        &directionalLight.direction.x, -1.0f,
+                                        1.0f);
+                    // 方向をリセットするボタン
+                    if (ImGui::Button("向きのリセット")) {
+                      directionalLight.direction = {0.0f, -1.0f, 0.0f};
+                    }
+                  }
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                  if (ImGui::CollapsingHeader("ライトの強さ",
+                                              ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::DragFloat("##Intensity", &directionalLight.intensity,
+                                     0.01f, 0.0f, 1.0f);
+                  }
                 }
+
+                ImGui::EndTabItem();
               }
-              ImGui::EndTabItem();
+              ImGui::EndTabBar();
             }
-
-            ImGui::Dummy(ImVec2(0.0f, 10.0f));
-
-            if (ImGui::BeginTabItem("ライトの設定")) {
-
-              if (ImGui::CollapsingHeader("ライトの色",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::ColorEdit3("##Color", &directionalLight.color.x);
-                if (ImGui::Button("色のリセット")) {
-                  directionalLight.color = {1.0f, 1.0f, 1.0f};
-                }
-              }
-
-              if (ImGui::CollapsingHeader("ライトの向き",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                // 平行光源の方向を設定するスライダー
-                ImGui::SliderFloat3("##Direction",
-                                    &directionalLight.direction.x, -1.0f, 1.0f);
-                // 方向をリセットするボタン
-                if (ImGui::Button("向きのリセット")) {
-                  directionalLight.direction = {0.0f, -1.0f, 0.0f};
-                }
-              }
-
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-              if (ImGui::CollapsingHeader("ライトの強さ",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::DragFloat("Intensity", &directionalLight.intensity,
-                                 0.01f, 0.0f, 1.0f);
-              }
-
-              ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
           }
           ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("3Dモデル")) {
 
+          ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
           ImGui::Checkbox("3Dモデルの表示", &isModelPlane);
 
           ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-          if (ImGui::BeginTabBar("設定")) {
+          if (isModelPlane) {
 
-            if (ImGui::BeginTabItem("3Dモデル設定")) {
-              if (ImGui::CollapsingHeader("位置",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Translation",
-                                    &modelTransform.translation.x, -10.0f,
-                                    10.0f);
-                if (ImGui::Button("位置のリセット")) {
-                  modelTransform.translation = {0.0f, 0.0f, 0.0f};
-                }
-              }
+            const char *modelItems[] = {"Plane", "axis", "ティーポット"};
+            ImGui::Combo("モデル選択", &modelIndex, modelItems,
+                         IM_ARRAYSIZE(modelItems));
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-              if (ImGui::CollapsingHeader("回転",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Rotation", &modelTransform.rotation.x,
-                                    -10.0f, 10.0f);
-                if (ImGui::Button("回転のリセット")) {
-                  modelTransform.rotation = {0.0f, 0.0f, 0.0f};
-                }
-              }
+            const char *modelTextureItems[] = {"uvChecker", "モンスターボール"};
+            ImGui::Combo("テクスチャ選択", &modelTextureIndex,
+                         modelTextureItems, IM_ARRAYSIZE(modelTextureItems));
 
-              ImGui::Dummy(ImVec2(0.0f, 5.0f));
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-              if (ImGui::CollapsingHeader("大きさ",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat3("##Scale", &modelTransform.scale.x, 0.1f,
-                                    10.0f);
-                if (ImGui::Button("大きさのリセット")) {
-                  modelTransform.scale = {1.0f, 1.0f, 1.0f};
-                }
-              }
+            if (ImGui::BeginTabBar("設定")) {
 
-              ImGui::EndTabItem(); // 3Dモデル - 設定タブを終了
-            }
-
-            if (ImGui::BeginTabItem("マテリアル設定")) {
-              if (ImGui::CollapsingHeader("色",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::ColorEdit3("##Color", &modelMaterialData->color.x);
-                if (ImGui::Button("色のリセット")) {
-                  modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                }
-              }
-              ImGui::EndTabItem(); // マテリアル設定タブを終了
-            }
-
-            if (ImGui::BeginTabItem("ライト設定")) {
-              if (ImGui::CollapsingHeader("Lighting",
-                                          ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Checkbox("Enable Lighting", &enableLighting);
-                if (enableLighting) {
-                  ImGui::ColorEdit3("Light Color",
-                                    &modelDirectionalLightData->color.x);
-
-                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                  ImGui::SliderFloat3("Light Direction",
-                                      &modelDirectionalLightData->direction.x,
-                                      -1.0f, 1.0f);
+              if (ImGui::BeginTabItem("3Dモデル設定")) {
+                if (ImGui::CollapsingHeader("位置",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Translation",
+                                      &modelTransform.translation.x, -10.0f,
+                                      10.0f);
+                  if (ImGui::Button("位置のリセット")) {
+                    modelTransform.translation = {0.0f, 0.0f, 0.0f};
+                  }
                 }
 
                 ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-                if (ImGui::Button("Reset Lighting")) {
-                  modelDirectionalLightData->color =
-                      Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                  modelDirectionalLightData->direction = {0.0f, -1.0f, 0.0f};
+                if (ImGui::CollapsingHeader("回転",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Rotation", &modelTransform.rotation.x,
+                                      -10.0f, 10.0f);
+                  if (ImGui::Button("回転のリセット")) {
+                    modelTransform.rotation = {0.0f, 0.0f, 0.0f};
+                  }
                 }
+
+                ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                if (ImGui::CollapsingHeader("大きさ",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::SliderFloat3("##Scale", &modelTransform.scale.x, 0.1f,
+                                      10.0f);
+                  if (ImGui::Button("大きさのリセット")) {
+                    modelTransform.scale = {1.0f, 1.0f, 1.0f};
+                  }
+                }
+
+                ImGui::EndTabItem(); // 3Dモデル - 設定タブを終了
               }
-              ImGui::EndTabItem(); // ライト設定タブを終了
+
+              if (ImGui::BeginTabItem("マテリアル設定")) {
+                if (ImGui::CollapsingHeader("色",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+                  ImGui::ColorEdit3("##Color", &modelMaterialData->color.x);
+                  if (ImGui::Button("色のリセット")) {
+                    modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                  }
+                }
+                ImGui::EndTabItem(); // マテリアル設定タブを終了
+              }
+
+              if (ImGui::BeginTabItem("ライト設定")) {
+                if (ImGui::CollapsingHeader("Lighting",
+                                            ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                  // ImGuiで切り替えUI
+                  ImGui::Combo("ライティングモード",
+                               &modelMaterialData->lightingMode,
+                               "無し\0ランバート反射\0ハーフランバート\0");
+
+                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                  if (modelMaterialData->lightingMode != 0) {
+
+                    if (ImGui::CollapsingHeader(
+                            "ライトの色", ImGuiTreeNodeFlags_DefaultOpen)) {
+                      ImGui::ColorEdit3("##Light Color",
+                                        &modelDirectionalLightData->color.x);
+
+                      if (ImGui::Button("ライトの色をリセット")) {
+                        modelDirectionalLightData->color =
+                            Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+                      }
+                    }
+
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                    if (ImGui::CollapsingHeader(
+                            "ライトの向き", ImGuiTreeNodeFlags_DefaultOpen)) {
+                      ImGui::SliderFloat3(
+                          "##Light Direction",
+                          &modelDirectionalLightData->direction.x, -1.0f, 1.0f);
+
+                      if (ImGui::Button("向きのリセット")) {
+                        modelDirectionalLightData->direction = {0.0f, -1.0f,
+                                                                0.0f};
+                      }
+                    }
+
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
+                    if (ImGui::CollapsingHeader(
+                            "ライトの強さ", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                      ImGui::SliderFloat("##Intensity",
+                                         &modelDirectionalLightData->intensity,
+                                         0.0f, 1.0f, "%.2f");
+                      if (ImGui::Button("ライトの強さをリセット")) {
+                        modelDirectionalLightData->intensity = 1.0f;
+                      }
+                    }
+
+                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
+                  }
+                }
+                ImGui::EndTabItem(); // ライト設定タブを終了
+              }
+              ImGui::EndTabBar(); // 3Dモデル - 設定タブを終了
             }
-            ImGui::EndTabBar(); // 3Dモデル - 設定タブを終了
           }
           ImGui::EndTabItem(); // 3Dモデルタブを終了
         }
@@ -1304,6 +1586,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       ImGui::End(); // 各種設定ウィンドウを終了
 
       input.Update(); // キー入力の更新
+
+      if (input.IsKeyTrigger(DIK_TAB)) {
+        useDebugCamera = !useDebugCamera; // Tabキーでカメラモードを切り替え
+      }
 
       if (useDebugCamera) {
         debugCamera.Update(); // デバックカメラの入力
@@ -1396,17 +1682,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       device->CreateShaderResourceView(textureResource2, &srvDesc2,
                                        textureSrvHandleCPU2);
 
-      // textureResourceのSRVを設定する
-      commandList->SetGraphicsRootDescriptorTable(
-          2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
-
       if (isTriangle1) {
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
         // Material用CBVをセット
         commandList->SetGraphicsRootConstantBufferView(
             0, triangleMaterialResource->GetGPUVirtualAddress());
         commandList->SetGraphicsRootConstantBufferView(
-            1, wvpResource->GetGPUVirtualAddress());
+            3, directionalLightResource->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootDescriptorTable(
+            2, triangleTextureIndex == 1 ? textureSrvHandleGPU2
+                                         : textureSrvHandleGPU);
+        commandList->SetGraphicsRootConstantBufferView(
+            3, triangleDirectionalLightResource->GetGPUVirtualAddress());
         commandList->DrawInstanced(3, 1, 0, 0);
       }
       if (isTriangle2) {
@@ -1415,7 +1702,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         commandList->SetGraphicsRootConstantBufferView(
             0, triangleMaterialResource->GetGPUVirtualAddress());
         commandList->SetGraphicsRootConstantBufferView(
-            1, wvpResource->GetGPUVirtualAddress());
+            3, directionalLightResource->GetGPUVirtualAddress());
+
+        commandList->SetGraphicsRootDescriptorTable(
+            2, triangleTextureIndex == 1 ? textureSrvHandleGPU2
+                                         : textureSrvHandleGPU);
+
+        commandList->SetGraphicsRootConstantBufferView(
+            3, triangleDirectionalLightResource->GetGPUVirtualAddress());
         commandList->DrawInstanced(3, 1, 3, 0);
       }
 
@@ -1426,8 +1720,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         // WVP用CBV
         commandList->SetGraphicsRootConstantBufferView(
             1, sphereWvpResource->GetGPUVirtualAddress());
-        // SRV（テクスチャ）をセット（必要に応じて）
-        commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+        commandList->SetGraphicsRootDescriptorTable(
+            2, sphereTextureIndex == 1 ? textureSrvHandleGPU2
+                                       : textureSrvHandleGPU);
         // DirectionalLight用CBV
         commandList->SetGraphicsRootConstantBufferView(
             3, directionalLightResource->GetGPUVirtualAddress());
@@ -1443,18 +1738,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         // Model用のWVPのCBVを設定
         commandList->SetGraphicsRootConstantBufferView(
             1, modelWvpResource->GetGPUVirtualAddress());
-        // Model用のSRVを設定
+
+        ModelData *currentModelData =
+            (modelIndex == 0) ? &planeModel : &axisModel;
+
         commandList->SetGraphicsRootDescriptorTable(
-            2,
-            useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPUModel);
+            2, modelTextureIndex == 1 ? textureSrvHandleGPU2
+                                      : textureSrvHandleGPU);
 
         // DirectionalLight用CBVを設定（追加）
         commandList->SetGraphicsRootConstantBufferView(
             3, modelDirectionalLightResource->GetGPUVirtualAddress());
 
         // モデル用の頂点バッファをセット
-        commandList->IASetVertexBuffers(0, 1, &vertexBufferViewModel);
-        commandList->DrawInstanced(UINT(modelData.vertices.size()), 1, 0, 0);
+        if (modelIndex == 0) {
+          // Plane
+          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlaneModel);
+          commandList->DrawInstanced(UINT(planeModel.vertices.size()), 1, 0, 0);
+        } else if (modelIndex == 1) {
+          // Axis
+          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewAxisModel);
+          commandList->DrawInstanced(UINT(axisModel.vertices.size()), 1, 0, 0);
+        } else if (modelIndex == 2) {
+          // ティーポット
+          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTeapotModel);
+          commandList->DrawInstanced(UINT(teapotModel.vertices.size()), 1, 0,
+                                     0);
+        }
       }
 
       if (isSprite) {
@@ -1530,14 +1840,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // Transformを更新する
       //============================
 
+      float deltaTime = 1.0f / 60.0f; // フレームレートを60FPSと仮定
+
       if (enableRotateX) {
-        transform.rotation.x += 0.03f;
+        transform.rotation.x += 0.03f * deltaTime;
       }
       if (enableRotateY) {
-        transform.rotation.y += 0.03f;
+        transform.rotation.y += 0.03f * deltaTime;
       }
       if (enableRotateZ) {
-        transform.rotation.z += 0.03f;
+        transform.rotation.z += 0.03f * deltaTime;
       }
 
       Matrix4x4 worldMatrix = MakeAffineMatrix(
@@ -1545,15 +1857,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       Matrix4x4 wvpMatrix = Multiply(worldMatrix, Multiply(view, proj));
 
-      *wvpData = wvpMatrix;
+      wvpData->WVP = wvpMatrix;
+      wvpData->World = worldMatrix;
 
       // --- Sprite用のWVP行列を更新 ---
       Matrix4x4 worldMatrixSprite =
           MakeAffineMatrix(transformSprite.scale, transformSprite.rotation,
                            transformSprite.translation);
       Matrix4x4 WVPMatrixSprite =
-          Multiply(worldMatrixSprite, Multiply(view, proj));
-      *transformationMatrixDataSprite = WVPMatrixSprite;
+          Multiply(worldMatrixSprite,
+                   Multiply(viewMatrixSprite, projectionMatrixSprite));
+      transformationMatrixDataSprite->WVP = WVPMatrixSprite;
 
       Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
       uvTransformMatrix = Multiply(
