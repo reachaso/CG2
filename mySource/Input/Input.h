@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <dinput.h>
 #include <windows.h>
-
+#include <Xinput.h>
+#pragma comment(lib, "xinput.lib")
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
@@ -48,4 +49,27 @@ public:
   bool IsMousePressed(int button) const; // 押しっぱなし
   bool IsMouseTrigger(int button) const; // 押された瞬間
   bool IsMouseRelease(int button) const; // 離された瞬間
+
+  // ============================
+  // コントローラー入力
+  // ============================
+  // XInput用
+  XINPUT_STATE xinputState = {};
+  XINPUT_STATE preXinputState = {};
+  int leftVibration = 0;
+  int rightVibration = 0;
+
+  bool IsXInputConnected() const;
+  bool IsXInputButtonPressed(WORD button) const;
+  bool IsXInputButtonTrigger(WORD button) const;
+  bool IsXInputButtonRelease(WORD button) const;
+  SHORT GetXInputThumbLX() const;
+  SHORT GetXInputThumbLY() const;
+  SHORT GetXInputThumbRX() const;
+  SHORT GetXInputThumbRY() const;
+  BYTE GetXInputLeftTrigger() const;
+  BYTE GetXInputRightTrigger() const;
+
+    // --- XInput 振動制御 ---
+  void SetXInputVibration(WORD leftMotor, WORD rightMotor);
 };

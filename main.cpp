@@ -1719,6 +1719,112 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           ImGui::EndTabItem(); // サウンドタブを終了
         }
 
+        if (ImGui::BeginTabItem("コントローラー")) {
+          // コントローラー接続確認
+          if (input.IsXInputConnected()) {
+            ImGui::Text("state : ");
+
+            ImGui::SameLine();
+
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(0.0f, 1.0f, 0.0f, 1.0f)); // 緑色
+            ImGui::Text("コントローラー接続中");
+            ImGui::PopStyleColor();
+
+            // ボタン状態
+            ImGui::Text("A: %s", input.IsXInputButtonPressed(XINPUT_GAMEPAD_A)
+                                     ? "入力"
+                                     : "未入力");
+            ImGui::Text("B: %s", input.IsXInputButtonPressed(XINPUT_GAMEPAD_B)
+                                     ? "入力"
+                                     : "未入力");
+            ImGui::Text("X: %s", input.IsXInputButtonPressed(XINPUT_GAMEPAD_X)
+                                     ? "入力"
+                                     : "未入力");
+            ImGui::Text("Y: %s", input.IsXInputButtonPressed(XINPUT_GAMEPAD_Y)
+                                     ? "入力"
+                                     : "未入力");
+            ImGui::Text("LB: %s", input.IsXInputButtonPressed(
+                                      XINPUT_GAMEPAD_LEFT_SHOULDER)
+                                      ? "入力"
+                                      : "未入力");
+            ImGui::Text("RB: %s", input.IsXInputButtonPressed(
+                                      XINPUT_GAMEPAD_RIGHT_SHOULDER)
+                                      ? "入力"
+                                      : "未入力");
+            ImGui::Text("START: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_START)
+                            ? "入力"
+                            : "未入力");
+            ImGui::Text("BACK: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_BACK)
+                            ? "入力"
+                            : "未入力");
+            ImGui::Text("Lスティック押し込み: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_LEFT_THUMB)
+                            ? "入力"
+                            : "未入力");
+            ImGui::Text("Rスティック押し込み: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_RIGHT_THUMB)
+                            ? "入力"
+                            : "未入力");
+
+            // 十字キー
+            ImGui::Text("十字上: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_UP)
+                            ? "入力"
+                            : "未入力");
+            ImGui::Text("十字下: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_DOWN)
+                            ? "入力"
+                            : "未入力");
+            ImGui::Text("十字左: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_LEFT)
+                            ? "入力"
+                            : "未入力");
+            ImGui::Text("十字右: %s",
+                        input.IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_RIGHT)
+                            ? "入力"
+                            : "未入力");
+
+            // トリガー
+            ImGui::Text("LT: %d", input.GetXInputLeftTrigger());
+            ImGui::Text("RT: %d", input.GetXInputRightTrigger());
+
+            // スティック
+            ImGui::Text("左スティック: X=%d, Y=%d", input.GetXInputThumbLX(),
+                        input.GetXInputThumbLY());
+            ImGui::Text("右スティック: X=%d, Y=%d", input.GetXInputThumbRX(),
+                        input.GetXInputThumbRY());
+
+            // 振動の強さ設定
+
+            ImGui::SliderInt("左モーター振動", &input.leftVibration, 0, 65535);
+            ImGui::SliderInt("右モーター振動", &input.rightVibration, 0, 65535);
+
+            // 振動開始と停止のボタンを表示
+            if (ImGui::Button("振動開始")) {
+              input.SetXInputVibration(
+                  input.leftVibration,
+                  input.rightVibration); // 両モーターを中程度で振動
+            }
+
+            if (ImGui::Button("振動停止")) {
+              input.SetXInputVibration(0, 0); // 振動停止
+            }
+
+          } else {
+            ImGui::Text("state :");
+
+            ImGui::SameLine();
+
+            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+            ImGui::Text("コントローラー未接続");
+            ImGui::PopStyleColor();
+          }
+          ImGui::EndTabItem(); // コントローラータブを終了
+        }
+
         ImGui::EndTabBar(); // 各種設定タブを終了
       }
 
