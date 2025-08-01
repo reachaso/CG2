@@ -23,9 +23,11 @@ public:
 private:
   Input *input_ = nullptr;           // キー入力
   Vector3 rotation_ = {0, 0, 0};     // 各軸回転角
-  Vector3 translation_ = {0, 0, -5}; // カメラ位置
+  Vector3 translation_ = {0, 0, -8}; // カメラ位置
   Matrix4x4 view_;                   // ビュー行列
   Matrix4x4 proj_;                   // 射影行列
+
+  float deltaTIme_ = 1.0f / 60.0f;
 
   const float moveSpeed_ = 0.2f;
   const float rotateSpeed_ = 0.02f;

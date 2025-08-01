@@ -41,6 +41,20 @@ void DebugCamera::Update() {
     translation_.y += moveSpeed_;
   }
 
+  // ── マウスホイールによる前後移動 ──
+  LONG wheel = input_->GetMouseZ();
+  if (wheel != 0) {
+    float wheelSpeed = 0.01f; // ホイール感度
+    translation_ = Add(translation_, Multiply(forward, wheel * wheelSpeed));
+  }
+
+  // ── 右クリックドラッグによる回転 ──
+  if (input_->IsMousePressed(0)) {  // 1: 右ボタン
+    float mouseRotateSpeed = 0.01f * deltaTIme_; // マウス感度
+    rotation_.y += input_->GetMouseX() * mouseRotateSpeed;
+    rotation_.x += input_->GetMouseY() * mouseRotateSpeed;
+  }
+
   // ── キー入力による回転 ──
   if (input_->IsKeyPressed(DIK_UP))
     rotation_.x -= rotateSpeed_;
