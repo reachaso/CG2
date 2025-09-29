@@ -1380,7 +1380,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
                 if (ImGui::CollapsingHeader("位置",
                                             ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3("##Translation",
+                  ImGui::SliderFloat2("##Translation",
                                       &transformSprite.translation.x, 0.0f,
                                       1080.0f);
                   if (ImGui::Button("位置をリセット")) {
@@ -1403,7 +1403,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
                 if (ImGui::CollapsingHeader("大きさ",
                                             ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3("##Scale", &transformSprite.scale.x, 0.0f,
+                  ImGui::SliderFloat2("##Scale", &transformSprite.scale.x, 0.0f,
                                       10.0f);
 
                   if (ImGui::Button("大きさをリセット")) {
