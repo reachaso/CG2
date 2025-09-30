@@ -56,8 +56,8 @@ public:
   // XInput用
   XINPUT_STATE xinputState = {};
   XINPUT_STATE preXinputState = {};
-  int leftVibration = 0;
-  int rightVibration = 0;
+  int leftVibration = 30000;
+  int rightVibration = 30000;
 
   bool IsXInputConnected() const;
   bool IsXInputButtonPressed(WORD button) const;
