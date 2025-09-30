@@ -144,6 +144,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mySource\Affine\Affine.cpp" />
     <ClCompile Include="mySource\DebugCamera\DebugCamera.cpp" />
+    <ClCompile Include="mySource\DescriptorHeap\DescriptorHeap.cpp" />
     <ClCompile Include="mySource\DX12\DX12.cpp" />
     <ClCompile Include="mySource\function\function.cpp" />
     <ClCompile Include="mySource\Input\Input.cpp" />
@@ -187,6 +188,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="mySource\Affine\Affine.h" />
     <ClInclude Include="mySource\DebugCamera\DebugCamera.h" />
+    <ClInclude Include="mySource\DescriptorHeap\DescriptorHeap.h" />
     <ClInclude Include="mySource\DX12\DX12.h" />
     <ClInclude Include="mySource\function\function.h" />
     <ClInclude Include="mySource\Input\Input.h" />

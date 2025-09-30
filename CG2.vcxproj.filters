@@ -114,6 +114,9 @@
     <ClCompile Include="application\main\MyGame.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="mySource\DescriptorHeap\DescriptorHeap.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\Object3d.VS.hlsl">
@@ -182,6 +185,9 @@
       <Filter>mySource\Window</Filter>
     </ClInclude>
     <ClInclude Include="application\main\MyGame.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\DescriptorHeap\DescriptorHeap.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
