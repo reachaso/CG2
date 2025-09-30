@@ -35,8 +35,6 @@ const char kWindowTitle[] = "CG2";
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-  // COMライブラリの初期化
-  CoInitializeEx(0, COINIT_MULTITHREADED);
   // COMライブラリの初期化に失敗したらエラー
   HRESULT hrCoInt = CoInitializeEx(0, COINIT_MULTITHREADED);
 
