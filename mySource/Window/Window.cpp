@@ -1,6 +1,11 @@
 #include "Window.h"
 #include <cstring>
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd,
+                                                             UINT msg,
+                                                             WPARAM wparam,
+                                                             LPARAM lparam);
+
 // 背景ブラシ解放
 Window::~Window() {
   if (hbrBackground_) {
@@ -12,6 +17,11 @@ Window::~Window() {
 // ウィンドウプロシージャ
 LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam,
                                     LPARAM lparam) {
+
+  if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+    return true; // ImGuiが処理した場合はtrueを返す
+  }
+
   switch (msg) {
   case WM_DESTROY:
     PostQuitMessage(0);
@@ -42,7 +52,7 @@ void Window::UpdateBackgroundBrush() {
 void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
                         const int32_t kClientHeight) {
 
-  dx12.Initialize();
+  //dx12.Initialize();
   log.Initialize();
 
   // ==============================
