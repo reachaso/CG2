@@ -35,13 +35,17 @@ const char kWindowTitle[] = "CG2";
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-  // COMライブラリの初期化
-  CoInitializeEx(0, COINIT_MULTITHREADED);
   // COMライブラリの初期化に失敗したらエラー
   HRESULT hrCoInt = CoInitializeEx(0, COINIT_MULTITHREADED);
 
   Window window; // ウィンドウの初期化
   window.Initialize(kWindowTitle, kClientWidth, kClientHeight);
+  // windowのクリアカラーを設定する
+  window.SetClearColor(0.1f, 0.25f, 0.5f, 1.0f);
+
+  // =====================================================
+  // 音声関連の初期化
+  // =====================================================
 
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
@@ -1885,9 +1889,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // これから書き込むバックバッファのインデックスを取得
       UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-      // 指定した色でクリアする
-      float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
-
       // TransitionBarrierを設定する
       D3D12_RESOURCE_BARRIER barrier{};
       // 今回のバリアはトランジションバリア
@@ -1906,10 +1907,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // 描画先のRTVを設定
       commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
                                       &dsvHandle);
-      commandList->ClearRenderTargetView(rtvHandles[backBufferIndex],
-                                         clearColor, 0, nullptr);
-      commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH,
-                                         1.0f, 0, 0, nullptr);
+
+      // 画面クリアの色を設定
+      window.ClearCurrentRT(commandList, rtvHandles[backBufferIndex],
+                            &dsvHandle);
 
       ID3D12DescriptorHeap *descriptorHeaps[] = {srvDescriptorHeap};
 
