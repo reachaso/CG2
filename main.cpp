@@ -34,8 +34,15 @@ const char kWindowTitle[] = "CG2";
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+
+  // COMライブラリの初期化
+  CoInitializeEx(0, COINIT_MULTITHREADED);
   // COMライブラリの初期化に失敗したらエラー
   HRESULT hrCoInt = CoInitializeEx(0, COINIT_MULTITHREADED);
+
+  Window window; // ウィンドウの初期化
+  window.Initialize(kWindowTitle, kClientWidth, kClientHeight);
+  window.SetClearColor(0.1f, 0.25f, 0.5f, 1.0f); // クリア色の設定
 
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
@@ -45,6 +52,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   Sound fanfare = Sound();
   fanfare.Initialize("Resources/Sounds/fanfare.wav"); // サウンドの初期化
+
+  Input input = Input(window.hwnd); // 入力の初期化
+
+  DebugCamera debugCamera;
+  debugCamera.Initialize(&input,
+                         0.45f, // FOV
+                         float(kClientWidth) / kClientHeight, 0.1f,
+                         100.0f); // near, far
 
   MainCamera mainCamera;
 
@@ -124,18 +139,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // デバイスが生成できなかった場合はエラー
   assert(device != nullptr);
   logger.WriteLog("Complete create D3D12Device!!!\n"); // 初期化完了のログ出力
-
-  Window window; // ウィンドウの初期化
-  window.Initialize(kWindowTitle, kClientWidth, kClientHeight);
-  window.SetClearColor(0.1f, 0.25f, 0.5f, 1.0f); // クリア色の設定
-
-  Input input = Input(window.hwnd); // 入力の初期化
-
-  DebugCamera debugCamera;
-  debugCamera.Initialize(&input,
-                         0.45f, // FOV
-                         float(kClientWidth) / kClientHeight, 0.1f,
-                         100.0f); // near, far
 
   // DescriptorSizeを取得しておく
   const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(
@@ -1883,9 +1886,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // これから書き込むバックバッファのインデックスを取得
       UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-      window.ClearCurrentRT(commandList, rtvHandles[backBufferIndex],
-                            &dsvHandle);
-
       // TransitionBarrierを設定する
       D3D12_RESOURCE_BARRIER barrier{};
       // 今回のバリアはトランジションバリア
@@ -1904,6 +1904,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // 描画先のRTVを設定
       commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
                                       &dsvHandle);
+
+      // 画面クリアの色を設定
+      window.ClearCurrentRT(commandList, rtvHandles[backBufferIndex],
+                            &dsvHandle);
+
 
       ID3D12DescriptorHeap *descriptorHeaps[] = {srvDescriptorHeap};
 
