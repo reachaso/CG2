@@ -14,7 +14,7 @@ public:
 
   // HRESULTはWindows系のエラーコードであり、
   // 関数が成功したかどうかをSUCCEEDEDマクロで判定する
-  HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
+  HRESULT hr{};
 
   IDXGIAdapter4 *useAdapter = nullptr;                // 使用するアダプター
   IDXGIFactory6 *dxgiFactory = nullptr;               // DXGIファクトリー
