@@ -51,8 +51,6 @@ void Window::UpdateBackgroundBrush() {
 
 void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
                         const int32_t kClientHeight) {
-
-  //dx12.Initialize();
   log.Initialize();
 
   // ==============================

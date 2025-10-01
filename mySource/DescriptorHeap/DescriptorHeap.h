@@ -17,7 +17,7 @@ public:
   D3D12_GPU_DESCRIPTOR_HANDLE
   Gpu(uint32_t index) const; // 非シェーダ可視ヒープでは.ptr=0
 
-  // 便利: インクリメントサイズ
+  // インクリメントサイズ
   uint32_t DescriptorSize() const { return descriptorSize_; }
 
   // 生ポインタ欲しい時用

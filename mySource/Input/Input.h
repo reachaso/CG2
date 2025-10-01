@@ -72,4 +72,6 @@ public:
 
     // --- XInput 振動制御 ---
   void SetXInputVibration(WORD leftMotor, WORD rightMotor);
+
+  void ControllerImGui(const char *label = "コントローラー");
 };
