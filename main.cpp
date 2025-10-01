@@ -40,7 +40,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   Window window; // ウィンドウの初期化
   window.Initialize(kWindowTitle, kClientWidth, kClientHeight);
-  window.SetClearColor(0.1f, 0.25f, 0.5f, 1.0f); // クリア色の設定
 
   Sound Alarm01 = Sound();
   Alarm01.Initialize("Resources/Sounds/Alarm01.wav"); // サウンドの初期化
