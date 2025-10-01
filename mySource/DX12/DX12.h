@@ -1,27 +1,46 @@
 #pragma once
-#include <cassert>
-#include <cstdint>
+#include "CommandSystem/CommandSystem.h"
+#include "DepthStencil/DepthStencil.h"
+#include "DescriptorHeap/DescriptorHeap.h"
+#include "FenceSync/FenceSync.h"
+#include "RenderTargets/RenderTargets.h"
+#include "SwapChainManager/SwapChainManager.h"
 #include <d3d12.h>
 #include <dxgi1_6.h>
-
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
+#include <wrl.h>
 
 class DX12 {
-
 public:
-  void Initialize();
+  bool Initialize(HWND hwnd, UINT width, UINT height, bool enableDebug = true);
 
-  // HRESULTはWindows系のエラーコードであり、
-  // 関数が成功したかどうかをSUCCEEDEDマクロで判定する
-  HRESULT hr{};
+  // フレーム制御
+  void BeginFrame(float clearColor[4]);
+  void EndFrame();
 
-  IDXGIAdapter4 *useAdapter = nullptr;                // 使用するアダプター
-  IDXGIFactory6 *dxgiFactory = nullptr;               // DXGIファクトリー
-  ID3D12Device *device = nullptr;                     // D3D12デバイス
-  ID3D12CommandAllocator *commandAllocator = nullptr; // コマンドアロケータ
-  ID3D12GraphicsCommandList *commandList = nullptr;   // コマンドリスト
-  IDXGISwapChain4 *swapChain = nullptr;               // スワップチェーン
-  ID3D12CommandQueue *commandQueue = nullptr;         // コマンドキュー
-  ID3D12DescriptorHeap *rtvDescriptorHeap = nullptr;  // ディスクリプタヒープ
+  // アクセサ
+  ID3D12Device *Device() const { return device_.Get(); }
+  ID3D12GraphicsCommandList *Cmd() const { return command_.List(); }
+  UINT BackBufferIndex() const { return swapchain_.CurrentBackBufferIndex(); }
+
+  // SRVヒープ注入（ImGuiやモデル/スプライトが使う）
+  void SetSrvHeap(DescriptorHeap *srv) { srvHeap_ = srv; }
+  DescriptorHeap *GetSrvHeap() const { return srvHeap_; }
+
+private:
+  // 初期化ヘルパ
+  bool CreateFactoryAndDevice(bool enableDebug);
+
+private:
+  Microsoft::WRL::ComPtr<IDXGIFactory6> factory_;
+  Microsoft::WRL::ComPtr<ID3D12Device> device_;
+
+  CommandSystem command_;
+  SwapChainManager swapchain_;
+  RenderTargets rtv_;
+  DepthStencil dsv_;
+  FenceSync fence_;
+
+  DescriptorHeap *srvHeap_ = nullptr; // 所有しない。外部管理
+
+  UINT rtvStride_ = 0;
 };

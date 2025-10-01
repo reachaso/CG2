@@ -1,56 +1,106 @@
 #include "DX12.h"
-#include "../Log/Log.h"
-#include <format>
+#include <assert.h>
+#include <d3d12sdklayers.h>
+#include "../../externals/DirectXTex/d3dx12.h"
 
-void DX12::Initialize() {
+bool DX12::Initialize(HWND hwnd, UINT width, UINT height, bool enableDebug) {
+  if (!CreateFactoryAndDevice(enableDebug))
+    return false;
 
-  Log logger;
+  rtvStride_ =
+      device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-  // DXGIファクトリーの生成
-  hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
-  // 初期化の根本的な部分でエラーが出た場合はプログラムが間違っているか、どうにもできない場合多いのでassertでエラーを出す
-  assert(SUCCEEDED(hr));
+  if (!command_.Initialize(device_.Get()))
+    return false;
+  if (!swapchain_.Initialize(hwnd, factory_.Get(), command_.Queue(), width,
+                             height, DXGI_FORMAT_R8G8B8A8_UNORM, 2))
+    return false;
 
-  // 良い順にアダプタを頼む
-  for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(
-                       i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                       IID_PPV_ARGS(&useAdapter)) != DXGI_ERROR_NOT_FOUND;
-       ++i) {
-    // アダプタの情報を取得するための変数
-    DXGI_ADAPTER_DESC3 adapterDesc{};
-    hr = useAdapter->GetDesc3(&adapterDesc);
-    assert(SUCCEEDED(hr)); // 取得できないのは一大事
-    // ソフトウェアアダプタは除外
-    if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
-      // 採用したアダプタの情報をログに出力。wstringの方なので注意
-      logger.WriteLog(logger.ConvertString(
-          std::format(L"Use Adapater:{}\n", adapterDesc.Description)));
-      break;
-    }
-    useAdapter = nullptr; // ソフトウェアアダプタは除外するのでnullptrに戻す
+  if (!rtv_.Initialize(device_.Get(), swapchain_.Format(), rtvStride_,
+                       swapchain_.BufferCount()))
+    return false;
+  rtv_.BuildFromSwapChain(device_.Get(), swapchain_);
+
+  if (!dsv_.Initialize(device_.Get(), width, height,
+                       DXGI_FORMAT_D24_UNORM_S8_UINT))
+    return false;
+  if (!fence_.Initialize(device_.Get()))
+    return false;
+
+  return true;
+}
+
+void DX12::BeginFrame(float clearColor[4]) {
+  command_.BeginFrame();
+
+  // バリア: Present -> RenderTarget
+  auto *cmd = command_.List();
+  UINT i = BackBufferIndex();
+  CD3DX12_RESOURCE_BARRIER toRT = CD3DX12_RESOURCE_BARRIER::Transition(
+      swapchain_.Buffer(i), D3D12_RESOURCE_STATE_PRESENT,
+      D3D12_RESOURCE_STATE_RENDER_TARGET);
+  cmd->ResourceBarrier(1, &toRT);
+
+  // RT/DS 設定 & クリア
+  D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_.Handle(i);
+  D3D12_CPU_DESCRIPTOR_HANDLE dsv = dsv_.Handle();
+  cmd->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+  cmd->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+  cmd->ClearDepthStencilView(dsv,
+                             D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+                             1.0f, 0, 0, nullptr);
+
+  // SRVヒープ（注入されていればセット）
+  if (srvHeap_) {
+    ID3D12DescriptorHeap *heaps[] = {srvHeap_->GetHeap()};
+    cmd->SetDescriptorHeaps(1, heaps);
   }
-  // アダプタが見つからなかった場合はエラー
-  assert(useAdapter != nullptr);
+}
 
-  // 機能レベルとログの出力用の文字列
-  D3D_FEATURE_LEVEL featureLevel[] = {
-      D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
+void DX12::EndFrame() {
+  auto *cmd = command_.List();
+  UINT i = BackBufferIndex();
 
-  const char *featureLevelStrings[] = {"12.2", "12.1", "12.0"};
+  // バリア: RenderTarget -> Present
+  CD3DX12_RESOURCE_BARRIER toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
+      swapchain_.Buffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET,
+      D3D12_RESOURCE_STATE_PRESENT);
+  cmd->ResourceBarrier(1, &toPresent);
 
-  // 高い順に機能レベルを試す
-  for (size_t i = 0; i < std::size(featureLevel); ++i) {
-    // デバイスの生成
-    hr = D3D12CreateDevice(useAdapter, featureLevel[i], IID_PPV_ARGS(&device));
-    // 指定した機能レベルでデバイスが生成できた場合
-    if (SUCCEEDED(hr)) {
-      // 生成できたのでログ出力を行ってループを抜ける
-      logger.WriteLog(
-          std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
-      break;
+  // 提出 & Present & フェンス待ち
+  command_.Execute();
+  swapchain_.SwapChain()->Present(1, 0);
+
+  fence_.Signal(command_.Queue());
+  fence_.Wait();
+
+  command_.EndFrame();
+}
+
+bool DX12::CreateFactoryAndDevice(bool enableDebug) {
+#ifdef _DEBUG
+  if (enableDebug) {
+    Microsoft::WRL::ComPtr<ID3D12Debug> dbg;
+    if (SUCCEEDED(D3D12GetDebugInterface(
+            IID_PPV_ARGS(dbg.ReleaseAndGetAddressOf())))) {
+      dbg->EnableDebugLayer();
     }
   }
-  // デバイスが生成できなかった場合はエラー
-  assert(device != nullptr);
-  logger.WriteLog("Complete create D3D12Device!!!\n"); // 初期化完了のログ出力
+#endif
+
+  UINT flags = 0;
+#ifdef _DEBUG
+  if (enableDebug)
+    flags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+  if (FAILED(CreateDXGIFactory2(
+          flags, IID_PPV_ARGS(factory_.ReleaseAndGetAddressOf()))))
+    return false;
+
+  // アダプタ選択（簡易: 0番）→ 必要なら高性能選択に変更可
+  Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
+  factory_->EnumAdapters1(0, adapter.GetAddressOf());
+  D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_1,
+                    IID_PPV_ARGS(device_.ReleaseAndGetAddressOf()));
+  return device_ != nullptr;
 }
