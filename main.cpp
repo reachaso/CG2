@@ -2,6 +2,10 @@
 #pragma warning(disable : 28251)
 #include "Affine/Affine.h"
 #include "DebugCamera/DebugCamera.h"
+#include "Dx12/CommandContext/CommandContext.h"
+#include "Dx12/DescriptorHeap/DescriptorHeap.h"
+#include "Dx12/DescriptorHeap/DescriptorHelpers.h"
+#include "Dx12/SwapChain/SwapChain.h"
 #include "Input/Input.h"
 #include "Log/Log.h"
 #include "MainCamera/MainCamera.h"
@@ -23,8 +27,6 @@
 #include <dxgi1_6.h>
 #include <filesystem> //ファイルやディレクトリの操作を行うライブラリ
 #include <format>     //文字列のフォーマットを行うライブラリ
-#include "Dx12/CommandContext/CommandContext.h"
-#include "Dx12/SwapChain/SwapChain.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -173,19 +175,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   CommandContext cmd;
   cmd.Init(device, D3D12_COMMAND_LIST_TYPE_DIRECT, /*frameCount*/ 2);
 
-  // ディスクリプタヒープの生成
-  ID3D12DescriptorHeap *rtvDescriptorHeap =
-      CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2,
-                           false); // RenderTargetView用のヒープを生成する
-
-  ID3D12DescriptorHeap *srvDescriptorHeap =
-      CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128,
-                           true); // ShaderResourceView用のヒープを生成する
-
   // スワップチェーンを生成する
   SwapChain swap;
-  swap.SetRtvHeap(rtvDescriptorHeap, device->GetDescriptorHandleIncrementSize(
-                                         D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+
+  // ディスクリプタヒープの生成
+  DescriptorHeap rtvHeap, dsvHeap, srvHeap;
+  rtvHeap.Init(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, swap.FrameCount(),
+               false);
+  srvHeap.Init(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+
+  swap.SetRtvHeap(rtvHeap.Heap(), rtvHeap.Increment());
+
   swap.Init(dxgiFactory, device, cmd.Queue(), window.hwnd, kClientWidth,
             kClientHeight, DXGI_FORMAT_R8G8B8A8_UNORM, /*frameCount*/ 2,
             /*allowTearing*/ true);
@@ -571,22 +571,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   ID3D12Resource *depthStencilResource =
       CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
 
-  ID3D12DescriptorHeap *dsvDescriptorHeap =
-      CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
-
-  // DSVの設定
-  D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-  dsvDesc.Format =
-      DXGI_FORMAT_D24_UNORM_S8_UINT; // 深度24ビット、ステンシル8ビット
-  dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // テクスチャ2D
-
-  device->CreateDepthStencilView(
-      depthStencilResource, &dsvDesc,
-      dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-  // 描画先のRTVとDSVを設定する
-  D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
-      dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+  dsvHeap.Init(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+  D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = CreateDSV2D(
+      device, dsvHeap, depthStencilResource, DXGI_FORMAT_D24_UNORM_S8_UINT);
 
   //===========================
   // VertexBufferViewを生成する
@@ -779,122 +766,65 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // プラットフォーム／レンダラーの初期化
   ImGui_ImplWin32_Init(window.hwnd);
-  ImGui_ImplDX12_Init(
-      device,
-      swap.FrameCount(), // バックバッファ数（SwapChain クラスから取得）
-      DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, // バックバッファ実体に合わせて UNORM
-      srvDescriptorHeap,
-      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+  ImGui_ImplDX12_Init(device, swap.FrameCount(),
+                      DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, srvHeap.Heap(),
+                      srvHeap.CPUAt(0), // 先頭スロットをImGuiに割り当て
+                      srvHeap.GPUAt(0));
 
-
+  srvHeap.AllocateCPU(1);
 
   //===============================
   // Textureをよんで転送する
   //===============================
-  // 1枚目のTextureを読んで転送する
+  // ==== uvChecker ====
   DirectX::ScratchImage mipImages = LoadTexture("Resources/uvChecker.png");
-  const DirectX::TexMetadata &metadata = mipImages.GetMetadata();
+  auto metadata = mipImages.GetMetadata();
+  // カラー用途は sRGB に寄せる（必要に応じて）
+  metadata.format = DirectX::MakeSRGB(metadata.format);
   ID3D12Resource *textureResource = CreateTextureResource(device, metadata);
   UploadTextureData(textureResource, mipImages);
 
-  // metadataを元にSRVを生成する
-  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-  srvDesc.Format = metadata.format;
-  srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
+  // 1行でSRV作成 → 直近確保スロットのGPUハンドルを保持
+  CreateSRV2D(device, srvHeap, textureResource, metadata.format,
+              UINT(metadata.mipLevels));
+  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU =
+      srvHeap.GPUAt(srvHeap.Used() - 1);
 
-  // SRVを作成するDescriptorHeapの場所を決める
-  ::D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU =
-      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-
-  ::D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU =
-      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-
-  textureSrvHandleCPU.ptr += device->GetDescriptorHandleIncrementSize(
-      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  textureSrvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(
-      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-  // SRVを生成する
-  device->CreateShaderResourceView(textureResource, &srvDesc,
-                                   textureSrvHandleCPU);
-
-  // 2枚目のTextureを読んで転送する
+  // ==== monsterBall ====
   DirectX::ScratchImage mipImages2 = LoadTexture("Resources/monsterBall.png");
-  const DirectX::TexMetadata metadata2 = mipImages2.GetMetadata();
+  auto metadata2 = mipImages2.GetMetadata();
+  metadata2.format = DirectX::MakeSRGB(metadata2.format);
   ID3D12Resource *textureResource2 = CreateTextureResource(device, metadata2);
   UploadTextureData(textureResource2, mipImages2);
 
-  // metadataを元にSRVを生成する
-  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2 = {};
-  srvDesc2.Format = metadata2.format;
-  srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srvDesc2.Texture2D.MipLevels = UINT(metadata2.mipLevels);
-  // SRVを作成するDescriptorHeapの場所を決める
-  ::D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 =
-      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-  ::D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
-      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-  textureSrvHandleCPU2.ptr += 2 * device->GetDescriptorHandleIncrementSize(
-                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  textureSrvHandleGPU2.ptr += 2 * device->GetDescriptorHandleIncrementSize(
-                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  // SRVを生成する
-  device->CreateShaderResourceView(textureResource2, &srvDesc2,
-                                   textureSrvHandleCPU2);
+  CreateSRV2D(device, srvHeap, textureResource2, metadata2.format,
+              UINT(metadata2.mipLevels));
+  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
+      srvHeap.GPUAt(srvHeap.Used() - 1);
 
-  // 3枚目のTextureを読んで転送する
+  // ==== checkerBoard ====
   DirectX::ScratchImage mipImages3 = LoadTexture("Resources/checkerBoard.png");
-  const DirectX::TexMetadata metadata3 = mipImages3.GetMetadata();
+  auto metadata3 = mipImages3.GetMetadata();
+  metadata3.format = DirectX::MakeSRGB(metadata3.format);
   ID3D12Resource *textureResource3 = CreateTextureResource(device, metadata3);
   UploadTextureData(textureResource3, mipImages3);
 
-  // metadataを元にSRVを生成する
-  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3 = {};
-  srvDesc3.Format = metadata3.format;
-  srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srvDesc3.Texture2D.MipLevels = UINT(metadata3.mipLevels);
-  // SRVを作成するDescriptorHeapの場所を決める
-  ::D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU3 =
-      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-  ::D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 =
-      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-  textureSrvHandleCPU3.ptr += 3 * device->GetDescriptorHandleIncrementSize(
-                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  textureSrvHandleGPU3.ptr += 3 * device->GetDescriptorHandleIncrementSize(
-                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  // SRVを生成する
-  device->CreateShaderResourceView(textureResource3, &srvDesc3,
-                                   textureSrvHandleCPU3);
+  CreateSRV2D(device, srvHeap, textureResource3, metadata3.format,
+              UINT(metadata3.mipLevels));
+  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 =
+      srvHeap.GPUAt(srvHeap.Used() - 1);
 
-  // 4枚目のTextureを読んで転送する
+  // ==== white1x1 ====
   DirectX::ScratchImage mipImages4 = LoadTexture("Resources/white1x1.png");
-  const DirectX::TexMetadata metadata4 = mipImages4.GetMetadata();
+  auto metadata4 = mipImages4.GetMetadata();
+  metadata4.format = DirectX::MakeSRGB(metadata4.format);
   ID3D12Resource *textureResource4 = CreateTextureResource(device, metadata4);
   UploadTextureData(textureResource4, mipImages4);
 
-  // metadataを元にSRVを生成する
-  D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc4 = {};
-  srvDesc4.Format = metadata4.format;
-  srvDesc4.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srvDesc4.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srvDesc4.Texture2D.MipLevels = UINT(metadata4.mipLevels);
-  // SRVを作成するDescriptorHeapの場所を決める
-  ::D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU4 =
-      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-  ::D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU4 =
-      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-  textureSrvHandleCPU4.ptr += 4 * device->GetDescriptorHandleIncrementSize(
-                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  textureSrvHandleGPU4.ptr += 4 * device->GetDescriptorHandleIncrementSize(
-                                      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-  // SRVを生成する
-  device->CreateShaderResourceView(textureResource4, &srvDesc4,
-                                   textureSrvHandleCPU4);
+  CreateSRV2D(device, srvHeap, textureResource4, metadata4.format,
+              UINT(metadata4.mipLevels));
+  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU4 =
+      srvHeap.GPUAt(srvHeap.Used() - 1);
 
   // 0: uvChecker, 1: モンスターボール
   int triangleTextureIndex = 0;
@@ -1396,8 +1326,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       window.ClearCurrentRT(commandList, swap.RtvAt(backBufferIndex),
                             &dsvHandle);
 
-      ID3D12DescriptorHeap *descriptorHeaps[] = {srvDescriptorHeap};
-
+      ID3D12DescriptorHeap *descriptorHeaps[] = {srvHeap.Heap()};
       commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
       //============================
@@ -1424,26 +1353,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       commandList->SetGraphicsRootConstantBufferView(
           1, wvpResource->GetGPUVirtualAddress());
 
-      //===========================================
-      // SRVのDescriptorTableを設定する 03_00
-      //===========================================
-
-      D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU =
-          GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
-
-      // SRVディスクリプタヒープの先頭GPUハンドルを取得
-      D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU =
-          GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 1);
-
-      // 二枚目のテクスチャのSRVを設定する
-      D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU2 =
-          GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
-
-      D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
-          GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 2);
-
-      device->CreateShaderResourceView(textureResource2, &srvDesc2,
-                                       textureSrvHandleCPU2);
 
       if (isTriangle1) {
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
@@ -1570,9 +1479,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         commandList->SetGraphicsRootDescriptorTable(
             2, textureSrvHandleGPU); // テクスチャのSRVを設定
 
-        // 常にuvCheckerを表示する
-        commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-
         // --- スプライト描画 ---
         commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
         commandList->IASetIndexBuffer(&indexBufferViewSprite);
@@ -1655,7 +1561,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   vertexResourceSprite->Release();
   transformationMatrixResourceSprite->Release();
   depthStencilResource->Release();
-  dsvDescriptorHeap->Release();
   sphereWvpResource->Release();
 
   graphicsPipelineState->Release();
@@ -1669,8 +1574,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   swap.Term();
 
-  srvDescriptorHeap->Release();
-  rtvDescriptorHeap->Release();
+  srvHeap.Term();
+  dsvHeap.Term();
+  rtvHeap.Term();
+
   wvpResource->Release();
   textureResource->Release();
   dxcUtils->Release();
@@ -1681,6 +1588,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   device->Release();
 
   delete sphere;
+
+  textureResource2->Release();
+  textureResource3->Release();
+  textureResource4->Release();
+
+  indexResourceSprite->Release();
+  spriteMaterialResource->Release();
+
+  triangleMaterialResource->Release();
+  triangleDirectionalLightResource->Release();
+  directionalLightResource->Release();
 
   // COMの終了処理
   CoUninitialize();
