@@ -24,6 +24,7 @@
 #include <filesystem> //ファイルやディレクトリの操作を行うライブラリ
 #include <format>     //文字列のフォーマットを行うライブラリ
 #include "Dx12/CommandContext/CommandContext.h"
+#include "Dx12/SwapChain/SwapChain.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -172,26 +173,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   CommandContext cmd;
   cmd.Init(device, D3D12_COMMAND_LIST_TYPE_DIRECT, /*frameCount*/ 2);
 
-  // スワップチェーンを生成する
-  IDXGISwapChain4 *swapChain = nullptr;
-  DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
-  swapChainDesc.Width = kClientWidth;                // スワップチェーンの幅
-  swapChainDesc.Height = kClientHeight;              // スワップチェーンの高さ
-  swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 色の形式
-  swapChainDesc.SampleDesc.Count = 1;                // マルチサンプルしない
-  swapChainDesc.BufferUsage =
-      DXGI_USAGE_RENDER_TARGET_OUTPUT; // 描画のターゲットとして使用
-  swapChainDesc.BufferCount = 2;       // バッファの数
-  swapChainDesc.SwapEffect =
-      DXGI_SWAP_EFFECT_FLIP_DISCARD; // モニターにうつしたら中身を廃棄
-
-  // コマンドキュー、ウィンドウハンドル設定を潰して生成する
-  hr = dxgiFactory->CreateSwapChainForHwnd(
-      cmd.Queue(), window.hwnd, &swapChainDesc, nullptr, nullptr,
-      reinterpret_cast<IDXGISwapChain1 **>(&swapChain));
-  // スワップチェーンの生成に失敗した場合はエラー
-  assert(SUCCEEDED(hr));
-
   // ディスクリプタヒープの生成
   ID3D12DescriptorHeap *rtvDescriptorHeap =
       CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2,
@@ -201,32 +182,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128,
                            true); // ShaderResourceView用のヒープを生成する
 
-  // SwapChainからResourceを引っ張ってくる
-  ID3D12Resource *swapChainResource[2] = {nullptr};
-  hr = swapChain->GetBuffer(0, IID_PPV_ARGS(&swapChainResource[0]));
-  // 上手く取得できなかった場合はエラー
-  assert(SUCCEEDED(hr));
-  hr = swapChain->GetBuffer(1, IID_PPV_ARGS(&swapChainResource[1]));
-  // 上手く取得できなかった場合はエラー
-  assert(SUCCEEDED(hr));
-
-  // RTVを生成する
-  D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-  rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // 出力結果をSRGBに変換する
-  rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D; // テクスチャ2D
-  // ディスクリプタの先頭を取得
-  D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle =
-      rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-  // スワップチェーンの数だけRTVを生成する
-  D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
-  // まず一つ目を作る
-  rtvHandles[0] = rtvStartHandle;
-  device->CreateRenderTargetView(swapChainResource[0], &rtvDesc, rtvHandles[0]);
-  // 二つ目を作る
-  rtvHandles[1].ptr =
-      rtvHandles[0].ptr +
-      device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-  device->CreateRenderTargetView(swapChainResource[1], &rtvDesc, rtvHandles[1]);
+  // スワップチェーンを生成する
+  SwapChain swap;
+  swap.SetRtvHeap(rtvDescriptorHeap, device->GetDescriptorHandleIncrementSize(
+                                         D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+  swap.Init(dxgiFactory, device, cmd.Queue(), window.hwnd, kClientWidth,
+            kClientHeight, DXGI_FORMAT_R8G8B8A8_UNORM, /*frameCount*/ 2,
+            /*allowTearing*/ true);
 
   // dxcCompilerの初期化
   IDxcUtils *dxcUtils = nullptr;
@@ -776,16 +738,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   Model3D modelPlane, modelAxis, modelTeapot, modelBunny, modelSuzanne;
 
   modelPlane.Initialize(device);
-  modelAxis.Initialize(device);
-  modelTeapot.Initialize(device);
-  modelBunny.Initialize(device);
-  modelSuzanne.Initialize(device);
-
-  // OBJ読み込み（旧LoadObjFileと同じ挙動を内包）
   modelPlane.LoadObjGeometryLikeFunction("Resources", "plane.obj");
+
+  modelAxis.Initialize(device);
   modelAxis.LoadObjGeometryLikeFunction("Resources", "axis.obj");
+
+  modelTeapot.Initialize(device);
   modelTeapot.LoadObjGeometryLikeFunction("Resources", "teapot.obj");
+
+  modelBunny.Initialize(device);
   modelBunny.LoadObjGeometryLikeFunction("Resources", "bunny.obj");
+
+  modelSuzanne.Initialize(device);
   modelSuzanne.LoadObjGeometryLikeFunction("Resources", "suzanne.obj");
 
   // suzanne の球面UV付与（旧mainの処理をクラスに移したメソッド）
@@ -815,10 +779,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // プラットフォーム／レンダラーの初期化
   ImGui_ImplWin32_Init(window.hwnd);
-  ImGui_ImplDX12_Init(device, swapChainDesc.BufferCount, rtvDesc.Format,
-                      srvDescriptorHeap,
-                      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-                      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+  ImGui_ImplDX12_Init(
+      device,
+      swap.FrameCount(), // バックバッファ数（SwapChain クラスから取得）
+      DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, // バックバッファ実体に合わせて UNORM
+      srvDescriptorHeap,
+      srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+      srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+
 
   //===============================
   // Textureをよんで転送する
@@ -1411,24 +1380,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // ログの出力
       // Log(ofs, "ウィンドウが表示されました");
       // これから書き込むバックバッファのインデックスを取得
-      UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+      UINT backBufferIndex = swap.CurrentBackBufferIndex();
 
       // フレーム開始（Reset内包）
       cmd.BeginFrame(backBufferIndex);
       ID3D12GraphicsCommandList *commandList = cmd.List();
 
       // Present -> RenderTarget
-      cmd.Transition(swapChainResource[backBufferIndex],
+      cmd.Transition(swap.BackBuffer(backBufferIndex),
                      D3D12_RESOURCE_STATE_PRESENT,
                      D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-
-      // 描画先のRTVを設定
-      commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
-                                      &dsvHandle);
-
-      // 画面クリアの色を設定
-      window.ClearCurrentRT(commandList, rtvHandles[backBufferIndex],
+      D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swap.RtvAt(backBufferIndex);
+      commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+      window.ClearCurrentRT(commandList, swap.RtvAt(backBufferIndex),
                             &dsvHandle);
 
       ID3D12DescriptorHeap *descriptorHeaps[] = {srvDescriptorHeap};
@@ -1622,17 +1587,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
       // RenderTarget -> Present
-      cmd.Transition(swapChainResource[backBufferIndex],
+      cmd.Transition(swap.BackBuffer(backBufferIndex),
                      D3D12_RESOURCE_STATE_RENDER_TARGET,
                      D3D12_RESOURCE_STATE_PRESENT);
-
-      // Close/Execute/Signal まで
       cmd.EndFrame();
 
-      // 画面に出す
-      swapChain->Present(1, 0);
+      // tearing を使うなら flags に DXGI_PRESENT_ALLOW_TEARING
+      // を渡してもOK（vsync=0時）
+      swap.Present(1, 0);
 
-      // ダブルバッファ運用なら毎フレーム待ってOK
       cmd.WaitForFrame(backBufferIndex);
 
       //============================
@@ -1678,13 +1641,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     }
   }
 
-  ImGui_ImplDX12_Shutdown();
-  ImGui_ImplWin32_Shutdown();
-  ImGui::DestroyContext();
-
   //===========================
   // 解放処理
   //===========================
+
+  cmd.FlushGPU();
+
+  ImGui_ImplDX12_Shutdown();
+  ImGui_ImplWin32_Shutdown();
+  ImGui::DestroyContext();
 
   vertexResource->Release();
   vertexResourceSprite->Release();
@@ -1702,16 +1667,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   pixelShaderBlob->Release();
   vertexShaderBlob->Release();
 
+  swap.Term();
+
   srvDescriptorHeap->Release();
   rtvDescriptorHeap->Release();
-  swapChainResource[0]->Release();
-  swapChainResource[1]->Release();
- 
-  cmd.FlushGPU();
-  if (swapChain) {
-    swapChain->Release();
-    swapChain = nullptr;
-  }
   wvpResource->Release();
   textureResource->Release();
   dxcUtils->Release();
