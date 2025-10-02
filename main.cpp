@@ -5,6 +5,7 @@
 #include "Dx12/CommandContext/CommandContext.h"
 #include "Dx12/DescriptorHeap/DescriptorHeap.h"
 #include "Dx12/DescriptorHeap/DescriptorHelpers.h"
+#include "Dx12/DepthStencil/DepthStencil.h"
 #include "Dx12/SwapChain/SwapChain.h"
 #include "Input/Input.h"
 #include "Log/Log.h"
@@ -567,13 +568,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   ID3D12Resource *vertexResource =
       CreateBufferResource(device, sizeof(VertexData) * 6);
 
-  // 深度ステンシル用のResourceを生成する
-  ID3D12Resource *depthStencilResource =
-      CreateDepthStencilTextureResource(device, kClientWidth, kClientHeight);
-
   dsvHeap.Init(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
-  D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = CreateDSV2D(
-      device, dsvHeap, depthStencilResource, DXGI_FORMAT_D24_UNORM_S8_UINT);
+
+  DepthStencil depth;
+  depth.Init(device, kClientWidth, kClientHeight, dsvHeap,
+             DXGI_FORMAT_D24_UNORM_S8_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT);
+
 
   //===========================
   // VertexBufferViewを生成する
@@ -1322,9 +1322,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                      D3D12_RESOURCE_STATE_RENDER_TARGET);
 
       D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = swap.RtvAt(backBufferIndex);
+      auto dsvHandle = depth.Dsv(); // ★ 取得
       commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-      window.ClearCurrentRT(commandList, swap.RtvAt(backBufferIndex),
-                            &dsvHandle);
+      window.ClearCurrentRT(commandList, rtvHandle, &dsvHandle);
 
       ID3D12DescriptorHeap *descriptorHeaps[] = {srvHeap.Heap()};
       commandList->SetDescriptorHeaps(1, descriptorHeaps);
@@ -1560,7 +1560,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   vertexResource->Release();
   vertexResourceSprite->Release();
   transformationMatrixResourceSprite->Release();
-  depthStencilResource->Release();
+  depth.Term();
   sphereWvpResource->Release();
 
   graphicsPipelineState->Release();
