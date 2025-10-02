@@ -1,5 +1,5 @@
 #pragma once
-#include "Texture2D/Texture2D.h"
+#include "Texture/Texture2D/Texture2D.h"
 #include <d3d12.h>
 #include <string>
 #include <unordered_map>

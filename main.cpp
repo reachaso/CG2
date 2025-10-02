@@ -6,6 +6,7 @@
 #include "DepthStencil/DepthStencil.h"
 #include "DescriptorHeap/DescriptorHeap.h"
 #include "DescriptorHeap/DescriptorHelpers.h"
+#include "Device/Device.h"
 #include "SwapChain/SwapChain.h"
 #include "Texture/Texture2D/Texture2D.h"
 #include "Texture/TextureManager/TextureManager.h"
@@ -72,72 +73,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                         100.0f // nearZ, farZ
   );
 
-#ifdef _DEBUG
-  ID3D12Debug1 *debugContoroller = nullptr;
-  if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugContoroller)))) {
-    // デバッグレイヤーを有効にする
-    debugContoroller->EnableDebugLayer();
-    // さらにGPU側でもチェックを行う
-    debugContoroller->SetEnableGPUBasedValidation(true);
-  }
-#endif
-
   MSG msg{};
 
-  // DXGIファクトリーの生成
-  IDXGIFactory6 *dxgiFactory = nullptr;
-  // HRESULTはWindows系のエラーコードであり、
-  // 関数が成功したかどうかをSUCCEEDEDマクロで判定する
-  HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
-  // 初期化の根本的な部分でエラーが出た場合はプログラムが間違っているか、どうにもできない場合多いのでassertでエラーを出す
-  assert(SUCCEEDED(hr));
+  // デバイスの初期化
+  Device dx;
+  dx.Init(/*enableDebug=*/true,
+          /*gpuValidation=*/true); // GPUバリデーションは重いなら false でも可
+  dx.SetupInfoQueue(/*breakOnError=*/true, /*muteInfo=*/true);
 
-  // 使用するアダプタ用の変数。最初にnullptrを入れておく
-  IDXGIAdapter4 *useAdapter = nullptr;
+  HRESULT hr = S_OK;
 
-  // 良い順にアダプタを頼む
-  for (UINT i = 0; dxgiFactory->EnumAdapterByGpuPreference(
-                       i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                       IID_PPV_ARGS(&useAdapter)) != DXGI_ERROR_NOT_FOUND;
-       ++i) {
-    // アダプタの情報を取得するための変数
-    DXGI_ADAPTER_DESC3 adapterDesc{};
-    hr = useAdapter->GetDesc3(&adapterDesc);
-    assert(SUCCEEDED(hr)); // 取得できないのは一大事
-    // ソフトウェアアダプタは除外
-    if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
-      // 採用したアダプタの情報をログに出力。wstringの方なので注意
-      logger.WriteLog(logger.ConvertString(
-          std::format(L"Use Adapater:{}\n", adapterDesc.Description)));
-      break;
-    }
-    useAdapter = nullptr; // ソフトウェアアダプタは除外するのでnullptrに戻す
-  }
-  // アダプタが見つからなかった場合はエラー
-  assert(useAdapter != nullptr);
-
-  ID3D12Device *device = nullptr;
-  // 機能レベルとログの出力用の文字列
-  D3D_FEATURE_LEVEL featureLevel[] = {
-      D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
-
-  const char *featureLevelStrings[] = {"12.2", "12.1", "12.0"};
-
-  // 高い順に機能レベルを試す
-  for (size_t i = 0; i < std::size(featureLevel); ++i) {
-    // デバイスの生成
-    hr = D3D12CreateDevice(useAdapter, featureLevel[i], IID_PPV_ARGS(&device));
-    // 指定した機能レベルでデバイスが生成できた場合
-    if (SUCCEEDED(hr)) {
-      // 生成できたのでログ出力を行ってループを抜ける
-      logger.WriteLog(
-          std::format("FeatureLevel : {}\n", featureLevelStrings[i]));
-      break;
-    }
-  }
-  // デバイスが生成できなかった場合はエラー
-  assert(device != nullptr);
-  logger.WriteLog("Complete create D3D12Device!!!\n"); // 初期化完了のログ出力
+  // 以降は生の device/factory を dx から取得して使う
+  ID3D12Device *device = dx.GetDevice();
+  IDXGIFactory6 *dxgiFactory = dx.Factory();
+  
 
   // DescriptorSizeを取得しておく
   const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(
@@ -146,34 +95,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
   const uint32_t descriptorSizeDSV =
       device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-
-#ifdef _DEBUG
-  ID3D12InfoQueue *infoQueue = nullptr;
-  if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&infoQueue)))) {
-    // やばいエラー時に止まる
-    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-    // エラー時に止まる
-    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-    // 警告時に止まる
-    infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-    // 解放
-    infoQueue->Release();
-
-    D3D12_MESSAGE_ID denyIds[] = {
-        // Windows11でのDXGIデバッグレイヤーとDX12デバッグレイヤーの相互作用バグによるエラーメッセージ
-        D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
-    };
-    // 抑制するレベル
-    D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
-    D3D12_INFO_QUEUE_FILTER filter{};
-    filter.DenyList.NumIDs = _countof(denyIds);
-    filter.DenyList.pIDList = denyIds;
-    filter.DenyList.NumSeverities = _countof(severities);
-    filter.DenyList.pSeverityList = severities;
-    // 指定したメッセージの表示を抑制する
-    infoQueue->AddStorageFilterEntries(&filter);
-  }
-#endif
 
   CommandContext cmd;
   cmd.Init(device, D3D12_COMMAND_LIST_TYPE_DIRECT, /*frameCount*/ 2);
@@ -1556,9 +1477,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   dxcUtils->Release();
   dxcCompiler->Release();
   includeHandler->Release();
-  dxgiFactory->Release();
-  useAdapter->Release();
-  device->Release();
+
+  dx.Term();
 
   delete sphere;
 
