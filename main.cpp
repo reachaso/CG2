@@ -5,6 +5,7 @@
 #include "Input/Input.h"
 #include "Log/Log.h"
 #include "MainCamera/MainCamera.h"
+#include "Model3D/Model3D.h"
 #include "Sound/Sound.h"
 #include "Sphere/Sphere.h"
 #include "Window/Window.h"
@@ -22,6 +23,7 @@
 #include <dxgi1_6.h>
 #include <filesystem> //ファイルやディレクトリの操作を行うライブラリ
 #include <format>     //文字列のフォーマットを行うライブラリ
+#include "Dx12/CommandContext/CommandContext.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -167,28 +169,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   }
 #endif
 
-  // コマンドキューの生成
-  ID3D12CommandQueue *commandQueue = nullptr;
-  D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
-  hr = device->CreateCommandQueue(&commandQueueDesc,
-                                  IID_PPV_ARGS(&commandQueue));
-  // コマンドキューの生成に失敗した場合はエラー
-  assert(SUCCEEDED(hr));
-
-  // コマンドアロケータの生成
-  ID3D12CommandAllocator *commandAllocator = nullptr;
-  hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                      IID_PPV_ARGS(&commandAllocator));
-  // コマンドアロケータの生成に失敗した場合はエラー
-  assert(SUCCEEDED(hr));
-
-  // コマンドリストの生成
-  ID3D12GraphicsCommandList *commandList = nullptr;
-  hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                 commandAllocator, nullptr,
-                                 IID_PPV_ARGS(&commandList));
-  // コマンドリストの生成に失敗した場合はエラー
-  assert(SUCCEEDED(hr));
+  CommandContext cmd;
+  cmd.Init(device, D3D12_COMMAND_LIST_TYPE_DIRECT, /*frameCount*/ 2);
 
   // スワップチェーンを生成する
   IDXGISwapChain4 *swapChain = nullptr;
@@ -205,7 +187,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   // コマンドキュー、ウィンドウハンドル設定を潰して生成する
   hr = dxgiFactory->CreateSwapChainForHwnd(
-      commandQueue, window.hwnd, &swapChainDesc, nullptr, nullptr,
+      cmd.Queue(), window.hwnd, &swapChainDesc, nullptr, nullptr,
       reinterpret_cast<IDXGISwapChain1 **>(&swapChain));
   // スワップチェーンの生成に失敗した場合はエラー
   assert(SUCCEEDED(hr));
@@ -245,18 +227,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       rtvHandles[0].ptr +
       device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
   device->CreateRenderTargetView(swapChainResource[1], &rtvDesc, rtvHandles[1]);
-
-  // 初期値0でFenceを作る
-  ID3D12Fence *fence = nullptr;
-  uint64_t fenceValue = 0;
-  hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE,
-                           IID_PPV_ARGS(&fence));
-
-  assert(SUCCEEDED(hr));
-
-  // FenceのSignalを待つためのイベントを作る
-  HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-  assert(fenceEvent != nullptr);
 
   // dxcCompilerの初期化
   IDxcUtils *dxcUtils = nullptr;
@@ -483,9 +453,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   Sphere *sphere = new Sphere();
 
+  cmd.BeginFrame(0);
+  ID3D12GraphicsCommandList *setupList = cmd.List();
   if (sphere != nullptr) {
-    sphere->Initialize(device, commandList, 0.5f, 16, 16);
+    sphere->Initialize(device, setupList, 0.5f, 16, 16);
   }
+  cmd.EndFrame();
+  cmd.WaitForFrame(0);
 
   bool eanableSphereRotateY = false;
 
@@ -652,9 +626,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
       dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
-  // バックバッファのインデックスを取得
-  UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
-
   //===========================
   // VertexBufferViewを生成する
   //===========================
@@ -799,267 +770,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   int modelIndex = 0;
 
-  //=========================
-  // planeModel用の頂点リソースを作る
-  //=========================
+  // ================
+  // Model3D 準備（共通CBVは使わず、各Model3Dが自前で保持）
+  // ================
+  Model3D modelPlane, modelAxis, modelTeapot, modelBunny, modelSuzanne;
 
-  ModelData planeModel = LoadObjFile("Resources", "plane.obj");
+  modelPlane.Initialize(device);
+  modelAxis.Initialize(device);
+  modelTeapot.Initialize(device);
+  modelBunny.Initialize(device);
+  modelSuzanne.Initialize(device);
 
-  // モデル用テクスチャを読み込む
-  DirectX::ScratchImage mipImagesPlaneModel =
-      LoadTexture(planeModel.material.textureFilePath);
-  const DirectX::TexMetadata &metadataModel = mipImagesPlaneModel.GetMetadata();
-  ID3D12Resource *textureResourceModel =
-      CreateTextureResource(device, metadataModel);
-  UploadTextureData(textureResourceModel, mipImagesPlaneModel);
+  // OBJ読み込み（旧LoadObjFileと同じ挙動を内包）
+  modelPlane.LoadObjGeometryLikeFunction("Resources", "plane.obj");
+  modelAxis.LoadObjGeometryLikeFunction("Resources", "axis.obj");
+  modelTeapot.LoadObjGeometryLikeFunction("Resources", "teapot.obj");
+  modelBunny.LoadObjGeometryLikeFunction("Resources", "bunny.obj");
+  modelSuzanne.LoadObjGeometryLikeFunction("Resources", "suzanne.obj");
 
-  // 頂点リソースを作る
-  ID3D12Resource *vertexResourcePlaneModel = CreateBufferResource(
-      device, sizeof(VertexData) * planeModel.vertices.size());
-  // 頂点バッファビューを作成する
-  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlaneModel{};
-  vertexBufferViewPlaneModel.BufferLocation =
-      vertexResourcePlaneModel
-          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
-  vertexBufferViewPlaneModel.SizeInBytes =
-      UINT(sizeof(VertexData) *
-           planeModel.vertices.size()); // 頂点リソースは頂点のサイズ
-  vertexBufferViewPlaneModel.StrideInBytes =
-      sizeof(VertexData); // 1頂点あたりのサイズ
+  // suzanne の球面UV付与（旧mainの処理をクラスに移したメソッド）
+  modelSuzanne.EnsureSphericalUVIfMissing();
 
-  // 頂点リソースにデータを書き込む
-  VertexData *vertexDataPlaneModel = nullptr;
-  vertexResourcePlaneModel->Map(
-      0, nullptr,
-      reinterpret_cast<void **>(
-          &vertexDataPlaneModel)); // 書き込むためのアドレスを取得
-  std::memcpy(vertexDataPlaneModel, planeModel.vertices.data(),
-              sizeof(VertexData) *
-                  planeModel.vertices.size()); // 頂点データをリソースにコピー
-
-  //=============================
-  // axisModel用の頂点リソースを作る
-  //=============================
-
-  ModelData axisModel = LoadObjFile("Resources", "axis.obj");
-
-  DirectX::ScratchImage mipImagesAxisModel =
-      LoadTexture(axisModel.material.textureFilePath);
-  const DirectX::TexMetadata &metadataAxis = mipImagesAxisModel.GetMetadata();
-  ID3D12Resource *textureResourceAxis =
-      CreateTextureResource(device, metadataAxis);
-  UploadTextureData(textureResourceAxis, mipImagesAxisModel);
-
-  // 頂点リソースを作る
-  ID3D12Resource *vertexResourceAxisModel = CreateBufferResource(
-      device, sizeof(VertexData) * axisModel.vertices.size());
-  // 頂点バッファビューを作成する
-  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewAxisModel{};
-  vertexBufferViewAxisModel.BufferLocation =
-      vertexResourceAxisModel
-          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
-  vertexBufferViewAxisModel.SizeInBytes =
-      UINT(sizeof(VertexData) *
-           axisModel.vertices.size()); // 頂点リソースは頂点のサイズ
-  vertexBufferViewAxisModel.StrideInBytes =
-      sizeof(VertexData); // 1頂点あたりのサイズ
-
-  // 頂点リソースにデータを書き込む
-  VertexData *vertexDataAxisModel = nullptr;
-  vertexResourceAxisModel->Map(
-      0, nullptr,
-      reinterpret_cast<void **>(
-          &vertexDataAxisModel)); // 書き込むためのアドレスを取得
-  std::memcpy(vertexDataAxisModel, axisModel.vertices.data(),
-              sizeof(VertexData) *
-                  axisModel.vertices.size()); // 頂点データをリソースにコピー
-
-  //=============================
-  // axisModel用の頂点リソースを作る
-  //=============================
-
-  ModelData teapotModel = LoadObjFile("Resources", "teapot.obj");
-
-  DirectX::ScratchImage mipImagesTeapotModel =
-      LoadTexture(teapotModel.material.textureFilePath);
-  const DirectX::TexMetadata &metadataTeapot =
-      mipImagesTeapotModel.GetMetadata();
-  ID3D12Resource *textureResourceTeapot =
-      CreateTextureResource(device, metadataTeapot);
-  UploadTextureData(textureResourceTeapot, mipImagesTeapotModel);
-
-  // 頂点リソースを作る
-  ID3D12Resource *vertexResourceTeapotModel = CreateBufferResource(
-      device, sizeof(VertexData) * teapotModel.vertices.size());
-  // 頂点バッファビューを作成する
-  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewTeapotModel{};
-  vertexBufferViewTeapotModel.BufferLocation =
-      vertexResourceTeapotModel
-          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
-  vertexBufferViewTeapotModel.SizeInBytes =
-      UINT(sizeof(VertexData) *
-           teapotModel.vertices.size()); // 頂点リソースは頂点のサイズ
-  vertexBufferViewTeapotModel.StrideInBytes =
-      sizeof(VertexData); // 1頂点あたりのサイズ
-
-  // 頂点リソースにデータを書き込む
-  VertexData *vertexDataTeapotModel = nullptr;
-  vertexResourceTeapotModel->Map(
-      0, nullptr,
-      reinterpret_cast<void **>(
-          &vertexDataTeapotModel)); // 書き込むためのアドレスを取得
-  std::memcpy(vertexDataTeapotModel, teapotModel.vertices.data(),
-              sizeof(VertexData) *
-                  teapotModel.vertices.size()); // 頂点データをリソースにコピー
-
-  //=========================
-  // bunnyModel用の頂点リソースを作る
-  //=========================
-
-  ModelData bunnyModel = LoadObjFile("Resources", "bunny.obj");
-
-  // モデル用テクスチャを読み込む
-  DirectX::ScratchImage mipImagesBunnyModel =
-      LoadTexture(bunnyModel.material.textureFilePath);
-  const DirectX::TexMetadata &metadataBunnyModel =
-      mipImagesBunnyModel.GetMetadata();
-  ID3D12Resource *textureResourceBunnyModel =
-      CreateTextureResource(device, metadataBunnyModel);
-  UploadTextureData(textureResourceBunnyModel, mipImagesBunnyModel);
-
-  // 頂点リソースを作る
-  ID3D12Resource *vertexResourceBunnyModel = CreateBufferResource(
-      device, sizeof(VertexData) * bunnyModel.vertices.size());
-  // 頂点バッファビューを作成する
-  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewBunnyModel{};
-  vertexBufferViewBunnyModel.BufferLocation =
-      vertexResourceBunnyModel
-          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
-  vertexBufferViewBunnyModel.SizeInBytes =
-      UINT(sizeof(VertexData) *
-           bunnyModel.vertices.size()); // 頂点リソースは頂点のサイズ
-  vertexBufferViewBunnyModel.StrideInBytes =
-      sizeof(VertexData); // 1頂点あたりのサイズ
-
-  // 頂点リソースにデータを書き込む
-  VertexData *vertexDataBunnyModel = nullptr;
-  vertexResourceBunnyModel->Map(
-      0, nullptr,
-      reinterpret_cast<void **>(
-          &vertexDataBunnyModel)); // 書き込むためのアドレスを取得
-  std::memcpy(vertexDataBunnyModel, bunnyModel.vertices.data(),
-              sizeof(VertexData) *
-                  bunnyModel.vertices.size()); // 頂点データをリソースにコピー
-
-  //=========================
-  // suzanneModel用の頂点リソースを作る
-  //=========================
-  ModelData suzanneModel = LoadObjFile("Resources", "suzanne.obj");
-
-  // UV 未設定モデルなら球面マッピングを生成
-  bool hasUV = false;
-  for (const auto &v : suzanneModel.vertices) {
-    if (v.texcoord.x != 0.0f || v.texcoord.y != 0.0f) {
-      hasUV = true;
-      break;
-    }
-  }
-  if (!hasUV) {
-    const float PI = 3.14159265358979323846f;
-    for (auto &v : suzanneModel.vertices) {
-      // xyz を取り出し
-      Vector3 p = {v.position.x, v.position.y, v.position.z};
-      float len = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-      // θ = atan2(z, x), φ = acos(y / r)
-      float theta = std::atan2(p.z, p.x);
-      float phi = std::acos(p.y / len);
-      // [0,1] に正規化
-      v.texcoord.x = 0.5f + (theta / (2.0f * PI));
-      v.texcoord.y = phi / PI;
-    }
-  }
-
-  // モデル用テクスチャを読み込む
-  DirectX::ScratchImage mipImagesSuzanneModel =
-      LoadTexture(suzanneModel.material.textureFilePath);
-  const DirectX::TexMetadata &metadataSuzanneModel =
-      mipImagesSuzanneModel.GetMetadata();
-  ID3D12Resource *textureResourceSuzanneModel =
-      CreateTextureResource(device, metadataSuzanneModel);
-  UploadTextureData(textureResourceSuzanneModel, mipImagesSuzanneModel);
-
-  // 頂点リソースを作る
-  ID3D12Resource *vertexResourceSuzanneModel = CreateBufferResource(
-      device, sizeof(VertexData) * suzanneModel.vertices.size());
-  // 頂点バッファビューを作成する
-  D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSuzanneModel{};
-  vertexBufferViewSuzanneModel.BufferLocation =
-      vertexResourceSuzanneModel
-          ->GetGPUVirtualAddress(); // リソースの先頭のアドレスからバッファ
-  vertexBufferViewSuzanneModel.SizeInBytes =
-      UINT(sizeof(VertexData) *
-           suzanneModel.vertices.size()); // 頂点リソースは頂点のサイズ
-  vertexBufferViewSuzanneModel.StrideInBytes =
-      sizeof(VertexData); // 1頂点あたりのサイズ
-
-  // 頂点リソースにデータを書き込む
-  VertexData *vertexDataSuzanneModel = nullptr;
-  vertexResourceSuzanneModel->Map(
-      0, nullptr,
-      reinterpret_cast<void **>(
-          &vertexDataSuzanneModel)); // 書き込むためのアドレスを取得
-  std::memcpy(vertexDataSuzanneModel, suzanneModel.vertices.data(),
-              sizeof(VertexData) *
-                  suzanneModel.vertices.size()); // 頂点データをリソースにコピー
-
-  // SRVを作成
-  D3D12_SHADER_RESOURCE_VIEW_DESC srvDescModel = {};
-  srvDescModel.Format = metadataModel.format;
-  srvDescModel.Shader4ComponentMapping =
-      D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  srvDescModel.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-  srvDescModel.Texture2D.MipLevels = UINT(metadataModel.mipLevels);
-
-  D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPUModel =
-      GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
-  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPUModel =
-      GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
-
-  device->CreateShaderResourceView(textureResourceModel, &srvDescModel,
-                                   textureSrvHandleCPUModel);
-
+  // 位置・回転・スケールは今までの Transform を流用
   Transform modelTransform{
-      {1.0f, 1.0f, 1.0f}, // スケール
-      {0.0f, 0.0f, 0.0f}, // 回転
-      {0.0f, 0.0f, 0.0f}  // 位置
+      {1.0f, 1.0f, 1.0f}, // scale
+      {0.0f, 0.0f, 0.0f}, // rotate
+      {0.0f, 0.0f, 0.0f}  // translate
   };
-
-  // --- Model用のCBVリソースを作成 ---
-  ID3D12Resource *modelWvpResource =
-      CreateBufferResource(device, sizeof(TransformationMatrix));
-  TransformationMatrix *modelWvpData = nullptr;
-  modelWvpResource->Map(0, nullptr, reinterpret_cast<void **>(&modelWvpData));
-  modelWvpData->WVP = MakeIdentity4x4();   // 単位行列で初期化
-  modelWvpData->World = MakeIdentity4x4(); // 単位行列で初期化
-  // --- Model用のMaterialリソースを作成 ---
-  ID3D12Resource *modelMaterialResource =
-      CreateBufferResource(device, sizeof(Material));
-  Material *modelMaterialData = nullptr;
-  modelMaterialResource->Map(0, nullptr,
-                             reinterpret_cast<void **>(&modelMaterialData));
-  // Materialの初期化
-  modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-  modelMaterialData->uvTransform =
-      MakeIdentity4x4();               // UV変換行列を単位行列で初期化
-  modelMaterialData->lightingMode = 2; // 0:なし, 1:Lambert, 2:Half Lambert
-
-  // --- DirectionalLight用のCBVリソースを作成 ---
-  ID3D12Resource *modelDirectionalLightResource =
-      CreateBufferResource(device, sizeof(DirectionalLight));
-  DirectionalLight *modelDirectionalLightData = nullptr;
-  modelDirectionalLightResource->Map(
-      0, nullptr, reinterpret_cast<void **>(&modelDirectionalLightData));
-  *modelDirectionalLightData = directionalLight; // 初期値をコピー
 
   //===============================
   // Imguiの初期化
@@ -1594,106 +1331,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             if (ImGui::BeginTabBar("設定")) {
 
               if (ImGui::BeginTabItem("3Dモデル設定")) {
-                if (ImGui::CollapsingHeader("位置",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3("##Translation",
-                                      &modelTransform.translation.x, -10.0f,
-                                      10.0f);
-                  if (ImGui::Button("位置のリセット")) {
-                    modelTransform.translation = {0.0f, 0.0f, 0.0f};
-                  }
-                }
-
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                if (ImGui::CollapsingHeader("回転",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3("##Rotation", &modelTransform.rotation.x,
-                                      -10.0f, 10.0f);
-                  if (ImGui::Button("回転のリセット")) {
-                    modelTransform.rotation = {0.0f, 0.0f, 0.0f};
-                  }
-                }
-
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                if (ImGui::CollapsingHeader("大きさ",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3("##Scale", &modelTransform.scale.x, 0.1f,
-                                      10.0f);
-                  if (ImGui::Button("大きさのリセット")) {
-                    modelTransform.scale = {1.0f, 1.0f, 1.0f};
-                  }
-                }
-
-                ImGui::EndTabItem(); // 3Dモデル - 設定タブを終了
-              }
-
-              if (ImGui::BeginTabItem("マテリアル設定")) {
-                if (ImGui::CollapsingHeader("色",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::ColorEdit3("##Color", &modelMaterialData->color.x);
-                  if (ImGui::Button("色のリセット")) {
-                    modelMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                  }
-                }
-                ImGui::EndTabItem(); // マテリアル設定タブを終了
-              }
-
-              if (ImGui::BeginTabItem("ライト設定")) {
-                if (ImGui::CollapsingHeader("Lighting",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-
-                  // ImGuiで切り替えUI
-                  ImGui::Combo("ライティングモード",
-                               &modelMaterialData->lightingMode,
-                               "無し\0ランバート反射\0ハーフランバート\0");
-
-                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                  if (modelMaterialData->lightingMode != 0) {
-
-                    if (ImGui::CollapsingHeader(
-                            "ライトの色", ImGuiTreeNodeFlags_DefaultOpen)) {
-                      ImGui::ColorEdit3("##Light Color",
-                                        &modelDirectionalLightData->color.x);
-
-                      if (ImGui::Button("ライトの色をリセット")) {
-                        modelDirectionalLightData->color =
-                            Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                      }
-                    }
-
-                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                    if (ImGui::CollapsingHeader(
-                            "ライトの向き", ImGuiTreeNodeFlags_DefaultOpen)) {
-                      ImGui::SliderFloat3(
-                          "##Light Direction",
-                          &modelDirectionalLightData->direction.x, -1.0f, 1.0f);
-
-                      if (ImGui::Button("向きのリセット")) {
-                        modelDirectionalLightData->direction = {0.0f, -1.0f,
-                                                                0.0f};
-                      }
-                    }
-
-                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                    if (ImGui::CollapsingHeader(
-                            "ライトの強さ", ImGuiTreeNodeFlags_DefaultOpen)) {
-
-                      ImGui::SliderFloat("##Intensity",
-                                         &modelDirectionalLightData->intensity,
-                                         0.0f, 1.0f, "%.2f");
-                      if (ImGui::Button("ライトの強さをリセット")) {
-                        modelDirectionalLightData->intensity = 1.0f;
-                      }
-                    }
-
-                    ImGui::Dummy(ImVec2(0.0f, 5.0f));
-                  }
-                }
                 ImGui::EndTabItem(); // ライト設定タブを終了
               }
               ImGui::EndTabBar(); // 3Dモデル - 設定タブを終了
@@ -1776,20 +1413,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // これから書き込むバックバッファのインデックスを取得
       UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-      // TransitionBarrierを設定する
-      D3D12_RESOURCE_BARRIER barrier{};
-      // 今回のバリアはトランジションバリア
-      barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-      // Noneにしておく
-      barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-      // バリアを張る対象のリソース。現在のバックバッファに対して行う
-      barrier.Transition.pResource = swapChainResource[backBufferIndex];
-      // 遷移前のResourceState
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-      // 遷移後のResourceState
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-      // TransitionBarrierを振る
-      commandList->ResourceBarrier(1, &barrier);
+      // フレーム開始（Reset内包）
+      cmd.BeginFrame(backBufferIndex);
+      ID3D12GraphicsCommandList *commandList = cmd.List();
+
+      // Present -> RenderTarget
+      cmd.Transition(swapChainResource[backBufferIndex],
+                     D3D12_RESOURCE_STATE_PRESENT,
+                     D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 
       // 描画先のRTVを設定
       commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false,
@@ -1798,7 +1430,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // 画面クリアの色を設定
       window.ClearCurrentRT(commandList, rtvHandles[backBufferIndex],
                             &dsvHandle);
-
 
       ID3D12DescriptorHeap *descriptorHeaps[] = {srvDescriptorHeap};
 
@@ -1931,60 +1562,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         sphere->Draw(commandList);
       }
 
+      // 置き換え後
       if (isModelPlane) {
+        // 1) 今選んでるモデルを取る
+        Model3D *selected = (modelIndex == 0)   ? &modelPlane
+                            : (modelIndex == 1) ? &modelAxis
+                            : (modelIndex == 2) ? &modelTeapot
+                            : (modelIndex == 3) ? &modelBunny
+                                                : &modelSuzanne;
 
-        // Model用のMaterialのCBVを設定
-        commandList->SetGraphicsRootConstantBufferView(
-            0, modelMaterialResource->GetGPUVirtualAddress());
-        // Model用のWVPのCBVを設定
-        commandList->SetGraphicsRootConstantBufferView(
-            1, modelWvpResource->GetGPUVirtualAddress());
+        // 2) Transform を適用（ImGuiで編集しているやつ）
+        selected->T().scale = modelTransform.scale;
+        selected->T().rotation = modelTransform.rotation;
+        selected->T().translation = modelTransform.translation;
 
-        ModelData *currentModelData =
-            (modelIndex == 0) ? &planeModel : &axisModel;
+        // 3) 使うテクスチャ（SRV）を main 側で選んで渡す
+        D3D12_GPU_DESCRIPTOR_HANDLE srv =
+            (modelTextureIndex == 0) ? textureSrvHandleGPU4 : // white1x1
+                (modelTextureIndex == 1) ? textureSrvHandleGPU
+                                         : // uvChecker
+                (modelTextureIndex == 2) ? textureSrvHandleGPU2
+                                         : // モンボ
+                textureSrvHandleGPU3;      // checkerBoard
+        selected->SetTexture(srv);
 
-        if (modelTextureIndex == 0) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU4); // white1x1
-        } else if (modelTextureIndex == 1) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
-        } else if (modelTextureIndex == 2) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
-        } else if (modelTextureIndex == 3) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU3); // checkerBoard
-        }
-
-        // DirectionalLight用CBVを設定（追加）
-        commandList->SetGraphicsRootConstantBufferView(
-            3, modelDirectionalLightResource->GetGPUVirtualAddress());
-
-        // モデル用の頂点バッファをセット
-        if (modelIndex == 0) {
-          // Plane
-          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlaneModel);
-          commandList->DrawInstanced(UINT(planeModel.vertices.size()), 1, 0, 0);
-        } else if (modelIndex == 1) {
-          // Axis
-          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewAxisModel);
-          commandList->DrawInstanced(UINT(axisModel.vertices.size()), 1, 0, 0);
-        } else if (modelIndex == 2) {
-          // ティーポット
-          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewTeapotModel);
-          commandList->DrawInstanced(UINT(teapotModel.vertices.size()), 1, 0,
-                                     0);
-        } else if (modelIndex == 3) {
-          // バニー
-          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewBunnyModel);
-          commandList->DrawInstanced(UINT(bunnyModel.vertices.size()), 1, 0, 0);
-        } else if (modelIndex == 4) {
-          // Suzanne
-          commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSuzanneModel);
-          commandList->DrawInstanced(UINT(suzanneModel.vertices.size()), 1, 0,
-                                     0);
-        }
+        // 4) 行列更新 → 描画
+        //    RootParam(0:Material,1:WVP,2:SRV,3:Light) のセットや VB セットは
+        //    Draw() が内部で行う
+        selected->Update(view, proj);
+        selected->Draw(commandList);
       }
 
       if (isSprite) {
@@ -2015,46 +1621,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
-      // 画面に各処理は全て終わり、画面に映すので、状態を遷移
-      // 今回はRenderTargetからPresentにする
-      barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-      barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-      // TransitionBarrierを張る
-      commandList->ResourceBarrier(1, &barrier);
+      // RenderTarget -> Present
+      cmd.Transition(swapChainResource[backBufferIndex],
+                     D3D12_RESOURCE_STATE_RENDER_TARGET,
+                     D3D12_RESOURCE_STATE_PRESENT);
 
-      // コマンドリストの内容を確定させる。全てのコマンドを詰んでからCloseする
-      hr = commandList->Close();
-      // コマンドリストの確定に失敗した場合はエラー
-      assert(SUCCEEDED(hr));
+      // Close/Execute/Signal まで
+      cmd.EndFrame();
 
-      // GPUにコマンドリストの実行を行わせる
-      ID3D12CommandList *commandLists[] = {commandList};
-      commandQueue->ExecuteCommandLists(1, commandLists);
-      // GPUとOSに画面の交換を行わせる
+      // 画面に出す
       swapChain->Present(1, 0);
 
-      // GPUにSignalを送る
-      // Fenceの値を更新
-      fenceValue++;
-      // GPUがここまでたどり着いたときに、Fenceの値を指定した値に代入するようにSignalを送る
-      commandQueue->Signal(fence, fenceValue);
-
-      // Fenceの値が指定した値になるまで待つ
-      // GetCompletedValueの初期値はFence作成時に渡した初期値
-      if (fence->GetCompletedValue() < fenceValue) {
-        // 指定したSangalの値にたどりついていないので、たどり着くまで待つようにイベントを設定する
-        fence->SetEventOnCompletion(fenceValue, fenceEvent);
-        // Signalを受け取るまで待つ
-        WaitForSingleObject(fenceEvent, INFINITE);
-      }
-
-      // 次のフレーム用のコマンドリストを準備
-      hr = commandAllocator->Reset();
-      // コマンドアロケータのリセットに失敗した場合はエラー
-      assert(SUCCEEDED(hr));
-      hr = commandList->Reset(commandAllocator, nullptr);
-      // コマンドリストのリセットに失敗した場合はエラー
-      assert(SUCCEEDED(hr));
+      // ダブルバッファ運用なら毎フレーム待ってOK
+      cmd.WaitForFrame(backBufferIndex);
 
       //============================
       // Transformを更新する
@@ -2096,36 +1675,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
           Multiply(uvTransformMatrix,
                    MakeTranslateMatrix(uvTransformSprite.translation));
       spriteMaterialData->uvTransform = uvTransformMatrix;
-
-      // --- Sphere用の更新 ---
-
-      if (eanableSphereRotateY) {
-        sphere->sphereTransform.rotation.y += 0.001f;
-      }
-
-      Matrix4x4 sphereWorldMatrix = MakeAffineMatrix(
-          sphere->sphereTransform.scale, sphere->sphereTransform.rotation,
-          sphere->sphereTransform.translation);
-
-      Matrix4x4 sphereWvpMatrix =
-          Multiply(sphereWorldMatrix, Multiply(view, proj));
-
-      sphereWvpData->WVP = sphereWvpMatrix;
-      sphereWvpData->World = sphereWorldMatrix;
-
-      *directionalLightData = directionalLight;
-
-      // --- modelの更新 ---
-
-      Matrix4x4 modelWorldMatrix =
-          MakeAffineMatrix(modelTransform.scale, modelTransform.rotation,
-                           modelTransform.translation);
-
-      Matrix4x4 modelWvpMatrix =
-          Multiply(modelWorldMatrix, Multiply(view, proj));
-
-      modelWvpData->WVP = modelWvpMatrix;
-      modelWvpData->World = modelWorldMatrix;
     }
   }
 
@@ -2157,11 +1706,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   rtvDescriptorHeap->Release();
   swapChainResource[0]->Release();
   swapChainResource[1]->Release();
-  swapChain->Release();
-  commandList->Release();
-  commandAllocator->Release();
-  commandQueue->Release();
-  fence->Release();
+ 
+  cmd.FlushGPU();
+  if (swapChain) {
+    swapChain->Release();
+    swapChain = nullptr;
+  }
   wvpResource->Release();
   textureResource->Release();
   dxcUtils->Release();
