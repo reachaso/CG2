@@ -1,6 +1,6 @@
 // DebugCamera.cpp
 #include "DebugCamera.h"
-#include "Affine/Affine.h" // MakePerspectiveFovMatrix, MakeAffineMatrix, Inverse
+#include "Math/Math.h" // MakePerspectiveFovMatrix, MakeAffineMatrix, Inverse
 #include "Log/Log.h"       // Log::Debug
 #include <cmath>           // sinf, cosf
 #include <dinput.h>        // DIK_W など

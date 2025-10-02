@@ -1,12 +1,14 @@
 #pragma warning(push)
 #pragma warning(disable : 28251)
-#include "Affine/Affine.h"
+#include "Math/Math.h"
 #include "DebugCamera/DebugCamera.h"
-#include "Dx12/CommandContext/CommandContext.h"
-#include "Dx12/DescriptorHeap/DescriptorHeap.h"
-#include "Dx12/DescriptorHeap/DescriptorHelpers.h"
-#include "Dx12/DepthStencil/DepthStencil.h"
-#include "Dx12/SwapChain/SwapChain.h"
+#include "CommandContext/CommandContext.h"
+#include "DepthStencil/DepthStencil.h"
+#include "DescriptorHeap/DescriptorHeap.h"
+#include "DescriptorHeap/DescriptorHelpers.h"
+#include "SwapChain/SwapChain.h"
+#include "Texture/Texture2D/Texture2D.h"
+#include "Texture/TextureManager/TextureManager.h"
 #include "Input/Input.h"
 #include "Log/Log.h"
 #include "MainCamera/MainCamera.h"
@@ -14,10 +16,10 @@
 #include "Sound/Sound.h"
 #include "Sphere/Sphere.h"
 #include "Window/Window.h"
-#include "externals/DirectXTex/DirectXTex.h"
-#include "externals/imgui/imgui.h"
-#include "externals/imgui/imgui_impl_dx12.h"
-#include "externals/imgui/imgui_impl_win32.h"
+#include "DirectXTex/DirectXTex.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_dx12.h"
+#include "imgui/imgui_impl_win32.h"
 #include "function/function.h"
 #include "struct.h"
 #include <Windows.h>
@@ -90,7 +92,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // 初期化の根本的な部分でエラーが出た場合はプログラムが間違っているか、どうにもできない場合多いのでassertでエラーを出す
   assert(SUCCEEDED(hr));
 
-  // 使用すうるアダプタ用の変数。最初にnullptrを入れておく
+  // 使用するアダプタ用の変数。最初にnullptrを入れておく
   IDXGIAdapter4 *useAdapter = nullptr;
 
   // 良い順にアダプタを頼む
@@ -468,7 +470,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // リソースの先頭のアドレスから使う
   vertexBufferViewSprite.BufferLocation =
       vertexResourceSprite->GetGPUVirtualAddress();
-  // 使用するリソースのサイズは頂点6つ分のサイズ
+  // 使用するリソースのサイズは頂点4つ分のサイズ
   vertexBufferViewSprite.SizeInBytes = sizeof(VertexData) * 4;
   // 1つの頂点のサイズ
   vertexBufferViewSprite.StrideInBytes = sizeof(VertexData);
@@ -549,7 +551,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   indexDataSprite[1] = 1; // 左上
   indexDataSprite[2] = 2; // 右下
   indexDataSprite[3] = 1; // 左上
-  indexDataSprite[4] = 3; // 左上
+  indexDataSprite[4] = 3; // 右上
   indexDataSprite[5] = 2; // 右上
 
   //===========================
@@ -573,7 +575,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   DepthStencil depth;
   depth.Init(device, kClientWidth, kClientHeight, dsvHeap,
              DXGI_FORMAT_D24_UNORM_S8_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT);
-
 
   //===========================
   // VertexBufferViewを生成する
@@ -692,9 +693,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===============================
 
   Transform transform{
-      {1.0f, 1.0f, 1.0f}, // 位置
-      {0.0f, 0.0f, 0.0f}, // 回転
-      {0.0f, 0.0f, 0.0f}, // スケール
+      {1.0f, 1.0f, 1.0f},  // スケール（scale）
+      {0.0f, 0.0f, 0.0f}, // 回転（rotation）
+      {0.0f, 0.0f, 0.0f}, // 位置（translation）
   };
 
   //=====================================================
@@ -776,55 +777,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===============================
   // Textureをよんで転送する
   //===============================
-  // ==== uvChecker ====
-  DirectX::ScratchImage mipImages = LoadTexture("Resources/uvChecker.png");
-  auto metadata = mipImages.GetMetadata();
-  // カラー用途は sRGB に寄せる（必要に応じて）
-  metadata.format = DirectX::MakeSRGB(metadata.format);
-  ID3D12Resource *textureResource = CreateTextureResource(device, metadata);
-  UploadTextureData(textureResource, mipImages);
+  TextureManager texMgr;
+  texMgr.Init(device, &srvHeap);
 
-  // 1行でSRV作成 → 直近確保スロットのGPUハンドルを保持
-  CreateSRV2D(device, srvHeap, textureResource, metadata.format,
-              UINT(metadata.mipLevels));
-  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU =
-      srvHeap.GPUAt(srvHeap.Used() - 1);
-
-  // ==== monsterBall ====
-  DirectX::ScratchImage mipImages2 = LoadTexture("Resources/monsterBall.png");
-  auto metadata2 = mipImages2.GetMetadata();
-  metadata2.format = DirectX::MakeSRGB(metadata2.format);
-  ID3D12Resource *textureResource2 = CreateTextureResource(device, metadata2);
-  UploadTextureData(textureResource2, mipImages2);
-
-  CreateSRV2D(device, srvHeap, textureResource2, metadata2.format,
-              UINT(metadata2.mipLevels));
-  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 =
-      srvHeap.GPUAt(srvHeap.Used() - 1);
-
-  // ==== checkerBoard ====
-  DirectX::ScratchImage mipImages3 = LoadTexture("Resources/checkerBoard.png");
-  auto metadata3 = mipImages3.GetMetadata();
-  metadata3.format = DirectX::MakeSRGB(metadata3.format);
-  ID3D12Resource *textureResource3 = CreateTextureResource(device, metadata3);
-  UploadTextureData(textureResource3, mipImages3);
-
-  CreateSRV2D(device, srvHeap, textureResource3, metadata3.format,
-              UINT(metadata3.mipLevels));
-  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU3 =
-      srvHeap.GPUAt(srvHeap.Used() - 1);
-
-  // ==== white1x1 ====
-  DirectX::ScratchImage mipImages4 = LoadTexture("Resources/white1x1.png");
-  auto metadata4 = mipImages4.GetMetadata();
-  metadata4.format = DirectX::MakeSRGB(metadata4.format);
-  ID3D12Resource *textureResource4 = CreateTextureResource(device, metadata4);
-  UploadTextureData(textureResource4, mipImages4);
-
-  CreateSRV2D(device, srvHeap, textureResource4, metadata4.format,
-              UINT(metadata4.mipLevels));
-  D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU4 =
-      srvHeap.GPUAt(srvHeap.Used() - 1);
+  // sRGBに寄せたいので true でロード（法線等のデータテクスチャは false 推奨）
+  D3D12_GPU_DESCRIPTOR_HANDLE tex_uvChecker =
+      texMgr.Load("Resources/uvChecker.png", true);
+  D3D12_GPU_DESCRIPTOR_HANDLE tex_monsterBall =
+      texMgr.Load("Resources/monsterBall.png", true);
+  D3D12_GPU_DESCRIPTOR_HANDLE tex_checker =
+      texMgr.Load("Resources/checkerBoard.png", true);
+  D3D12_GPU_DESCRIPTOR_HANDLE tex_white =
+      texMgr.Load("Resources/white1x1.png", true);
 
   // 0: uvChecker, 1: モンスターボール
   int triangleTextureIndex = 0;
@@ -1333,9 +1297,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // コマンドを積む 02_00
       //============================
 
-      commandList->RSSetViewports(1, &viewport);       // Viewportを設定する
-      commandList->RSSetScissorRects(1, &scissorRect); // Scissorを設定する
-      // RootSignatureを設定。PSOに設定しているけれど別途設定が必要
+      // ---- ビューポート／シザーの設定（描画領域の指定） ----
+      commandList->RSSetViewports(1, &viewport);
+      commandList->RSSetScissorRects(1, &scissorRect);
+
+      // ---- ルートシグネチャ／PSO／頂点バッファ／トポロジの設定 ----
+      // ルートシグネチャはPSOとは別にバインドが必要
       commandList->SetGraphicsRootSignature(rootSignature);
       commandList->SetPipelineState(graphicsPipelineState);     // PSOを設定する
       commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // VBWを設定
@@ -1353,7 +1320,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       commandList->SetGraphicsRootConstantBufferView(
           1, wvpResource->GetGPUVirtualAddress());
 
-
       if (isTriangle1) {
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
         // Material用CBVをセット
@@ -1364,16 +1330,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (triangleTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU4); // white1x1
+              2, tex_white); // white1x1
         } else if (triangleTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, tex_uvChecker); // uvChecker
         } else if (triangleTextureIndex == 2) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, tex_monsterBall); // モンスターボール
         } else if (triangleTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU3); // checkerBoard
+              2, tex_checker); // checkerBoard
         }
 
         commandList->SetGraphicsRootConstantBufferView(
@@ -1390,16 +1356,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (triangleTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU4); // white1x1
+              2, tex_white); // white1x1
         } else if (triangleTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, tex_uvChecker); // uvChecker
         } else if (triangleTextureIndex == 2) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, tex_monsterBall); // モンスターボール
         } else if (triangleTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU3); // checkerBoard
+              2, tex_checker); // checkerBoard
         }
 
         commandList->SetGraphicsRootConstantBufferView(
@@ -1417,16 +1383,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         if (sphereTextureIndex == 0) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU4); // white1x1
+              2, tex_white); // white1x1
         } else if (sphereTextureIndex == 1) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU); // uvChecker
+              2, tex_uvChecker); // uvChecker
         } else if (sphereTextureIndex == 2) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU2); // モンスターボール
+              2, tex_monsterBall); // モンスターボール
         } else if (sphereTextureIndex == 3) {
           commandList->SetGraphicsRootDescriptorTable(
-              2, textureSrvHandleGPU3); // checkerBoard
+              2, tex_checker); // checkerBoard
         }
 
         // DirectionalLight用CBV
@@ -1452,12 +1418,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         // 3) 使うテクスチャ（SRV）を main 側で選んで渡す
         D3D12_GPU_DESCRIPTOR_HANDLE srv =
-            (modelTextureIndex == 0) ? textureSrvHandleGPU4 : // white1x1
-                (modelTextureIndex == 1) ? textureSrvHandleGPU
+            (modelTextureIndex == 0) ? tex_white : // white1x1
+                (modelTextureIndex == 1) ? tex_uvChecker
                                          : // uvChecker
-                (modelTextureIndex == 2) ? textureSrvHandleGPU2
+                (modelTextureIndex == 2) ? tex_monsterBall
                                          : // モンボ
-                textureSrvHandleGPU3;      // checkerBoard
+                tex_checker;      // checkerBoard
         selected->SetTexture(srv);
 
         // 4) 行列更新 → 描画
@@ -1477,7 +1443,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             1, transformationMatrixResourceSprite->GetGPUVirtualAddress());
         // spriteのSRVを設定
         commandList->SetGraphicsRootDescriptorTable(
-            2, textureSrvHandleGPU); // テクスチャのSRVを設定
+            2, tex_uvChecker); // テクスチャのSRVを設定
 
         // --- スプライト描画 ---
         commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSprite);
@@ -1501,6 +1467,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // tearing を使うなら flags に DXGI_PRESENT_ALLOW_TEARING
       // を渡してもOK（vsync=0時）
       swap.Present(1, 0);
+
+      //======================================
+      // フレームの後処理＆次フレームに向けた準備
+      //======================================
 
       cmd.WaitForFrame(backBufferIndex);
 
@@ -1527,6 +1497,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       wvpData->WVP = wvpMatrix;
       wvpData->World = worldMatrix;
+
+      //======================================
+      // スプライト用の行列・UV変換の更新
+      //======================================
 
       // --- Sprite用のWVP行列を更新 ---
       Matrix4x4 worldMatrixSprite =
@@ -1579,7 +1553,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   rtvHeap.Term();
 
   wvpResource->Release();
-  textureResource->Release();
   dxcUtils->Release();
   dxcCompiler->Release();
   includeHandler->Release();
@@ -1589,9 +1562,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   delete sphere;
 
-  textureResource2->Release();
-  textureResource3->Release();
-  textureResource4->Release();
+  texMgr.Term(); 
 
   indexResourceSprite->Release();
   spriteMaterialResource->Release();

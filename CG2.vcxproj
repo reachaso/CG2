@@ -68,7 +68,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>mySource/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>mySource/;mySource/Common;mySource/Camera;mySource/Dx12;mySource/Graphics;externals/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -92,7 +92,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>mySource/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>mySource/;mySource/Common;mySource/Camera;mySource/Dx12;mySource/Graphics;externals/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -118,7 +118,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>mySource/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>mySource/;mySource/Common;mySource/Camera;mySource/Dx12;mySource/Graphics;externals/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -141,20 +141,22 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="externals\imgui\imgui_tables.cpp" />
     <ClCompile Include="externals\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="mySource\Affine\Affine.cpp" />
-    <ClCompile Include="mySource\DebugCamera\DebugCamera.cpp" />
+    <ClCompile Include="mySource\Common\Math\Math.cpp" />
+    <ClCompile Include="mySource\Camera\DebugCamera\DebugCamera.cpp" />
     <ClCompile Include="mySource\Dx12\CommandContext\CommandContext.cpp" />
     <ClCompile Include="mySource\Dx12\DepthStencil\DepthStencil.cpp" />
     <ClCompile Include="mySource\Dx12\DescriptorHeap\DescriptorHeap.cpp" />
     <ClCompile Include="mySource\Dx12\SwapChain\SwapChain.cpp" />
-    <ClCompile Include="mySource\function\function.cpp" />
+    <ClCompile Include="mySource\Common\function\function.cpp" />
     <ClCompile Include="mySource\Input\Input.cpp" />
-    <ClCompile Include="mySource\Log\Log.cpp" />
-    <ClCompile Include="mySource\MainCamera\MainCamera.cpp" />
-    <ClCompile Include="mySource\Model3D\Model3D.cpp" />
-    <ClCompile Include="mySource\Sound\Sound.cpp" />
-    <ClCompile Include="mySource\Sphere\Sphere.cpp" />
+    <ClCompile Include="mySource\Common\Log\Log.cpp" />
+    <ClCompile Include="mySource\Camera\MainCamera\MainCamera.cpp" />
+    <ClCompile Include="mySource\Graphics\Model3D\Model3D.cpp" />
+    <ClCompile Include="mySource\Graphics\Sound\Sound.cpp" />
+    <ClCompile Include="mySource\Graphics\Sphere\Sphere.cpp" />
+    <ClCompile Include="mySource\Graphics\Texture\Texture2D\Texture2D.cpp" />
     <ClCompile Include="mySource\Window\Window.cpp" />
+    <ClCompile Include="mySource\Graphics\Texture\TextureManager\TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\Object3d.PS.hlsl">
@@ -187,21 +189,23 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
-    <ClInclude Include="mySource\Affine\Affine.h" />
-    <ClInclude Include="mySource\DebugCamera\DebugCamera.h" />
+    <ClInclude Include="mySource\Common\Math\Math.h" />
+    <ClInclude Include="mySource\Camera\DebugCamera\DebugCamera.h" />
     <ClInclude Include="mySource\Dx12\CommandContext\CommandContext.h" />
     <ClInclude Include="mySource\Dx12\DepthStencil\DepthStencil.h" />
     <ClInclude Include="mySource\Dx12\DescriptorHeap\DescriptorHeap.h" />
     <ClInclude Include="mySource\Dx12\DescriptorHeap\DescriptorHelpers.h" />
     <ClInclude Include="mySource\Dx12\SwapChain\SwapChain.h" />
-    <ClInclude Include="mySource\function\function.h" />
+    <ClInclude Include="mySource\Common\function\function.h" />
     <ClInclude Include="mySource\Input\Input.h" />
-    <ClInclude Include="mySource\Log\Log.h" />
-    <ClInclude Include="mySource\MainCamera\MainCamera.h" />
-    <ClInclude Include="mySource\Model3D\Model3D.h" />
-    <ClInclude Include="mySource\Sound\Sound.h" />
-    <ClInclude Include="mySource\Sphere\Sphere.h" />
-    <ClInclude Include="mySource\struct.h" />
+    <ClInclude Include="mySource\Common\Log\Log.h" />
+    <ClInclude Include="mySource\Camera\MainCamera\MainCamera.h" />
+    <ClInclude Include="mySource\Graphics\Model3D\Model3D.h" />
+    <ClInclude Include="mySource\Graphics\Sound\Sound.h" />
+    <ClInclude Include="mySource\Graphics\Sphere\Sphere.h" />
+    <ClInclude Include="mySource\Common\struct.h" />
+    <ClInclude Include="mySource\Graphics\Texture\Texture2D\Texture2D.h" />
+    <ClInclude Include="mySource\Graphics\Texture\TextureManager\TextureManager.h" />
     <ClInclude Include="mySource\Window\Window.h" />
   </ItemGroup>
   <ItemGroup>

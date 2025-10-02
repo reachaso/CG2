@@ -1,7 +1,7 @@
 #pragma once
-#include "../Affine/Affine.h"
-#include "../function/function.h" // CreateBufferResource, LoadMaterialTemplateFile など
-#include "../struct.h"
+#include "Math/Math.h"
+#include "function/function.h" // CreateBufferResource, LoadMaterialTemplateFile など
+#include "struct.h"
 #include <d3d12.h>
 #include <string>
 #include <vector>

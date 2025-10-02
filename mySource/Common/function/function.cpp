@@ -110,24 +110,6 @@ void UploadTextureData(ID3D12Resource *texture,
   }
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE
-GetCPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
-                       uint32_t descriptorSize, uint32_t index) {
-  D3D12_CPU_DESCRIPTOR_HANDLE handleCPU =
-      descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-  handleCPU.ptr += (descriptorSize * index);
-  return handleCPU;
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE
-GetGPUDescriptorHandle(ID3D12DescriptorHeap *descriptorHeap,
-                       uint32_t descriptorSize, uint32_t index) {
-  D3D12_GPU_DESCRIPTOR_HANDLE handleGPU =
-      descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-  handleGPU.ptr += (descriptorSize * index);
-  return handleGPU;
-}
-
 IDxcBlob *CompileShader(
     // CompilerするShaderファイルへのパス
     const std::wstring &filePath,
@@ -265,95 +247,6 @@ MaterialData LoadMaterialTemplateFile(const std::string &directoryPath,
   return materialData;
 }
 
-// objファイルを読み込む関数
-ModelData LoadObjFile(const std::string &directoryPath,
-                      const std::string &filename) {
-  ModelData modelData{};
-  std::vector<Vector4> positions; // 頂点位置
-  std::vector<Vector3> normals;   // 法線ベクトル
-  std::vector<Vector2> texcoords; // テクスチャ座標
-  std::string line;               // ファイルから読んだ 1 行
-
-  // ファイルを開く
-  std::ifstream file(directoryPath + "/" + filename);
-  assert(file.is_open()); // 開けなかったら止める
-
-  // ファイルを読みModelDataを構築
-  while (std::getline(file, line)) {
-
-    std::string identifier;
-    std::istringstream s(line);
-    s >> identifier; // 行の最初の文字列を識別子として取得
-
-    if (identifier == "v") {
-      Vector4 position;
-      s >> position.x >> position.y >> position.z;
-      position.x = -position.x;
-      position.w = 1.0f;
-      positions.push_back(position);
-    } else if (identifier == "vt") {
-      Vector2 texcoord;
-      s >> texcoord.x >> texcoord.y;
-      texcoord.y = 1.0f - texcoord.y; // Y軸を反転
-      texcoords.push_back(texcoord);
-    } else if (identifier == "vn") {
-      Vector3 normal;
-      s >> normal.x >> normal.y >> normal.z;
-      normal.x = -normal.x;
-      normals.push_back(normal);
-    } else if (identifier == "f") {
-      // 三角形３頂点分読み込み
-      VertexData triangle[3];
-      for (int vi = 0; vi < 3; ++vi) {
-        std::string vertDef;
-        s >> vertDef; // 例: "18//18" や "18/34/18" など
-
-        // “/” 区切りで最大 3 要素に分割
-        std::string idxStr[3] = {"", "", ""};
-        size_t prev = 0, pos;
-        int field = 0;
-        while (field < 2 &&
-               (pos = vertDef.find('/', prev)) != std::string::npos) {
-          idxStr[field++] = vertDef.substr(prev, pos - prev);
-          prev = pos + 1;
-        }
-        // 最後の要素（あるいは “/” がなかった場合）
-        if (prev < vertDef.size() && field < 3) {
-          idxStr[field++] = vertDef.substr(prev);
-        }
-
-        // 頂点／テクスチャ／法線インデックスを安全に変換
-        int pi = std::stoi(idxStr[0]); // “v” は必ず存在する前提
-        int ti = (!idxStr[1].empty()) ? std::stoi(idxStr[1]) : 0;
-        int ni = (!idxStr[2].empty()) ? std::stoi(idxStr[2]) : 0;
-
-        // 配列は 0 始まりなので -1
-        Vector4 position = positions[pi - 1];
-        Vector2 texcoord = (ti > 0 && ti - 1 < (int)texcoords.size())
-                               ? texcoords[ti - 1]
-                               : Vector2{0.0f, 0.0f}; // vt がなければデフォルト
-        Vector3 normal = (ni > 0 && ni - 1 < (int)normals.size())
-                             ? normals[ni - 1]
-                             : Vector3{0.0f, 0.0f, 0.0f};
-
-        triangle[vi] = {position, texcoord, normal};
-      }
-      // 描画向きが逆なので３頂点を反転して格納
-      modelData.vertices.push_back(triangle[2]);
-      modelData.vertices.push_back(triangle[1]);
-      modelData.vertices.push_back(triangle[0]);
-    } else if (identifier == "mtllib") {
-      // materialTemplateLibraryファイルの名前を取得する
-      std::string materialFilename;
-      s >> materialFilename;
-      // 基本的にobjファイルと同一階層にmtlは存在させるので、ディレクトリ名とファイル名を渡す
-      modelData.material =
-          LoadMaterialTemplateFile(directoryPath, materialFilename);
-    }
-  }
-
-  return modelData; // 読み込んだModelDataを返す
-}
 
 DirectX::ScratchImage CreateWhiteTextureImage() {
   DirectX::ScratchImage whiteImage;

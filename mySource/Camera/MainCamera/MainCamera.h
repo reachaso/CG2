@@ -1,5 +1,5 @@
 #pragma once
-#include "Affine/Affine.h"
+#include "Math/Math.h"
 #include "struct.h"
 
 class MainCamera {

@@ -81,34 +81,34 @@
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Affine\Affine.cpp">
+    <ClCompile Include="mySource\Common\Math\Math.cpp">
       <Filter>mySource\Affine</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Sphere\Sphere.cpp">
+    <ClCompile Include="mySource\Graphics\Sphere\Sphere.cpp">
       <Filter>mySource\Sphere</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Sound\Sound.cpp">
+    <ClCompile Include="mySource\Graphics\Sound\Sound.cpp">
       <Filter>mySource\Sound</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Input\Input.cpp">
       <Filter>mySource\Input</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\DebugCamera\DebugCamera.cpp">
+    <ClCompile Include="mySource\Camera\DebugCamera\DebugCamera.cpp">
       <Filter>mySource\Camera\DebugCamera</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\MainCamera\MainCamera.cpp">
+    <ClCompile Include="mySource\Camera\MainCamera\MainCamera.cpp">
       <Filter>mySource\Camera\MainCamera</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Log\Log.cpp">
+    <ClCompile Include="mySource\Common\Log\Log.cpp">
       <Filter>mySource\Log</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\function\function.cpp">
+    <ClCompile Include="mySource\Common\function\function.cpp">
       <Filter>mySource\function</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Window\Window.cpp">
       <Filter>mySource\Window</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Model3D\Model3D.cpp">
+    <ClCompile Include="mySource\Graphics\Model3D\Model3D.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Dx12\CommandContext\CommandContext.cpp">
@@ -121,6 +121,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="mySource\Dx12\DepthStencil\DepthStencil.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Graphics\Texture\Texture2D\Texture2D.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="mySource\Graphics\Texture\TextureManager\TextureManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -157,37 +163,37 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Affine\Affine.h">
+    <ClInclude Include="mySource\Common\Math\Math.h">
       <Filter>mySource\Affine</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\struct.h">
+    <ClInclude Include="mySource\Common\struct.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Sphere\Sphere.h">
+    <ClInclude Include="mySource\Graphics\Sphere\Sphere.h">
       <Filter>mySource\Sphere</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Sound\Sound.h">
+    <ClInclude Include="mySource\Graphics\Sound\Sound.h">
       <Filter>mySource\Sound</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Input\Input.h">
       <Filter>mySource\Input</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\DebugCamera\DebugCamera.h">
+    <ClInclude Include="mySource\Camera\DebugCamera\DebugCamera.h">
       <Filter>mySource\Camera\DebugCamera</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\MainCamera\MainCamera.h">
+    <ClInclude Include="mySource\Camera\MainCamera\MainCamera.h">
       <Filter>mySource\Camera\MainCamera</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Log\Log.h">
+    <ClInclude Include="mySource\Common\Log\Log.h">
       <Filter>mySource\Log</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\function\function.h">
+    <ClInclude Include="mySource\Common\function\function.h">
       <Filter>mySource\function</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Window\Window.h">
       <Filter>mySource\Window</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Model3D\Model3D.h">
+    <ClInclude Include="mySource\Graphics\Model3D\Model3D.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Dx12\CommandContext\CommandContext.h">
@@ -203,6 +209,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="mySource\Dx12\DepthStencil\DepthStencil.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Graphics\Texture\Texture2D\Texture2D.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="mySource\Graphics\Texture\TextureManager\TextureManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
