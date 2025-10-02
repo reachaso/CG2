@@ -1,5 +1,5 @@
 #pragma once
-#include "../struct.h"
+#include "struct.h"
 
 //==================================
 // Vector3 関連関数

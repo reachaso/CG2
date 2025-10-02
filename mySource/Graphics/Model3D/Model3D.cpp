@@ -1,5 +1,5 @@
 #include "Model3D.h"
-#include "../externals/imgui/imgui.h"
+#include "imgui/imgui.h"
 #include <cassert>
 #include <fstream>
 #include <sstream>
@@ -214,7 +214,7 @@ bool Model3D::LoadObjToVertices_(const std::string &directoryPath,
     } else if (id == "mtllib") {
       std::string mtlName;
       s >> mtlName;
-      outMtl = LoadMaterialTemplateFile(directoryPath, mtlName);
+      outMtl = LoadMaterialTemplateFile_(directoryPath, mtlName);
     }
   }
   return true;
@@ -236,4 +236,26 @@ void Model3D::UploadVB_(const std::vector<VertexData> &vertices) {
   vb_.view.BufferLocation = vb_.resource->GetGPUVirtualAddress();
   vb_.view.SizeInBytes = static_cast<UINT>(sizeBytes);
   vb_.view.StrideInBytes = sizeof(VertexData);
+}
+
+MaterialData
+Model3D::LoadMaterialTemplateFile_(const std::string &directoryPath,
+                                   const std::string &filename) {
+  MaterialData materialData{};
+  std::string line;
+  std::ifstream file(directoryPath + "/" + filename);
+  assert(file.is_open());
+
+  while (std::getline(file, line)) {
+    std::string identifier;
+    std::istringstream s(line);
+    s >> identifier;
+
+    if (identifier == "map_Kd") {
+      std::string textureFilename;
+      s >> textureFilename;
+      materialData.textureFilePath = directoryPath + "/" + textureFilename;
+    }
+  }
+  return materialData;
 }

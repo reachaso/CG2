@@ -1,5 +1,5 @@
 #include "TextureManager.h"
-#include "Dx12/DescriptorHeap/DescriptorHeap.h"
+#include "DescriptorHeap/DescriptorHeap.h"
 
 void TextureManager::Term() {
   for (auto &[_, tex] : cache_)

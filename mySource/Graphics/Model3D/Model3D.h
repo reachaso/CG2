@@ -1,7 +1,6 @@
 #pragma once
 #include "Math/Math.h"
-#include "function/function.h" // CreateBufferResource, LoadMaterialTemplateFile など
-#include "struct.h"
+#include "function/function.h"
 #include <d3d12.h>
 #include <string>
 #include <vector>
@@ -67,6 +66,11 @@ private:
 
   // 頂点配列から VB を生成して転送
   void UploadVB_(const std::vector<VertexData> &vertices);
+
+  // マテリアルファイル(.mtl)の読み込み
+  MaterialData LoadMaterialTemplateFile_(const std::string &directoryPath,
+                                         const std::string &filename);
+
 
   // ========== メンバ ==========
   ID3D12Device *device_ = nullptr;

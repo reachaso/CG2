@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../../externals/DirectXTex/DirectXTex.h"
+#include "DirectXTex/DirectXTex.h"
 #include <cassert>
 #include <d3d12.h>
 #include <string>

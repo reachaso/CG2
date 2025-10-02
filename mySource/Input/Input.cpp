@@ -1,6 +1,6 @@
 #include "Input.h"
 #include <cassert>
-#include "../../externals/imgui/imgui.h" 
+#include "imgui/imgui.h" 
 #include <string>
 
 Input::Input(HWND hwnd) {

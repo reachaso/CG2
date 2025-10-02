@@ -1,5 +1,5 @@
 #include "DepthStencil.h"
-#include "Dx12/DescriptorHeap/DescriptorHeap.h"
+#include "DescriptorHeap/DescriptorHeap.h"
 
 void DepthStencil::Init(ID3D12Device *device, UINT width, UINT height,
                         DescriptorHeap &dsvHeap, DXGI_FORMAT texFormat,

@@ -1,5 +1,5 @@
 #pragma once
-#include "struct.h" // VertexData, Vector4, Vector2 が定義されている想定
+#include "struct.h"
 #include <d3d12.h>
 #include <vector>
 
