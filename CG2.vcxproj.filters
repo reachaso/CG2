@@ -81,64 +81,64 @@
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Common\Math\Math.cpp">
+    <ClCompile Include="engine\Common\Math\Math.cpp">
       <Filter>mySource\Affine</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Graphics\Sphere\Sphere.cpp">
+    <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp">
       <Filter>mySource\Sphere</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Graphics\Sound\Sound.cpp">
+    <ClCompile Include="engine\Graphics\Sound\Sound.cpp">
       <Filter>mySource\Sound</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Input\Input.cpp">
+    <ClCompile Include="engine\Input\Input.cpp">
       <Filter>mySource\Input</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Camera\DebugCamera\DebugCamera.cpp">
+    <ClCompile Include="engine\Camera\DebugCamera\DebugCamera.cpp">
       <Filter>mySource\Camera\DebugCamera</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Camera\MainCamera\MainCamera.cpp">
+    <ClCompile Include="engine\Camera\MainCamera\MainCamera.cpp">
       <Filter>mySource\Camera\MainCamera</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Common\Log\Log.cpp">
+    <ClCompile Include="engine\Common\Log\Log.cpp">
       <Filter>mySource\Log</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Common\function\function.cpp">
+    <ClCompile Include="engine\Common\function\function.cpp">
       <Filter>mySource\function</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Window\Window.cpp">
+    <ClCompile Include="engine\Window\Window.cpp">
       <Filter>mySource\Window</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Graphics\Model3D\Model3D.cpp">
+    <ClCompile Include="engine\Graphics\Model3D\Model3D.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\CommandContext\CommandContext.cpp">
+    <ClCompile Include="engine\Dx12\CommandContext\CommandContext.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\SwapChain\SwapChain.cpp">
+    <ClCompile Include="engine\Dx12\SwapChain\SwapChain.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\DescriptorHeap\DescriptorHeap.cpp">
+    <ClCompile Include="engine\Dx12\DescriptorHeap\DescriptorHeap.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\DepthStencil\DepthStencil.cpp">
+    <ClCompile Include="engine\Dx12\DepthStencil\DepthStencil.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Graphics\Texture\Texture2D\Texture2D.cpp">
+    <ClCompile Include="engine\Graphics\Texture\Texture2D\Texture2D.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Graphics\Texture\TextureManager\TextureManager.cpp">
+    <ClCompile Include="engine\Graphics\Texture\TextureManager\TextureManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\Device\Device.cpp">
+    <ClCompile Include="engine\Dx12\Device\Device.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\GraphicsPipeline\GraphicsPipeline.cpp">
+    <ClCompile Include="engine\Dx12\GraphicsPipeline\GraphicsPipeline.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\Dx12\Dx12Core.cpp">
+    <ClCompile Include="engine\Dx12\Dx12Core.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="mySource\ImGuiManager\ImGuiManager.cpp">
+    <ClCompile Include="engine\ImGuiManager\ImGuiManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -175,70 +175,70 @@
     <ClInclude Include="externals\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Common\Math\Math.h">
+    <ClInclude Include="engine\Common\Math\Math.h">
       <Filter>mySource\Affine</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Common\struct.h">
+    <ClInclude Include="engine\Common\struct.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Graphics\Sphere\Sphere.h">
+    <ClInclude Include="engine\Graphics\Sphere\Sphere.h">
       <Filter>mySource\Sphere</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Graphics\Sound\Sound.h">
+    <ClInclude Include="engine\Graphics\Sound\Sound.h">
       <Filter>mySource\Sound</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Input\Input.h">
+    <ClInclude Include="engine\Input\Input.h">
       <Filter>mySource\Input</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Camera\DebugCamera\DebugCamera.h">
+    <ClInclude Include="engine\Camera\DebugCamera\DebugCamera.h">
       <Filter>mySource\Camera\DebugCamera</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Camera\MainCamera\MainCamera.h">
+    <ClInclude Include="engine\Camera\MainCamera\MainCamera.h">
       <Filter>mySource\Camera\MainCamera</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Common\Log\Log.h">
+    <ClInclude Include="engine\Common\Log\Log.h">
       <Filter>mySource\Log</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Common\function\function.h">
+    <ClInclude Include="engine\Common\function\function.h">
       <Filter>mySource\function</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Window\Window.h">
+    <ClInclude Include="engine\Window\Window.h">
       <Filter>mySource\Window</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Graphics\Model3D\Model3D.h">
+    <ClInclude Include="engine\Graphics\Model3D\Model3D.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\CommandContext\CommandContext.h">
+    <ClInclude Include="engine\Dx12\CommandContext\CommandContext.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\SwapChain\SwapChain.h">
+    <ClInclude Include="engine\Dx12\SwapChain\SwapChain.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\DescriptorHeap\DescriptorHeap.h">
+    <ClInclude Include="engine\Dx12\DescriptorHeap\DescriptorHeap.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\DescriptorHeap\DescriptorHelpers.h">
+    <ClInclude Include="engine\Dx12\DescriptorHeap\DescriptorHelpers.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\DepthStencil\DepthStencil.h">
+    <ClInclude Include="engine\Dx12\DepthStencil\DepthStencil.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Graphics\Texture\Texture2D\Texture2D.h">
+    <ClInclude Include="engine\Graphics\Texture\Texture2D\Texture2D.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Graphics\Texture\TextureManager\TextureManager.h">
+    <ClInclude Include="engine\Graphics\Texture\TextureManager\TextureManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\Device\Device.h">
+    <ClInclude Include="engine\Dx12\Device\Device.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\GraphicsPipeline\GraphicsPipeline.h">
+    <ClInclude Include="engine\Dx12\GraphicsPipeline\GraphicsPipeline.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\Dx12\Dx12Core.h">
+    <ClInclude Include="engine\Dx12\Dx12Core.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="mySource\ImGuiManager\ImGuiManager.h">
+    <ClInclude Include="engine\ImGuiManager\ImGuiManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
