@@ -1,11 +1,12 @@
 #include "Model3D.h"
 #include "imgui/imgui.h"
-#include <cassert>
-#include <fstream>
-#include <sstream>
-#include <cmath>
 #include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstring> // ← 追加: std::memcpy
+#include <fstream>
 #include <numbers>
+#include <sstream>
 
 static constexpr float kPi = std::numbers::pi_v<float>;
 
@@ -33,16 +34,19 @@ void Model3D::Initialize(ID3D12Device *device) {
   cbMat_.resource = CreateBufferResource(device_, sizeof(Material));
   cbMat_.resource->Map(0, nullptr, reinterpret_cast<void **>(&cbMat_.mapped));
   cbMat_.mapped->color = {1, 1, 1, 1};
-  cbMat_.mapped->lightingMode = 2; // デフォ：Half Lambert
+  cbMat_.mapped->lightingMode = 2; // 既定 HalfLambert
   cbMat_.mapped->uvTransform = MakeIdentity4x4();
 
-  // Light CB（各 Model が自前で持つ）
+  // Light CB（各Modelが自前で持つ）
   cbLight_.resource = CreateBufferResource(device_, sizeof(DirectionalLight));
   cbLight_.resource->Map(0, nullptr,
                          reinterpret_cast<void **>(&cbLight_.mapped));
   cbLight_.mapped->color = {1, 1, 1, 1};
   cbLight_.mapped->direction = {0.0f, -1.0f, 0.0f};
   cbLight_.mapped->intensity = 1.0f;
+
+  // 初期ライティング（コンストラクタで渡された値）を反映
+  ApplyLightingIfReady_();
 }
 
 bool Model3D::LoadObjGeometryLikeFunction(const std::string &directoryPath,
@@ -61,13 +65,11 @@ void Model3D::EnsureSphericalUVIfMissing() {
   if (!vb_.resource || vb_.vertexCount == 0)
     return;
 
-  // 頂点データへアクセス
   VertexData *vtx = nullptr;
   vb_.resource->Map(0, nullptr, reinterpret_cast<void **>(&vtx));
   if (!vtx)
     return;
 
-  // 1) UVが本当に空(=全頂点が(0,0))かをチェック
   bool allZero = true;
   for (uint32_t i = 0; i < vb_.vertexCount; ++i) {
     if (std::abs(vtx[i].texcoord.x) > 1e-8f ||
@@ -77,19 +79,15 @@ void Model3D::EnsureSphericalUVIfMissing() {
     }
   }
   if (!allZero) {
-    // 既にUVがあるなら何もしない
     vb_.resource->Unmap(0, nullptr);
     return;
   }
 
-  // 2) 位置から球面UVを生成して焼き込む
   for (uint32_t i = 0; i < vb_.vertexCount; ++i) {
-    // 位置（左手系反転済み。x,zの反転はOBJパース側でやっています）
     const float x = vtx[i].position.x;
     const float y = vtx[i].position.y;
     const float z = vtx[i].position.z;
 
-    // 球面座標（u: [-pi,pi], v: [-pi/2,pi/2]）
     const float r = (std::max)(1e-6f, std::sqrt(x * x + y * y + z * z));
     const float theta = std::atan2(z, x); // [-pi, pi]
     const float phi =
@@ -98,7 +96,6 @@ void Model3D::EnsureSphericalUVIfMissing() {
     float u = 0.5f + (theta / (2.0f * kPi));
     float v = 0.5f - (phi / (1.0f * kPi));
 
-    // 綺麗にループさせる
     if (u < 0.0f)
       u += 1.0f;
     if (u > 1.0f)
@@ -108,8 +105,6 @@ void Model3D::EnsureSphericalUVIfMissing() {
   }
 
   vb_.resource->Unmap(0, nullptr);
-
-  // 3) UV行列は単位でOK（ここでの見た目調整は不要）
   cbMat_.mapped->uvTransform = MakeIdentity4x4();
 }
 
@@ -124,11 +119,10 @@ void Model3D::Draw(ID3D12GraphicsCommandList *cmdList) {
   if (!vb_.resource)
     return;
 
-  // VB
   cmdList->IASetVertexBuffers(0, 1, &vb_.view);
   cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-  // RootParam 0: Material, 1: WVP, 2: SRV, 3: Light
+  // RootParam: 0:Material, 1:WVP, 2:SRV, 3:Light
   cmdList->SetGraphicsRootConstantBufferView(
       0, cbMat_.resource->GetGPUVirtualAddress());
   cmdList->SetGraphicsRootConstantBufferView(
@@ -166,13 +160,13 @@ bool Model3D::LoadObjToVertices_(const std::string &directoryPath,
     if (id == "v") {
       Vector4 p{};
       s >> p.x >> p.y >> p.z;
-      p.x = -p.x; // 左手系に合わせる既存挙動
+      p.x = -p.x;
       p.w = 1.0f;
-      positions.push_back(p);
+      positions.push_back(p); // 左手系へ
     } else if (id == "vt") {
       Vector2 t{};
       s >> t.x >> t.y;
-      t.y = 1.0f - t.y; // 既存挙動
+      t.y = 1.0f - t.y;
       texcoords.push_back(t);
     } else if (id == "vn") {
       Vector3 n{};
@@ -184,7 +178,6 @@ bool Model3D::LoadObjToVertices_(const std::string &directoryPath,
       for (int vi = 0; vi < 3; ++vi) {
         std::string vd;
         s >> vd;
-
         std::string idx[3] = {"", "", ""};
         size_t prev = 0, pos;
         int field = 0;
@@ -207,7 +200,7 @@ bool Model3D::LoadObjToVertices_(const std::string &directoryPath,
                                                              : Vector3{0, 0, 0};
         tri[vi] = {p, t, n};
       }
-      // 既存実装と同様に向きを反転して格納
+      // 面の向きを反転して格納（既存実装と同じ）
       outVertices.push_back(tri[2]);
       outVertices.push_back(tri[1]);
       outVertices.push_back(tri[0]);
@@ -250,7 +243,6 @@ Model3D::LoadMaterialTemplateFile_(const std::string &directoryPath,
     std::string identifier;
     std::istringstream s(line);
     s >> identifier;
-
     if (identifier == "map_Kd") {
       std::string textureFilename;
       s >> textureFilename;
@@ -258,4 +250,42 @@ Model3D::LoadMaterialTemplateFile_(const std::string &directoryPath,
     }
   }
   return materialData;
+}
+
+// -------------------------------
+// ライティング設定 4 引数版
+// -------------------------------
+Model3D &Model3D::SetLightingConfig(LightingMode mode,
+                                    const std::array<float, 3> &color,
+                                    const std::array<float, 3> &dir,
+                                    float intensity) {
+  initialLighting_.mode = mode;
+  initialLighting_.color[0] = color[0];
+  initialLighting_.color[1] = color[1];
+  initialLighting_.color[2] = color[2];
+
+  // ※必要ならここで正規化
+  initialLighting_.dir[0] = dir[0];
+  initialLighting_.dir[1] = dir[1];
+  initialLighting_.dir[2] = dir[2];
+
+  initialLighting_.intensity = intensity;
+
+  ApplyLightingIfReady_();
+  return *this;
+}
+
+void Model3D::ApplyLightingIfReady_() {
+  if (cbMat_.mapped) {
+    cbMat_.mapped->lightingMode = static_cast<int>(initialLighting_.mode);
+  }
+  if (cbLight_.mapped) {
+    cbLight_.mapped->color = {initialLighting_.color[0],
+                              initialLighting_.color[1],
+                              initialLighting_.color[2], 1.0f};
+    cbLight_.mapped->direction = {initialLighting_.dir[0],
+                                  initialLighting_.dir[1],
+                                  initialLighting_.dir[2]};
+    cbLight_.mapped->intensity = initialLighting_.intensity;
+  }
 }

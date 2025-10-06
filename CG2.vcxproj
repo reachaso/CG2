@@ -147,6 +147,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="mySource\Dx12\DepthStencil\DepthStencil.cpp" />
     <ClCompile Include="mySource\Dx12\DescriptorHeap\DescriptorHeap.cpp" />
     <ClCompile Include="mySource\Dx12\Device\Device.cpp" />
+    <ClCompile Include="mySource\Dx12\Dx12Core.cpp" />
+    <ClCompile Include="mySource\Dx12\GraphicsPipeline\GraphicsPipeline.cpp" />
     <ClCompile Include="mySource\Dx12\SwapChain\SwapChain.cpp" />
     <ClCompile Include="mySource\Common\function\function.cpp" />
     <ClCompile Include="mySource\Input\Input.cpp" />
@@ -197,6 +199,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="mySource\Dx12\DescriptorHeap\DescriptorHeap.h" />
     <ClInclude Include="mySource\Dx12\DescriptorHeap\DescriptorHelpers.h" />
     <ClInclude Include="mySource\Dx12\Device\Device.h" />
+    <ClInclude Include="mySource\Dx12\Dx12Core.h" />
+    <ClInclude Include="mySource\Dx12\GraphicsPipeline\GraphicsPipeline.h" />
     <ClInclude Include="mySource\Dx12\SwapChain\SwapChain.h" />
     <ClInclude Include="mySource\Common\function\function.h" />
     <ClInclude Include="mySource\Input\Input.h" />

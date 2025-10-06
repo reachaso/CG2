@@ -8,6 +8,8 @@ class DescriptorHeap;
 
 class TextureManager {
 public:
+  using TextureID = int;
+
   void Init(ID3D12Device *device, DescriptorHeap *srvHeap) {
     device_ = device;
     srvHeap_ = srvHeap;
@@ -22,8 +24,17 @@ public:
   // 直接 Texture2D にアクセスしたい場合
   Texture2D *Get(const std::string &path);
 
+  TextureID LoadID(const std::string &path, bool srgb = true);
+  D3D12_GPU_DESCRIPTOR_HANDLE GetSrv(TextureID id) const;
+  const DirectX::TexMetadata *GetMeta(TextureID id) const;
+  Texture2D *GetTexture(TextureID id);
+
 private:
   ID3D12Device *device_ = nullptr;    // 非所有
   DescriptorHeap *srvHeap_ = nullptr; // 非所有（可視ヒープ）
   std::unordered_map<std::string, Texture2D> cache_;
+
+  int nextId_ = 1;
+  std::unordered_map<std::string, TextureID> pathToId_;
+  std::unordered_map<TextureID, std::string> idToPath_;
 };
