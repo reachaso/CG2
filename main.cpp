@@ -18,6 +18,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
+#include "ImGuiManager/ImGuiManager.h"
 #include "struct.h"
 #include <Windows.h>
 #include <cassert>
@@ -481,24 +482,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // Imguiの初期化
   //===============================
 
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGui::StyleColorsDark();
-
-  // ImGuiのフォント設定
-  ImGuiIO &io = ImGui::GetIO();
-  ImFont *fontJP = io.Fonts->AddFontFromFileTTF(
-      "Resources/fonts/Huninn/Huninn-Regular.ttf", 15.0f, nullptr,
-      io.Fonts->GetGlyphRangesJapanese());
-  io.FontDefault = fontJP;
-
-  // プラットフォーム／レンダラーの初期化
-  ImGui_ImplWin32_Init(window.hwnd);
-  ImGui_ImplDX12_Init(core.GetDevice(), core.FrameCount(),
-                      DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, core.SRV().Heap(),
-                      core.SRV().CPUAt(0), core.SRV().GPUAt(0));
-
-  core.SRV().AllocateCPU(1); // 先頭スロットをImGuiに確保
+  ImGuiManager imgui;
+  imgui.Init(window.hwnd, core);
 
   //===============================
   // Textureをよんで転送する
@@ -530,9 +515,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       // ImGUiの処理
       //======================================
 
-      ImGui_ImplDX12_NewFrame();
-      ImGui_ImplWin32_NewFrame();
-      ImGui::NewFrame();
+      imgui.NewFrame();
 
       ImGui::Begin("各種設定"); // ImGuiのウィンドウを開始
 
@@ -1156,9 +1139,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                                           0); // 6頂点、開始インデックス0
       }
 
-      ImGui::Render();
-
-      ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+      imgui.Render(commandList);
 
       core.EndFrame();
 
@@ -1213,9 +1194,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // 解放処理
   //===========================
 
-  ImGui_ImplDX12_Shutdown();
-  ImGui_ImplWin32_Shutdown();
-  ImGui::DestroyContext();
+  imgui.Shutdown();
 
   vertexResource->Release();
   vertexResourceSprite->Release();
