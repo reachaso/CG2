@@ -58,7 +58,7 @@ struct SphereData {
 };
 
 // 三角形
-struct Triangle {
+struct Triangle2D {
   Vector3 vertices[3] = {
       {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
   uint32_t color = 0x000000FF;
