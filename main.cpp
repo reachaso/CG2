@@ -3,26 +3,24 @@
 #include "DebugCamera/DebugCamera.h"
 #include "Dx12Core.h"
 #include "GraphicsPipeline/GraphicsPipeline.h"
+#include "ImGuiManager/ImGuiManager.h"
 #include "Input/Input.h"
 #include "Log/Log.h"
 #include "MainCamera/MainCamera.h"
 #include "Math/Math.h"
-#include "Model3D/Model3D.h"
-#include "Sound/Sound.h"
 #include "Sphere/Sphere.h"
-#include "Sprite2D/Sprite2D.h"
 #include "Texture/Texture2D/Texture2D.h"
 #include "Texture/TextureManager/TextureManager.h"
 #include "Window/Window.h"
 #include "function/function.h"
 #include "imgui/imgui.h"
-#include "ImGuiManager/ImGuiManager.h"
 #include "struct.h"
 #include <Windows.h>
 #include <cassert>
 #include <cstdint>
 #include <d3d12.h>
 #include <dxcapi.h>
+#include "model3D/model3D.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -160,40 +158,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===========================
 
   Sphere *sphere = new Sphere();
+  sphere->Initialize(device, 0.5f, 16, 16);
 
-  // 1フレームだけ使って初期化して問題なければOK
-  core.BeginFrame();
-  {
-    ID3D12GraphicsCommandList *setupList = core.CL();
-    if (sphere) {
-      sphere->Initialize(device, setupList, 0.5f, 16, 16);
-    }
-  }
-  core.EndFrame();
-
-  bool eanableSphereRotateY = false;
-
-  bool isSphere = false;
-
-  // --- Sphere用のCBVリソースを作成 ---
-  ID3D12Resource *sphereWvpResource =
-      CreateBufferResource(device, sizeof(TransformationMatrix));
-  TransformationMatrix *sphereWvpData = nullptr;
-  sphereWvpResource->Map(0, nullptr, reinterpret_cast<void **>(&sphereWvpData));
-  sphereWvpData->WVP = MakeIdentity4x4();   // 単位行列で初期化
-  sphereWvpData->World = MakeIdentity4x4(); // 単位行列で初期化
-
-  // --- Sphere用のMaterialリソースを作成 ---
-  ID3D12Resource *sphereMaterialResource =
-      CreateBufferResource(device, sizeof(Material));
-  Material *sphereMaterialData = nullptr;
-  sphereMaterialResource->Map(0, nullptr,
-                              reinterpret_cast<void **>(&sphereMaterialData));
-  // Materialの初期化
-  sphereMaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f); // 白色
-  sphereMaterialData->uvTransform =
-      MakeIdentity4x4(); // UV変換行列を単位行列で初期化
-  sphereMaterialData->lightingMode = 2;
+  bool isSphere = true;
 
   // --- DirectionalLight用のCBVリソースを作成 ---
   ID3D12Resource *directionalLightResource =
@@ -335,7 +302,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //=====================================================
   // 三角形用
   //=====================================================
-  // 色　デフォは白
+  // 色
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   // 回転のflag
   bool enableRotateX = false;
@@ -351,8 +318,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
   ImGuiManager imgui;
   imgui.Init(window.hwnd, core);
-
-  
 
   // 0: uvChecker, 1: モンスターボール , 2: checkerBoard, 3: white1x1
   int triangleTextureIndex = 0;
@@ -535,99 +500,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
-            // 球体の描画設定
-            if (ImGui::BeginTabBar("設定")) {
-              if (ImGui::BeginTabItem("球の設定")) {
-                if (ImGui::CollapsingHeader("位置",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-
-                  ImGui::SliderFloat3("##Translation",
-                                      &sphere->sphereTransform.translation.x,
-                                      -3.0f, 3.0f);
-                  if (ImGui::Button("位置のリセット")) {
-                    sphere->sphereTransform.translation = {0.0f, 0.0f, 0.0f};
-                  }
-                }
-
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                if (ImGui::CollapsingHeader("回転",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3("##Rotation",
-                                      &sphere->sphereTransform.rotation.x, 0.0f,
-                                      10.0f);
-                  if (ImGui::Button("回転のリセット")) {
-                    sphere->sphereTransform.rotation = {0.0f, 0.0f, 0.0f};
-                  }
-                  ImGui::SameLine();
-                  ImGui::Dummy(ImVec2(20.0f, 0.0f)); // 20ピクセル分の空白
-                  ImGui::Checkbox("Y軸回転", &eanableSphereRotateY);
-                }
-
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                if (ImGui::CollapsingHeader("大きさ",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::SliderFloat3(
-                      "##Scale", &sphere->sphereTransform.scale.x, 0.0f, 10.0f);
-                  if (ImGui::Button("大きさのリセット")) {
-                    sphere->sphereTransform.scale = {1.0f, 1.0f, 1.0f};
-                  }
-                }
-                ImGui::EndTabItem();
-              }
-
-              ImGui::Dummy(ImVec2(0.0f, 10.0f));
-
-              if (ImGui::BeginTabItem("ライトの設定")) {
-
-                if (ImGui::CollapsingHeader("ライティングモード",
-                                            ImGuiTreeNodeFlags_DefaultOpen)) {
-                  ImGui::Combo("##Lighting Mode",
-                               &sphereMaterialData->lightingMode,
-                               "無し\0ランバート反射\0ハーフランバート\0");
-                }
-
-                ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                if (sphereMaterialData->lightingMode != 0) {
-
-                  if (ImGui::CollapsingHeader("ライトの色",
-                                              ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::ColorEdit3("##Color", &directionalLight.color.x);
-                    if (ImGui::Button("色のリセット")) {
-                      directionalLight.color = {1.0f, 1.0f, 1.0f};
-                    }
-                  }
-
-                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                  if (ImGui::CollapsingHeader("ライトの向き",
-                                              ImGuiTreeNodeFlags_DefaultOpen)) {
-                    // 平行光源の方向を設定するスライダー
-                    ImGui::SliderFloat3("##Direction",
-                                        &directionalLight.direction.x, -1.0f,
-                                        1.0f);
-                    // 方向をリセットするボタン
-                    if (ImGui::Button("向きのリセット")) {
-                      directionalLight.direction = {0.0f, -1.0f, 0.0f};
-                    }
-                  }
-
-                  ImGui::Dummy(ImVec2(0.0f, 5.0f));
-
-                  if (ImGui::CollapsingHeader("ライトの強さ",
-                                              ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::DragFloat("##Intensity", &directionalLight.intensity,
-                                     0.01f, 0.0f, 1.0f);
-                  }
-                }
-
-                ImGui::EndTabItem();
-              }
-              ImGui::EndTabBar();
-            }
           }
+
           ImGui::EndTabItem();
         }
 
@@ -686,10 +560,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       const Matrix4x4 &proj = useDebugCamera ? debugCamera.GetProjection()
                                              : mainCamera.GetProjection();
 
+      sphere->Update(view, proj);
+
       core.BeginFrame();
       UINT backBufferIndex = core.BackBufferIndex();
       ID3D12GraphicsCommandList *commandList = core.CL();
 
+      ID3D12DescriptorHeap *heaps[] = {core.SRV().Heap()};
+      commandList->SetDescriptorHeaps(1, heaps);
+      
       core.Clear(0.1f, 0.25f, 0.5f, 1.0f);
 
       //============================
@@ -773,30 +652,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       }
 
       if (isSphere) {
-        // Material用CBV
-        commandList->SetGraphicsRootConstantBufferView(
-            0, sphereMaterialResource->GetGPUVirtualAddress());
-        // WVP用CBV
-        commandList->SetGraphicsRootConstantBufferView(
-            1, sphereWvpResource->GetGPUVirtualAddress());
 
-        if (sphereTextureIndex == 0) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, texMgr.GetSrv(tex_white)); // white1x1
-        } else if (sphereTextureIndex == 1) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, texMgr.GetSrv(tex_uvChecker)); // uvChecker
-        } else if (sphereTextureIndex == 2) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, texMgr.GetSrv(tex_monsterBall)); // モンスターボール
-        } else if (sphereTextureIndex == 3) {
-          commandList->SetGraphicsRootDescriptorTable(
-              2, texMgr.GetSrv(tex_checker)); // checkerBoard
-        }
-
-        // DirectionalLight用CBV
-        commandList->SetGraphicsRootConstantBufferView(
-            3, directionalLightResource->GetGPUVirtualAddress());
+        if (sphereTextureIndex == 0)
+          sphere->SetTexture(texMgr.GetSrv(tex_white));
+        else if (sphereTextureIndex == 1)
+          sphere->SetTexture(texMgr.GetSrv(tex_uvChecker));
+        else if (sphereTextureIndex == 2)
+          sphere->SetTexture(texMgr.GetSrv(tex_monsterBall));
+        else if (sphereTextureIndex == 3)
+          sphere->SetTexture(texMgr.GetSrv(tex_checker));
 
         sphere->Draw(commandList);
       }
@@ -828,6 +692,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       wvpData->WVP = wvpMatrix;
       wvpData->World = worldMatrix;
+
+
     }
   }
 
@@ -838,7 +704,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   imgui.Shutdown();
 
   vertexResource->Release();
-  sphereWvpResource->Release();
 
   pipeline.Term();
   pixelShaderBlob->Release();
