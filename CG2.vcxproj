@@ -133,7 +133,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="App\App.cpp" />
+    <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp" />
     <ClCompile Include="externals\imgui\imgui_demo.cpp" />
     <ClCompile Include="externals\imgui\imgui_draw.cpp" />
@@ -158,7 +158,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClCompile Include="engine\Camera\MainCamera\MainCamera.cpp" />
     <ClCompile Include="engine\Graphics\Model3D\Model3D.cpp" />
     <ClCompile Include="engine\Graphics\Sound\Sound.cpp" />
-    <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp" />
     <ClCompile Include="engine\Graphics\Texture\Texture2D\Texture2D.cpp" />
     <ClCompile Include="engine\Window\Window.cpp" />
     <ClCompile Include="engine\Graphics\Texture\TextureManager\TextureManager.cpp" />
@@ -191,8 +190,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="App\App.h" />
     <ClInclude Include="App\AppConfig.h" />
+    <ClInclude Include="engine\Graphics\Sphere\Sphere.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -218,7 +217,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     <ClInclude Include="engine\Camera\MainCamera\MainCamera.h" />
     <ClInclude Include="engine\Graphics\Model3D\Model3D.h" />
     <ClInclude Include="engine\Graphics\Sound\Sound.h" />
-    <ClInclude Include="engine\Graphics\Sphere\Sphere.h" />
     <ClInclude Include="engine\Common\struct.h" />
     <ClInclude Include="engine\Graphics\Texture\Texture2D\Texture2D.h" />
     <ClInclude Include="engine\Graphics\Texture\TextureManager\TextureManager.h" />
