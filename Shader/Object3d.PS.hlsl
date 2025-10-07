@@ -10,7 +10,6 @@ struct Material
 
 struct DirectionalLight
 {
-    
     float4 color; // ライトの色 (RGBA)
     float3 direction; // ライトの方向ベクトル (正規化されたベクトル)
     float intensity; // ライトの強度
