@@ -12,9 +12,6 @@ const int32_t kClientHeight = 720;
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
 
-static const int kWindowWidth = 1280;
-static const int kWindowHeight = 720;
-
 struct Vector2 {
   float x;
   float y;

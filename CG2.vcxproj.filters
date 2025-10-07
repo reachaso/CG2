@@ -84,9 +84,6 @@
     <ClCompile Include="engine\Common\Math\Math.cpp">
       <Filter>mySource\Affine</Filter>
     </ClCompile>
-    <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp">
-      <Filter>mySource\Sphere</Filter>
-    </ClCompile>
     <ClCompile Include="engine\Graphics\Sound\Sound.cpp">
       <Filter>mySource\Sound</Filter>
     </ClCompile>
@@ -144,9 +141,6 @@
     <ClCompile Include="Shader\ShaderCompiler\ShaderCompiler.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="App\App.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="Scene\TitleScene\TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -157,6 +151,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Scene\ResultScene\ResultScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -198,9 +195,6 @@
     </ClInclude>
     <ClInclude Include="engine\Common\struct.h">
       <Filter>ソース ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\Graphics\Sphere\Sphere.h">
-      <Filter>mySource\Sphere</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Sound\Sound.h">
       <Filter>mySource\Sound</Filter>
@@ -265,9 +259,6 @@
     <ClInclude Include="App\AppConfig.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="App\App.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="Scene\Scene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -284,6 +275,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Scene\ResultScene\ResultScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Sphere\Sphere.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
