@@ -1,5 +1,6 @@
 #pragma once
 #include "MathTypes.h"
+#include "struct.h"
 
 //==================================
 // Vector3 関連関数

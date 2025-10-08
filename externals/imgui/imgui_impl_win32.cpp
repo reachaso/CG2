@@ -792,7 +792,7 @@ float ImGui_ImplWin32_GetDpiScaleForHwnd(void* hwnd)
 #endif
 
 // [experimental]
-// Borrowed from GLFW's function updateFramebufferTransparency() in src/win32_window.c
+// Borrowed from GLFW's function updateFramebufferTransparency() in src/win32_window->c
 // (the Dwm* functions are Vista era functions but we are borrowing logic from GLFW)
 void ImGui_ImplWin32_EnableAlphaCompositing(void* hwnd)
 {

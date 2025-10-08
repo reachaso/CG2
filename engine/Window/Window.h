@@ -8,8 +8,8 @@
 class Window {
 
 public:
-  static constexpr int kDefaultWidth = 1280;
-  static constexpr int kDefaultHeight = 720;
+  static const int32_t kDefaultWidth = 1280;
+  static const int32_t kDefaultHeight = 720;
 
   // デストラクタで背景ブラシ解放
   ~Window();
@@ -18,8 +18,8 @@ public:
                                      LPARAM lparam);
 
   void Initialize(const char *windowTitle = "No Title",
-                  const int32_t kClientWidth = 1280,
-                  const int32_t kClientHeight = 720);
+                  const int32_t kClientWidth = kDefaultWidth,
+                  const int32_t kClientHeight = kDefaultHeight);
 
   // クリア色の設定＆クリア実行
   void SetClearColor(float r, float g, float b, float a = 1.0f);
@@ -32,6 +32,7 @@ public:
 
   HWND GetHwnd() const { return hwnd; }
   RECT GetClientRect() const { return wrc; }
+  HINSTANCE GetInstance() const { return wc.hInstance; }
 
   // ==============================
   // ログの初期化

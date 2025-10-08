@@ -23,15 +23,16 @@ void Dx12Core::Init(HWND hwnd, const Desc &d) {
   // SwapChain
   swap_.SetRtvHeap(rtv_.Heap(), rtv_.Increment());
   // スワップチェーンは UNORM で作成（RTVはSRGBビューで作る）
-  DXGI_FORMAT scFormat =
-      (desc_.rtvFormat == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
-          ? DXGI_FORMAT_R8G8B8A8_UNORM
-          : desc_.rtvFormat; // それ以外はそのまま
+  DXGI_FORMAT scFormat = (desc_.rtvFormat == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
+                             ? DXGI_FORMAT_R8G8B8A8_UNORM
+                             : desc_.rtvFormat; // それ以外はそのまま
   swap_.Init(device_.Factory(), dev, cmd_.Queue(), hwnd, d.width, d.height,
-              scFormat, d.frameCount, allowTearing_);
+             scFormat, d.frameCount, allowTearing_);
 
   // Depth
   depth_.Init(dev, d.width, d.height, dsv_, d.dsvFormat, d.dsvFormat);
+
+   ResetViewportScissorToBackbuffer(d.width, d.height);
 
   // Pipeline（頂点レイアウトは最小例。必要なら外から差し替え可）
   D3D12_INPUT_ELEMENT_DESC inputElems[3] = {
@@ -44,9 +45,6 @@ void Dx12Core::Init(HWND hwnd, const Desc &d) {
        D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
        0},
   };
-  pipeline_.Init(dev);
-  // シェーダは呼び出し側で用意してから Build する運用でもOK。
-  // とりあえず空で置いておき、呼び出し側で Build し直しても良い。
 }
 
 void Dx12Core::BeginFrame() {
@@ -66,6 +64,12 @@ void Dx12Core::BeginFrame() {
   // SRV heap セット（ImGui 等を先頭に置いている前提）
   ID3D12DescriptorHeap *heaps[] = {srv_.Heap()};
   cl->SetDescriptorHeaps(1, heaps);
+
+  // ビューポート、シザー矩形セット
+  cl->RSSetViewports(1, &viewport_);
+  cl->RSSetScissorRects(1, &scissor_);
+
+  Clear();
 }
 
 void Dx12Core::Clear(float r, float g, float b, float a) {
@@ -92,7 +96,6 @@ void Dx12Core::WaitForGPU() { cmd_.FlushGPU(); }
 
 void Dx12Core::Term() {
   cmd_.FlushGPU();
-  pipeline_.Term();
   depth_.Term();
   swap_.Term();
   srv_.Term();

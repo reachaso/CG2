@@ -8,7 +8,7 @@
 #include "Input/Input.h"
 #include "Log/Log.h"
 #include "Math/Math.h"
-#include "ShaderCompiler/ShaderCompiler.h"
+#include "PipelineManager.h"
 #include "Sphere/Sphere.h"
 #include "Texture/TextureManager/TextureManager.h"
 #include "Window/Window.h"
@@ -35,8 +35,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // ===========================
   // winodwの初期化
   // ===========================
-  Window window;
-  window.Initialize(appConfig.title.c_str(), appConfig.width, appConfig.height);
+  Window *window = nullptr;
+  window = new Window();
+  window->Initialize(appConfig.title.c_str(), appConfig.width,
+                     appConfig.height);
 
   // ===========================
   // DX12の初期化
@@ -45,7 +47,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   Dx12Core::Desc cd{};
   cd.width = appConfig.width;
   cd.height = appConfig.height;
-  core.Init(window.GetHwnd(), cd);
+  core.Init(window->GetHwnd(), cd);
 
   // よく使うハンドル
   ID3D12Device *device = core.GetDevice();
@@ -53,76 +55,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   // ===========================
   // Inputの初期化
   // ===========================
-  Input input = Input(window.GetHwnd());
+  Input input = Input(window->GetHwnd());
 
   //===============================
   // Imguiの初期化
   //===============================
 
   ImGuiManager imgui;
-  imgui.Init(window.GetHwnd(), core);
+  imgui.Init(window->GetHwnd(), core);
 
   // ==========================
   // メッセージループ
   // ==========================
   MSG msg{};
 
-  //==========================
-  // Shaderをコンパイルする
-  //==========================
-
-  ShaderCompiler shaderCompiler;
-  bool ok = shaderCompiler.Init();
-  assert(ok && "ShaderCompiler::Init() failed");
-
-  // VS
-  ShaderDesc vs{};
-  vs.path = L"Shader/Object3D.VS.hlsl";
-  vs.target = L"vs_6_0";
-  vs.entry = L"main";
-  vs.optimize = true; // リリース時: true
-  vs.debugInfo = false;
-#ifdef _DEBUG
-  vs.optimize = false; // デバッグ時: false
-  vs.debugInfo = true;
-#endif
-
-  CompiledShader VS = shaderCompiler.Compile(vs);
-  assert(VS.HasBlob() && "VS compile failed");
-
-  // PS
-  ShaderDesc ps{};
-  ps.path = L"Shader/Object3D.PS.hlsl";
-  ps.target = L"ps_6_0";
-  ps.entry = L"main";
-  ps.optimize = true;
-  ps.debugInfo = false;
-#ifdef _DEBUG
-  ps.optimize = false; // デバッグ時: false
-  ps.debugInfo = true;
-#endif
-
-  CompiledShader PS = shaderCompiler.Compile(ps);
-  assert(PS.HasBlob() && "PS compile failed");
+  // ===========================
+  // PipelineManager 初期化
+  // ===========================
+  PipelineManager pm;
+  pm.Init(device, cd.rtvFormat, cd.dsvFormat);
 
   // ==== GraphicsPipeline による一括構築 ====
-
-  // 入力レイアウト
-  D3D12_INPUT_ELEMENT_DESC inputElems[3] = {
-      {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
-       D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-       0},
-      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
-       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-      {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
-       D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-       0},
-  };
-
-  GraphicsPipeline pipeline;
-  pipeline.Init(device);
-  pipeline.Build(inputElems, _countof(inputElems), VS.Blob(), PS.Blob(),
-                 cd.rtvFormat, cd.dsvFormat);
+  GraphicsPipeline *pipeObj = pm.CreateFromFiles(
+      "object3d", L"Shader/Object3D.VS.hlsl", L"Shader/Object3D.PS.hlsl",InputLayoutType::Object3D);
 
   // ==============================
   // カメラの初期化
@@ -134,7 +89,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
                     float(appConfig.width) / appConfig.height, 0.1f, 100.0f);
 
   //===============================
-  // Textureをよんで転送する
+  // Texture
   //===============================
   TextureManager texMgr;
   texMgr.Init(device, &core.SRV());
@@ -146,7 +101,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   int tex_white = texMgr.LoadID("Resources/white1x1.png", true);
 
   //===========================
-  // Sphere用
+  // Sphere
   //===========================
 
   Sphere *sphere = new Sphere();
@@ -155,29 +110,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   bool isSphere = true;
   // 0:white1x1 / 1:uvChecker / 2:モンボ / 3:checkerBoard
   int sphereTextureIndex = 0;
-
-  //============================
-  // Viewportを設定する
-  //============================
-  D3D12_VIEWPORT viewport{};
-  // クライアント領域のサイズと一緒にして画面全体に表示
-  viewport.Width = static_cast<float>(appConfig.width);
-  viewport.Height = static_cast<float>(appConfig.height);
-  viewport.TopLeftX = 0;
-  viewport.TopLeftY = 0;
-  viewport.MinDepth = 0.0f;
-  viewport.MaxDepth = 1.0f;
-
-  //============================
-  // Scissorを設定する
-  //============================
-
-  D3D12_RECT scissorRect{};
-  // 基本的にビューポートと同じ矩形が構成されるようにする
-  scissorRect.left = 0;
-  scissorRect.top = 0;
-  scissorRect.right = appConfig.width;
-  scissorRect.bottom = appConfig.height;
 
   // ウィンドウのxボタンが押されるまでループ
   while (msg.message != WM_QUIT) {
@@ -226,36 +158,36 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
       camera.DrawImGui();
 
-      input.Update(); // キー入力の更新
+      //======================================
+      // 更新処理
+      //======================================
+
+      input.Update();
 
       camera.Update();
 
-      auto mats = camera.GetMatrices();
+      CameraMatrices mats = camera.GetMatrices();
 
       sphere->Update(mats.view, mats.proj);
 
-      core.BeginFrame();
-      UINT backBufferIndex = core.BackBufferIndex();
+      // =====================================
+      // 更新処理ここまで
+      // =====================================
+
+      //======================================
+      // 描画処理
+      //======================================
+
       ID3D12GraphicsCommandList *commandList = core.CL();
-
-      ID3D12DescriptorHeap *heaps[] = {core.SRV().Heap()};
-      commandList->SetDescriptorHeaps(1, heaps);
-
-      core.Clear(0.1f, 0.25f, 0.5f, 1.0f);
+      core.BeginFrame();
 
       //============================
       // コマンドを積む 02_00
       //============================
 
-      // ---- ビューポート／シザーの設定（描画領域の指定） ----
-      commandList->RSSetViewports(1, &viewport);
-      commandList->RSSetScissorRects(1, &scissorRect);
-
       // ---- ルートシグネチャ／PSO／頂点バッファ／トポロジの設定 ----
-      // ルートシグネチャはPSOとは別にバインドが必要
-      commandList->SetGraphicsRootSignature(pipeline.Root());
-      commandList->SetPipelineState(pipeline.PSO()); // PSOを設定する
-      // トポロジを設定する。PSOに設定しているものとはまた別。同じものを設定すると考えておけばいい
+      commandList->SetGraphicsRootSignature(pipeObj->Root());
+      commandList->SetPipelineState(pipeObj->PSO());
       commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
       if (isSphere) {
@@ -273,8 +205,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
       }
 
       imgui.Render(commandList);
-
       core.EndFrame();
+
+      // ==========================
+      // 描画処理ここまで
+      // ==========================
     }
   }
 
@@ -283,8 +218,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
   //===========================
 
   imgui.Shutdown();
-  pipeline.Term();
+  pm.Term();
   texMgr.Term();
+  delete window;
   core.Term();
 
   delete sphere;
