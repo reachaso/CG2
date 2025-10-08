@@ -39,6 +39,7 @@ CompiledShader ShaderCompiler::Compile(const ShaderDesc &desc) const {
   args.push_back(desc.entry.c_str());
   args.push_back(L"-T");
   args.push_back(desc.target.c_str());
+  args.push_back(L"-Zpr");
   if (desc.optimize) {
     args.push_back(L"-O3");
   } else {

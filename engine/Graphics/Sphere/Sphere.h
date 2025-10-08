@@ -1,6 +1,7 @@
 #pragma once
-#include "function/function.h" // CreateBufferResource
+#include "function/function.h"
 #include "struct.h"
+#include "Math/MathTypes.h"
 #include <d3d12.h>
 #include <vector>
 

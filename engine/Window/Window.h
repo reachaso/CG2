@@ -2,15 +2,15 @@
 #include "Log/Log.h"
 #include <Windows.h>
 #include <cstdint>
+#include <d3d12.h>
 #include <string>
-#include <d3d12.h> 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_dx12.h"
-#include "imgui/imgui_impl_win32.h"
 
 class Window {
 
 public:
+  static constexpr int kDefaultWidth = 1280;
+  static constexpr int kDefaultHeight = 720;
+
   // デストラクタで背景ブラシ解放
   ~Window();
 
@@ -25,12 +25,13 @@ public:
   void SetClearColor(float r, float g, float b, float a = 1.0f);
 
   // クリア色の取得
-  void ClearCurrentRT(ID3D12GraphicsCommandList *cmdList,
+  void
+  ClearCurrentRT(ID3D12GraphicsCommandList *cmdList,
                  D3D12_CPU_DESCRIPTOR_HANDLE rtv,
                  const D3D12_CPU_DESCRIPTOR_HANDLE *dsvOpt = nullptr) const;
 
-  RECT wrc;
-  HWND hwnd;
+  HWND GetHwnd() const { return hwnd; }
+  RECT GetClientRect() const { return wrc; }
 
   // ==============================
   // ログの初期化
@@ -41,11 +42,13 @@ private:
   WNDCLASS wc{};
 
   // Window が保持するクリア色と背景ブラシ
-  float clearColor_[4] = {0.1f, 0.25f, 0.5f,
-                          1.0f}; // 指定した色でクリアする
+  float clearColor_[4] = {0.1f, 0.25f, 0.5f, 1.0f}; // 指定した色でクリアする
 
   HBRUSH hbrBackground_ = nullptr;
 
   // GDI 背景ブラシの更新（Initialize/SetClearColor から呼ぶ）
   void UpdateBackgroundBrush();
+  
+  RECT wrc;
+  HWND hwnd;
 };

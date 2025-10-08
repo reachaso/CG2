@@ -133,6 +133,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="engine\Camera\CameraController.cpp" />
     <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp" />
     <ClCompile Include="externals\imgui\imgui_demo.cpp" />
@@ -191,6 +192,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App\AppConfig.h" />
+    <ClInclude Include="engine\Camera\CameraController.h" />
+    <ClInclude Include="engine\Common\Math\MathTypes.h" />
     <ClInclude Include="engine\Graphics\Sphere\Sphere.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
