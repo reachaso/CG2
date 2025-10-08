@@ -1,5 +1,6 @@
 #pragma once
 #include "Math/Math.h"
+#include "Math/MathTypes.h"
 #include "struct.h"
 
 class MainCamera {

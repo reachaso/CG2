@@ -1,7 +1,8 @@
 #pragma once
 #include "Math/Math.h"
+#include "Math/MathTypes.h"
 #include "function/function.h"
-#include <array> // ← 追加: std::array
+#include <array>
 #include <d3d12.h>
 #include <string>
 #include <vector>
