@@ -813,7 +813,7 @@ bool ImGui::CloseButton(ImGuiID id, const ImVec2& pos)
     if (area_to_visible_ratio < 1.5f)
         bb_interact.Expand(ImFloor(bb_interact.GetSize() * -0.25f));
 
-    // Tweak 2: We intentionally allow interaction when clipped so that a mechanical Alt,Right,Activate sequence can always close a window.
+    // Tweak 2: We intentionally allow interaction when clipped so that a mechanical Alt,Right,Activate sequence can always close a window->
     // (this isn't the regular behavior of buttons, but it doesn't affect the user much because navigation tends to keep items visible).
     bool is_clipped = !ItemAdd(bb_interact, id);
 
@@ -4896,7 +4896,7 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
         g.CurrentItemFlags = backup_item_flags;
 
         // ...and then we need to undo the group overriding last item data, which gets a bit messy as EndGroup() tries to forward scrollbar being active...
-        // FIXME: This quite messy/tricky, should attempt to get rid of the child window.
+        // FIXME: This quite messy/tricky, should attempt to get rid of the child window->
         EndGroup();
         if (g.LastItemData.ID == 0)
         {
@@ -7084,7 +7084,7 @@ bool ImGui::BeginMenuEx(const char* label, const char* icon, bool enabled)
     ImVec2 label_size = CalcTextSize(label, NULL, true);
 
     // Odd hack to allow hovering across menus of a same menu-set (otherwise we wouldn't be able to hover parent without always being a Child window)
-    // This is only done for items for the menu set and not the full parent window.
+    // This is only done for items for the menu set and not the full parent window->
     const bool menuset_is_open = IsRootOfOpenMenuSet();
     if (menuset_is_open)
         PushItemFlag(ImGuiItemFlags_NoWindowHoverableCheck, true);
@@ -7664,7 +7664,7 @@ static void ImGui::TabBarLayout(ImGuiTabBar* tab_bar)
 
         // Refresh tab width immediately, otherwise changes of style e.g. style.FramePadding.x would noticeably lag in the tab bar.
         // Additionally, when using TabBarAddTab() to manipulate tab bar order we occasionally insert new tabs that don't have a width yet,
-        // and we cannot wait for the next BeginTabItem() call. We cannot compute this width within TabBarAddTab() because font size depends on the active window.
+        // and we cannot wait for the next BeginTabItem() call. We cannot compute this width within TabBarAddTab() because font size depends on the active window->
         const char* tab_name = TabBarGetTabName(tab_bar, tab);
         const bool has_close_button_or_unsaved_marker = (tab->Flags & ImGuiTabItemFlags_NoCloseButton) == 0 || (tab->Flags & ImGuiTabItemFlags_UnsavedDocument);
         tab->ContentWidth = (tab->RequestedWidth >= 0.0f) ? tab->RequestedWidth : TabItemCalcSize(tab_name, has_close_button_or_unsaved_marker).x;

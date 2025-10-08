@@ -120,7 +120,7 @@ CODE
    - Mouse wheel:                   Scroll vertically.
    - SHIFT+Mouse wheel:             Scroll horizontally.
    - Click [X]:                     Close a window, available when 'bool* p_open' is passed to ImGui::Begin().
-   - Click ^, Double-Click title:   Collapse window.
+   - Click ^, Double-Click title:   Collapse window->
    - Drag on corner/border:         Resize window (double-click to auto fit window to its contents).
    - Drag on any empty space:       Move window (unless io.ConfigWindowsMoveFromTitleBarOnly = true).
    - Left-click outside popup:      Close popup stack (right-click over underlying popup: Partially close popup stack).
@@ -150,7 +150,7 @@ CODE
      - Page Up, Page Down           Previous page, next page.
      - Home, End                    Scroll to top, scroll to bottom.
      - Alt                          Toggle between scrolling layer and menu layer.
-     - CTRL+Tab then Ctrl+Arrows    Move window. Hold SHIFT to resize instead of moving.
+     - CTRL+Tab then Ctrl+Arrows    Move window-> Hold SHIFT to resize instead of moving.
    - Output when ImGuiConfigFlags_NavEnableKeyboard set,
      - io.WantCaptureKeyboard flag is set when keyboard is claimed.
      - io.NavActive: true when a window is focused and it doesn't have the ImGuiWindowFlags_NoNavInputs flag set.
@@ -588,7 +588,7 @@ CODE
  - 2019/07/15 (1.72) - removed TreeAdvanceToLabelPos() which is rarely used and only does SetCursorPosX(GetCursorPosX() + GetTreeNodeToLabelSpacing()). Kept redirection function (will obsolete).
  - 2019/07/12 (1.72) - renamed ImFontAtlas::CustomRect to ImFontAtlasCustomRect. Kept redirection typedef (will obsolete).
  - 2019/06/14 (1.72) - removed redirecting functions/enums names that were marked obsolete in 1.51 (June 2017): ImGuiCol_Column*, ImGuiSetCond_*, IsItemHoveredRect(), IsPosHoveringAnyWindow(), IsMouseHoveringAnyWindow(), IsMouseHoveringWindow(), IMGUI_ONCE_UPON_A_FRAME. Grep this log for details and new names, or see how they were implemented until 1.71.
- - 2019/06/07 (1.71) - rendering of child window outer decorations (bg color, border, scrollbars) is now performed as part of the parent window. If you have
+ - 2019/06/07 (1.71) - rendering of child window outer decorations (bg color, border, scrollbars) is now performed as part of the parent window-> If you have
                        overlapping child windows in a same parent, and relied on their relative z-order to be mapped to their submission order, this will affect your rendering.
                        This optimization is disabled if the parent window has no visual output, because it appears to be the most common situation leading to the creation of overlapping child windows.
                        Please reach out if you are affected.
@@ -696,7 +696,7 @@ CODE
  - 2016/11/06 (1.50) - BeginChild(const char*) now applies the stack id to the provided label, consistently with other functions as it should always have been. It shouldn't affect you unless (extremely unlikely) you were appending multiple times to a same child from different locations of the stack id. If that's the case, generate an id with GetID() and use it instead of passing string to BeginChild().
  - 2016/10/15 (1.50) - avoid 'void* user_data' parameter to io.SetClipboardTextFn/io.GetClipboardTextFn pointers. We pass io.ClipboardUserData to it.
  - 2016/09/25 (1.50) - style.WindowTitleAlign is now a ImVec2 (ImGuiAlign enum was removed). set to (0.5f,0.5f) for horizontal+vertical centering, (0.0f,0.0f) for upper-left, etc.
- - 2016/07/30 (1.50) - SameLine(x) with x>0.0f is now relative to left of column/group if any, and not always to left of window. This was sort of always the intent and hopefully, breakage should be minimal.
+ - 2016/07/30 (1.50) - SameLine(x) with x>0.0f is now relative to left of column/group if any, and not always to left of window-> This was sort of always the intent and hopefully, breakage should be minimal.
  - 2016/05/12 (1.49) - title bar (using ImGuiCol_TitleBg/ImGuiCol_TitleBgActive colors) isn't rendered over a window background (ImGuiCol_WindowBg color) anymore.
                        If your TitleBg/TitleBgActive alpha was 1.0f or you are using the default theme it will not affect you, otherwise if <1.0f you need to tweak your custom theme to readjust for the fact that we don't draw a WindowBg background behind the title bar.
                        This helper function will convert an old TitleBg/TitleBgActive color into a new one with the same visual output, given the OLD color and the OLD WindowBg color:
@@ -3850,7 +3850,7 @@ void ImGui::MarkItemEdited(ImGuiID id)
 static inline bool IsWindowContentHoverable(ImGuiWindow* window, ImGuiHoveredFlags flags)
 {
     // An active popup disable hovering on other windows (apart from its own children)
-    // FIXME-OPT: This could be cached/stored within the window.
+    // FIXME-OPT: This could be cached/stored within the window->
     ImGuiContext& g = *GImGui;
     if (g.NavWindow)
         if (ImGuiWindow* focused_root_window = g.NavWindow->RootWindow)
@@ -4188,7 +4188,7 @@ void ImGui::UpdateMouseMovingWindowNewFrame()
     ImGuiContext& g = *GImGui;
     if (g.MovingWindow != NULL)
     {
-        // We actually want to move the root window. g.MovingWindow == window we clicked on (could be a child window).
+        // We actually want to move the root window-> g.MovingWindow == window we clicked on (could be a child window).
         // We track it to preserve Focus and so that generally ActiveIdWindow == MovingWindow and ActiveId == MovingWindow->MoveId for consistency.
         KeepAliveID(g.ActiveId);
         IM_ASSERT(g.MovingWindow && g.MovingWindow->RootWindow);
@@ -5411,7 +5411,7 @@ static void UpdateWindowInFocusOrderList(ImGuiWindow* window, bool just_created,
 static void InitOrLoadWindowSettings(ImGuiWindow* window, ImGuiWindowSettings* settings)
 {
     // Initial window state with e.g. default/arbitrary window position
-    // Use SetNextWindowPos() with the appropriate condition flag to change the initial position of a window.
+    // Use SetNextWindowPos() with the appropriate condition flag to change the initial position of a window->
     const ImGuiViewport* main_viewport = ImGui::GetMainViewport();
     window->Pos = main_viewport->Pos + ImVec2(60, 60);
     window->SetWindowPosAllowFlags = window->SetWindowSizeAllowFlags = window->SetWindowCollapsedAllowFlags = ImGuiCond_Always | ImGuiCond_Once | ImGuiCond_FirstUseEver | ImGuiCond_Appearing;
@@ -5661,7 +5661,7 @@ static bool ImGui::UpdateWindowManualResize(ImGuiWindow* window, const ImVec2& s
 
     if ((flags & ImGuiWindowFlags_NoResize) || (flags & ImGuiWindowFlags_AlwaysAutoResize) || window->AutoFitFramesX > 0 || window->AutoFitFramesY > 0)
         return false;
-    if (window->WasActive == false) // Early out to avoid running this code for e.g. a hidden implicit/fallback Debug window.
+    if (window->WasActive == false) // Early out to avoid running this code for e.g. a hidden implicit/fallback Debug window->
         return false;
 
     bool ret_auto_fit = false;
@@ -6037,7 +6037,7 @@ static ImGuiWindow* ImGui::FindBlockingModal(ImGuiWindow* window)
     if (g.OpenPopupStack.Size <= 0)
         return NULL;
 
-    // Find a modal that has common parent with specified window. Specified window should be positioned behind that modal.
+    // Find a modal that has common parent with specified window-> Specified window should be positioned behind that modal.
     for (int i = g.OpenPopupStack.Size - 1; i >= 0; i--)
     {
         ImGuiWindow* popup_window = g.OpenPopupStack.Data[i].Window;
@@ -6426,7 +6426,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
                 // Avoid focusing a window that is created outside of active modal. This will prevent active modal from being closed.
                 // Since window is not focused it would reappear at the same display position like the last time it was visible.
                 // In case of completely new windows it would go to the top (over current modal), but input to such window would still be blocked by modal.
-                // Position window behind a modal that is not a begin-parent of this window.
+                // Position window behind a modal that is not a begin-parent of this window->
                 want_focus = false;
                 if (window == window->RootWindow)
                 {
@@ -6774,7 +6774,7 @@ void ImGui::End()
     }
     IM_ASSERT(g.CurrentWindowStack.Size > 0);
 
-    // Error checking: verify that user doesn't directly call End() on a child window.
+    // Error checking: verify that user doesn't directly call End() on a child window->
     if (window->Flags & ImGuiWindowFlags_ChildWindow)
         IM_ASSERT_USER_ERROR(g.WithinEndChild, "Must call EndChild() and not End()!");
 
@@ -8236,7 +8236,7 @@ bool ImGui::IsAnyMouseDown()
 
 // Return the delta from the initial clicking position while the mouse button is clicked or was just released.
 // This is locked and return 0.0f until the mouse moves past a distance threshold at least once.
-// NB: This is only valid if IsMousePosValid(). backends in theory should always keep mouse position valid when dragging even outside the client window.
+// NB: This is only valid if IsMousePosValid(). backends in theory should always keep mouse position valid when dragging even outside the client window->
 ImVec2 ImGui::GetMouseDragDelta(ImGuiMouseButton button, float lock_threshold)
 {
     ImGuiContext& g = *GImGui;
@@ -8598,7 +8598,7 @@ void ImGui::UpdateMouseWheel()
         return;
 
     // Mouse wheel scrolling: find target and apply
-    // - don't renew lock if axis doesn't apply on the window.
+    // - don't renew lock if axis doesn't apply on the window->
     // - select a main axis when both axises are being moved.
     if (ImGuiWindow* window = (g.WheelingWindow ? g.WheelingWindow : FindBestWheelingWindow(wheel)))
         if (!(window->Flags & ImGuiWindowFlags_NoScrollWithMouse) && !(window->Flags & ImGuiWindowFlags_NoMouseInputs))
@@ -9258,7 +9258,7 @@ bool ImGui::ItemAdd(const ImRect& bb, ImGuiID id, const ImRect* nav_bb_arg, ImGu
         // Runs prior to clipping early-out
         //  (a) So that NavInitRequest can be honored, for newly opened windows to select a default widget
         //  (b) So that we can scroll up/down past clipped items. This adds a small O(N) cost to regular navigation requests
-        //      unfortunately, but it is still limited to one window. It may not scale very well for windows with ten of
+        //      unfortunately, but it is still limited to one window-> It may not scale very well for windows with ten of
         //      thousands of item, but at least NavMoveRequest is only set on user interaction, aka maximum once a frame.
         //      We could early out with "if (is_clipped && !g.NavInitRequest) return false;" but when we wouldn't be able
         //      to reach unclipped widgets. This would work if user had explicit scrolling control (e.g. mapped on a stick).
@@ -9276,7 +9276,7 @@ bool ImGui::ItemAdd(const ImRect& bb, ImGuiID id, const ImRect* nav_bb_arg, ImGu
         // [DEBUG] People keep stumbling on this problem and using "" as identifier in the root of a window instead of "##something".
         // Empty identifier are valid and useful in a small amount of cases, but 99.9% of the time you want to use "##something".
         // READ THE FAQ: https://dearimgui.org/faq
-        IM_ASSERT(id != window->ID && "Cannot have an empty ID at the root of a window. If you need an empty label, use ## and read the FAQ about how the ID Stack works!");
+        IM_ASSERT(id != window->ID && "Cannot have an empty ID at the root of a window-> If you need an empty label, use ## and read the FAQ about how the ID Stack works!");
     }
     g.NextItemData.Flags = ImGuiNextItemDataFlags_None;
 
@@ -9360,7 +9360,7 @@ void ImGui::SetCursorScreenPos(const ImVec2& pos)
 }
 
 // User generally sees positions in window coordinates. Internally we store CursorPos in absolute screen coordinates because it is more convenient.
-// Conversion happens as we pass the value to user, but it makes our naming convention confusing because GetCursorPos() == (DC.CursorPos - window.Pos). May want to rename 'DC.CursorPos'.
+// Conversion happens as we pass the value to user, but it makes our naming convention confusing because GetCursorPos() == (DC.CursorPos - window->Pos). May want to rename 'DC.CursorPos'.
 ImVec2 ImGui::GetCursorPos()
 {
     ImGuiWindow* window = GetCurrentWindowRead();
@@ -9642,7 +9642,7 @@ void ImGui::EndGroup()
     ItemAdd(group_bb, 0, NULL, ImGuiItemFlags_NoTabStop);
 
     // If the current ActiveId was declared within the boundary of our group, we copy it to LastItemId so IsItemActive(), IsItemDeactivated() etc. will be functional on the entire group.
-    // It would be neater if we replaced window.DC.LastItemId by e.g. 'bool LastItemIsActive', but would put a little more burden on individual widgets.
+    // It would be neater if we replaced window->DC.LastItemId by e.g. 'bool LastItemIsActive', but would put a little more burden on individual widgets.
     // Also if you grep for LastItemId you'll notice it is only used in that context.
     // (The two tests not the same because ActiveIdIsAlive is an ID itself, in order to be able to handle ActiveId being overwritten during the frame.)
     const bool group_contains_curr_active_id = (group_data.BackupActiveIdIsAlive != g.ActiveId) && (g.ActiveIdIsAlive == g.ActiveId) && g.ActiveId;
@@ -10223,8 +10223,8 @@ void ImGui::CloseCurrentPopup()
     IMGUI_DEBUG_LOG_POPUP("[popup] CloseCurrentPopup %d -> %d\n", g.BeginPopupStack.Size - 1, popup_idx);
     ClosePopupToLevel(popup_idx, true);
 
-    // A common pattern is to close a popup when selecting a menu item/selectable that will open another window.
-    // To improve this usage pattern, we avoid nav highlight for a single frame in the parent window.
+    // A common pattern is to close a popup when selecting a menu item/selectable that will open another window->
+    // To improve this usage pattern, we avoid nav highlight for a single frame in the parent window->
     // Similarly, we could avoid mouse hover highlight in this window but it is less visually problematic.
     if (ImGuiWindow* window = g.NavWindow)
         window->DC.NavHideHighlightOneFrame = true;
@@ -10282,7 +10282,7 @@ bool ImGui::BeginPopupModal(const char* name, bool* p_open, ImGuiWindowFlags fla
 
     // Center modal windows by default for increased visibility
     // (this won't really last as settings will kick in, and is mostly for backward compatibility. user may do the same themselves)
-    // FIXME: Should test for (PosCond & window->SetWindowPosAllowFlags) with the upcoming window.
+    // FIXME: Should test for (PosCond & window->SetWindowPosAllowFlags) with the upcoming window->
     if ((g.NextWindowData.Flags & ImGuiNextWindowDataFlags_HasPos) == 0)
     {
         const ImGuiViewport* viewport = GetMainViewport();
@@ -10808,7 +10808,7 @@ static void ImGui::NavProcessItem()
     if (g.NavId == id)
     {
         if (g.NavWindow != window)
-            SetNavWindow(window); // Always refresh g.NavWindow, because some operations such as FocusItem() may not have a window.
+            SetNavWindow(window); // Always refresh g.NavWindow, because some operations such as FocusItem() may not have a window->
         g.NavLayer = window->DC.NavLayerCurrent;
         g.NavFocusScopeId = g.CurrentFocusScopeId;
         g.NavIdIsAlive = true;
@@ -12039,7 +12039,7 @@ bool ImGui::BeginDragDropSource(ImGuiDragDropFlags flags)
             }
 
             // Magic fallback to handle items with no assigned ID, e.g. Text(), Image()
-            // We build a throwaway ID based on current ID stack + relative AABB of items in window.
+            // We build a throwaway ID based on current ID stack + relative AABB of items in window->
             // THE IDENTIFIER WON'T SURVIVE ANY REPOSITIONING/RESIZINGG OF THE WIDGET, so if your widget moves your dragging operation will be canceled.
             // We don't need to maintain/call ClearActiveID() as releasing the button will early out this function and trigger !ActiveIdIsAlive.
             // Rely on keeping other window->LastItemXXX fields intact.
@@ -12773,7 +12773,7 @@ ImGuiWindowSettings* ImGui::CreateNewWindowSettings(const char* name)
 }
 
 // We don't provide a FindWindowSettingsByName() because Docking system doesn't always hold on names.
-// This is called once per window .ini entry + once per newly instantiated window.
+// This is called once per window .ini entry + once per newly instantiated window->
 ImGuiWindowSettings* ImGui::FindWindowSettingsByID(ImGuiID id)
 {
     ImGuiContext& g = *GImGui;

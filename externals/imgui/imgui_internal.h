@@ -1363,7 +1363,7 @@ enum ImGuiInputFlags_
     // - Using ImGuiInputFlags_RouteAlways is roughly equivalent to doing e.g. IsKeyPressed(key) + testing mods.
     // - Priorities: GlobalHigh > Focused (when owner is active item) > Global > Focused (when focused window) > GlobalLow.
     // - Can select only 1 policy among all available.
-    ImGuiInputFlags_RouteFocused        = 1 << 8,   // (Default) Register focused route: Accept inputs if window is in focus stack. Deep-most focused window takes inputs. ActiveId takes inputs over deep-most focused window.
+    ImGuiInputFlags_RouteFocused        = 1 << 8,   // (Default) Register focused route: Accept inputs if window is in focus stack. Deep-most focused window takes inputs. ActiveId takes inputs over deep-most focused window->
     ImGuiInputFlags_RouteGlobalLow      = 1 << 9,   // Register route globally (lowest priority: unless a focused window or active item registered the route) -> recommended Global priority.
     ImGuiInputFlags_RouteGlobal         = 1 << 10,  // Register route globally (medium priority: unless an active item registered the route, e.g. CTRL+A registered by InputText).
     ImGuiInputFlags_RouteGlobalHigh     = 1 << 11,  // Register route globally (highest priority: unlikely you need to use that: will interfere with every active items)
@@ -1734,7 +1734,7 @@ struct ImGuiContext
     ImVector<ImGuiInputEvent> InputEventsTrail;                 // Past input events processed in NewFrame(). This is to allow domain-specific application to access e.g mouse/pen trail.
     ImGuiStyle              Style;
     ImFont*                 Font;                               // (Shortcut) == FontStack.empty() ? IO.Font : FontStack.back()
-    float                   FontSize;                           // (Shortcut) == FontBaseSize * g.CurrentWindow->FontWindowScale == window->FontSize(). Text height for current window.
+    float                   FontSize;                           // (Shortcut) == FontBaseSize * g.CurrentWindow->FontWindowScale == window->FontSize(). Text height for current window->
     float                   FontBaseSize;                       // (Shortcut) == IO.FontGlobalScale * Font->Scale * Font->FontSize. Base text height.
     ImDrawListSharedData    DrawListSharedData;
     double                  Time;
@@ -1760,7 +1760,7 @@ struct ImGuiContext
     ImGuiWindow*            HoveredWindow;                      // Window the mouse is hovering. Will typically catch mouse inputs.
     ImGuiWindow*            HoveredWindowUnderMovingWindow;     // Hovered window ignoring MovingWindow. Only set if MovingWindow is set.
     ImGuiWindow*            MovingWindow;                       // Track the window we clicked on (in order to preserve focus). The actual window that is moved is generally MovingWindow->RootWindow.
-    ImGuiWindow*            WheelingWindow;                     // Track the window we started mouse-wheeling on. Until a timer elapse or mouse has moved, generally keep scrolling the same window even if during the course of scrolling the mouse ends up hovering a child window.
+    ImGuiWindow*            WheelingWindow;                     // Track the window we started mouse-wheeling on. Until a timer elapse or mouse has moved, generally keep scrolling the same window even if during the course of scrolling the mouse ends up hovering a child window->
     ImVec2                  WheelingWindowRefMousePos;
     int                     WheelingWindowStartFrame;           // This may be set one frame before WheelingWindow is != NULL
     float                   WheelingWindowReleaseTimer;
@@ -2240,7 +2240,7 @@ struct IMGUI_API ImGuiWindowTempData
 struct IMGUI_API ImGuiWindow
 {
     ImGuiContext*           Ctx;                                // Parent UI context (needs to be set explicitly by parent).
-    char*                   Name;                               // Window name, owned by the window.
+    char*                   Name;                               // Window name, owned by the window->
     ImGuiID                 ID;                                 // == ImHashStr(Name)
     ImGuiWindowFlags        Flags;                              // See enum ImGuiWindowFlags_
     ImGuiViewportP*         Viewport;                           // Always set in Begin(). Inactive windows may have a NULL value here if their viewport was discarded.
@@ -2274,13 +2274,13 @@ struct IMGUI_API ImGuiWindow
     bool                    SkipItems;                          // Set when items can safely be all clipped (e.g. window not visible or collapsed)
     bool                    Appearing;                          // Set during the frame where the window is appearing (or re-appearing)
     bool                    Hidden;                             // Do not display (== HiddenFrames*** > 0)
-    bool                    IsFallbackWindow;                   // Set on the "Debug##Default" window.
+    bool                    IsFallbackWindow;                   // Set on the "Debug##Default" window->
     bool                    IsExplicitChild;                    // Set when passed _ChildWindow, left to false by BeginDocked()
     bool                    HasCloseButton;                     // Set when the window has a close button (p_open != NULL)
     signed char             ResizeBorderHeld;                   // Current border being held for resize (-1: none, otherwise 0-3)
     short                   BeginCount;                         // Number of Begin() during the current frame (generally 0 or 1, 1+ if appending via multiple Begin/End pairs)
     short                   BeginCountPreviousFrame;            // Number of Begin() during the previous frame
-    short                   BeginOrderWithinParent;             // Begin() order within immediate parent window, if we are a child window. Otherwise 0.
+    short                   BeginOrderWithinParent;             // Begin() order within immediate parent window, if we are a child window-> Otherwise 0.
     short                   BeginOrderWithinContext;            // Begin() order within entire imgui context. This is mostly used for debugging submission order related issues.
     short                   FocusOrder;                         // Order within WindowsFocusOrder[], altered when windows are focused.
     ImGuiID                 PopupId;                            // ID in the popup stack when this window is used as a popup/menu (because we use generic Name/ID for recycling)
@@ -2303,14 +2303,14 @@ struct IMGUI_API ImGuiWindow
 
     // The best way to understand what those rectangles are is to use the 'Metrics->Tools->Show Windows Rectangles' viewer.
     // The main 'OuterRect', omitted as a field, is window->Rect().
-    ImRect                  OuterRectClipped;                   // == Window->Rect() just after setup in Begin(). == window->Rect() for root window.
+    ImRect                  OuterRectClipped;                   // == Window->Rect() just after setup in Begin(). == window->Rect() for root window->
     ImRect                  InnerRect;                          // Inner rectangle (omit title bar, menu bar, scroll bar)
     ImRect                  InnerClipRect;                      // == InnerRect shrunk by WindowPadding*0.5f on each side, clipped within viewport or parent clip rect.
     ImRect                  WorkRect;                           // Initially covers the whole scrolling region. Reduced by containers e.g columns/tables when active. Shrunk by WindowPadding*1.0f on each side. This is meant to replace ContentRegionRect over time (from 1.71+ onward).
     ImRect                  ParentWorkRect;                     // Backup of WorkRect before entering a container such as columns/tables. Used by e.g. SpanAllColumns functions to easily access. Stacked containers are responsible for maintaining this. // FIXME-WORKRECT: Could be a stack?
     ImRect                  ClipRect;                           // Current clipping/scissoring rectangle, evolve as we are using PushClipRect(), etc. == DrawList->clip_rect_stack.back().
     ImRect                  ContentRegionRect;                  // FIXME: This is currently confusing/misleading. It is essentially WorkRect but not handling of scrolling. We currently rely on it as right/bottom aligned sizing operation need some size to rely on.
-    ImVec2ih                HitTestHoleSize;                    // Define an optional rectangular hole where mouse will pass-through the window.
+    ImVec2ih                HitTestHoleSize;                    // Define an optional rectangular hole where mouse will pass-through the window->
     ImVec2ih                HitTestHoleOffset;
 
     int                     LastFrameActive;                    // Last frame number the window was Active.
@@ -2325,12 +2325,12 @@ struct IMGUI_API ImGuiWindow
     ImDrawList              DrawListInst;
     ImGuiWindow*            ParentWindow;                       // If we are a child _or_ popup _or_ docked window, this is pointing to our parent. Otherwise NULL.
     ImGuiWindow*            ParentWindowInBeginStack;
-    ImGuiWindow*            RootWindow;                         // Point to ourself or first ancestor that is not a child window. Doesn't cross through popups/dock nodes.
-    ImGuiWindow*            RootWindowPopupTree;                // Point to ourself or first ancestor that is not a child window. Cross through popups parent<>child.
+    ImGuiWindow*            RootWindow;                         // Point to ourself or first ancestor that is not a child window-> Doesn't cross through popups/dock nodes.
+    ImGuiWindow*            RootWindowPopupTree;                // Point to ourself or first ancestor that is not a child window-> Cross through popups parent<>child.
     ImGuiWindow*            RootWindowForTitleBarHighlight;     // Point to ourself or first ancestor which will display TitleBgActive color when this window is active.
     ImGuiWindow*            RootWindowForNav;                   // Point to ourself or first ancestor which doesn't have the NavFlattened flag.
 
-    ImGuiWindow*            NavLastChildNavWindow;              // When going to the menu bar, we remember the child window we came from. (This could probably be made implicit if we kept g.Windows sorted by last focused including child window.)
+    ImGuiWindow*            NavLastChildNavWindow;              // When going to the menu bar, we remember the child window we came from. (This could probably be made implicit if we kept g.Windows sorted by last focused including child window->)
     ImGuiID                 NavLastIds[ImGuiNavLayer_COUNT];    // Last known NavId for this window, per layer (0/1)
     ImRect                  NavRectRel[ImGuiNavLayer_COUNT];    // Reference rectangle, in window relative space
     ImGuiID                 NavRootFocusScopeId;                // Focus Scope ID at the time of Begin()
@@ -2403,7 +2403,7 @@ struct IMGUI_API ImGuiTabBar
     ImGuiTabBarFlags    Flags;
     ImGuiID             ID;                     // Zero for tab-bars used by docking
     ImGuiID             SelectedTabId;          // Selected tab/window
-    ImGuiID             NextSelectedTabId;      // Next selected tab/window. Will also trigger a scrolling animation
+    ImGuiID             NextSelectedTabId;      // Next selected tab/window-> Will also trigger a scrolling animation
     ImGuiID             VisibleTabId;           // Can occasionally be != SelectedTabId (e.g. when previewing contents for CTRL+TAB preview)
     int                 CurrFrameVisible;
     int                 PrevFrameVisible;
@@ -2580,7 +2580,7 @@ struct IMGUI_API ImGuiTable
     ImRect                      BgClipRect;                 // We use this to cpu-clip cell background color fill, evolve during the frame as we cross frozen rows boundaries
     ImRect                      Bg0ClipRectForDrawCmd;      // Actual ImDrawCmd clip rect for BG0/1 channel. This tends to be == OuterWindow->ClipRect at BeginTable() because output in BG0/BG1 is cpu-clipped
     ImRect                      Bg2ClipRectForDrawCmd;      // Actual ImDrawCmd clip rect for BG2 channel. This tends to be a correct, tight-fit, because output to BG2 are done by widgets relying on regular ClipRect.
-    ImRect                      HostClipRect;               // This is used to check if we can eventually merge our columns draw calls into the current draw call of the current window.
+    ImRect                      HostClipRect;               // This is used to check if we can eventually merge our columns draw calls into the current draw call of the current window->
     ImRect                      HostBackupInnerClipRect;    // Backup of InnerWindow->ClipRect during PushTableBackground()/PopTableBackground()
     ImGuiWindow*                OuterWindow;                // Parent window for the table
     ImGuiWindow*                InnerWindow;                // Window holding the table data (== OuterWindow or a child window)
