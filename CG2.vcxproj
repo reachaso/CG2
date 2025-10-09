@@ -133,6 +133,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="App\App.cpp" />
     <ClCompile Include="engine\Camera\CameraController.cpp" />
     <ClCompile Include="engine\Dx12\PipelineManager.cpp" />
     <ClCompile Include="engine\Graphics\Sphere\Sphere.cpp" />
@@ -192,6 +193,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll"       "$(Target
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="App\App.h" />
     <ClInclude Include="App\AppConfig.h" />
     <ClInclude Include="engine\Camera\CameraController.h" />
     <ClInclude Include="engine\Common\Math\MathTypes.h" />
