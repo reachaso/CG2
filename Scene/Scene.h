@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include "AppConfig.h"
 
 // 前方宣言（App 側の実体を参照するため）
 class Dx12Core;
@@ -15,8 +16,7 @@ class ImGuiManager;
 struct SceneContext {
   Dx12Core *core = nullptr;      // コマンドリスト等のアクセスに使う場合
   Input *input = nullptr;        // 入力（キー遷移など）
-  DebugCamera *dbgCam = nullptr; // 必要なら使う
-  MainCamera *mainCam = nullptr; // 必要なら使う
+  const AppConfig *app = nullptr;
   ImGuiManager *imgui =
       nullptr; // ImGuiウィンドウを出すだけなら不要だが念のため
 };
