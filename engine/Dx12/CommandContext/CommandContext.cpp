@@ -97,6 +97,9 @@ void CommandContext::WaitForFrame(uint32_t frameIndex) {
 }
 
 void CommandContext::FlushGPU() {
+  if (!queue_) {
+    return;
+  }
   const uint64_t v = ++globalFenceValue_;
   HRESULT hr = queue_->Signal(fence_, v);
   assert(SUCCEEDED(hr));
