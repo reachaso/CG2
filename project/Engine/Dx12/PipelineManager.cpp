@@ -409,6 +409,25 @@ PipelineManager::MakeInputLayout(InputLayoutType type) {
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
+  case InputLayoutType::Object3DSkin:
+    return {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+         D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
+         D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+         D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_SINT, 0,
+         D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+         D3D12_APPEND_ALIGNED_ELEMENT,
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+
   case InputLayoutType::Sprite:
     return {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
@@ -501,6 +520,8 @@ void PipelineManager::RegisterDefaultPipelines() {
       L"Resources/Shader/Object3d/Object3D_Single.VS.hlsl";
   const std::wstring objVsInst =
       L"Resources/Shader/Object3d/Object3D_Inst.VS.hlsl";
+  const std::wstring objVsSkin =
+      L"Resources/Shader/Object3d/Object3D_Skin.VS.hlsl";
   const std::wstring objPs = L"Resources/Shader/Object3d/Object3D.PS.hlsl";
   const std::wstring glassPs =
       L"Resources/Shader/Object3d/Object3D_Glass.PS.hlsl";
@@ -577,6 +598,14 @@ void PipelineManager::RegisterDefaultPipelines() {
   regSet("object3d_inst", objVsInst, objPs, InputLayoutType::Object3D,
          RootSignatureType::Object3DInstancing, true, true,
          D3D12_CULL_MODE_BACK);
+
+  // object3d_skin: スキニング付きモデル描画
+  regSet("object3d_skin", objVsSkin, objPs, InputLayoutType::Object3DSkin,
+         RootSignatureType::Object3DSkin, true, true, D3D12_CULL_MODE_BACK);
+
+  // object3d_skin_nocull: スキニング付きモデル描画（カリング無し）
+  regSet("object3d_skin_nocull", objVsSkin, objPs, InputLayoutType::Object3DSkin,
+         RootSignatureType::Object3DSkin, true, true, D3D12_CULL_MODE_NONE);
 
   // sprite：深度OFF、基本BACK（必要なら NONE に）
   regSet("sprite", sprVs, sprPs, InputLayoutType::Sprite,
@@ -723,6 +752,11 @@ void PipelineManager::RegisterDefaultPipelines() {
       opt.rootType = RootSignatureType::Object3DInstancing;
       CreateFromFiles(MakeKey("object3d_wire_inst", mode),
                       objVsInst, wirePs, InputLayoutType::Object3D, opt);
+
+      // スキニング用
+      opt.rootType = RootSignatureType::Object3DSkin;
+      CreateFromFiles(MakeKey("object3d_wire_skin", mode),
+                      objVsSkin, wirePs, InputLayoutType::Object3DSkin, opt);
     }
   }
   
@@ -754,6 +788,11 @@ void PipelineManager::RegisterDefaultPipelines() {
       opt.rootType = RootSignatureType::Object3DInstancing;
       CreateFromFiles("object3d_faceori_inst.none",
                       objVsInst, faceOriPs, InputLayoutType::Object3D, opt);
+
+      // スキニング用
+      opt.rootType = RootSignatureType::Object3DSkin;
+      CreateFromFiles("object3d_faceori_skin.none",
+                      objVsSkin, faceOriPs, InputLayoutType::Object3DSkin, opt);
     }
 
     // --- RandomColor ---
@@ -773,6 +812,11 @@ void PipelineManager::RegisterDefaultPipelines() {
       opt.rootType = RootSignatureType::Object3DInstancing;
       CreateFromFiles("object3d_randcolor_inst.none",
                       objVsInst, randColorPs, InputLayoutType::Object3D, opt);
+
+      // スキニング用
+      opt.rootType = RootSignatureType::Object3DSkin;
+      CreateFromFiles("object3d_randcolor_skin.none",
+                      objVsSkin, randColorPs, InputLayoutType::Object3DSkin, opt);
     }
 
     // --- SolidShading (Half-Lambert) ---
@@ -792,6 +836,11 @@ void PipelineManager::RegisterDefaultPipelines() {
       opt.rootType = RootSignatureType::Object3DInstancing;
       CreateFromFiles("object3d_solid_inst.none",
                       objVsInst, solidShadingPs, InputLayoutType::Object3D, opt);
+
+      // スキニング用
+      opt.rootType = RootSignatureType::Object3DSkin;
+      CreateFromFiles("object3d_solid_skin.none",
+                      objVsSkin, solidShadingPs, InputLayoutType::Object3DSkin, opt);
     }
   }
   // ====================

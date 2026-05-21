@@ -46,7 +46,12 @@ void ModelObject::Draw(ID3D12GraphicsCommandList *cmdList,
   const Matrix4x4 view = hasVP_ ? cachedView_ : MakeIdentity4x4();
   const Matrix4x4 proj = hasVP_ ? cachedProj_ : MakeIdentity4x4();
 
-  resource_.Draw(cmdList, world, view, proj, frame);
+  // スキニングモデルの場合はDrawSkinnedを使用
+  if (HasSkinData()) {
+    resource_.DrawSkinned(cmdList, world, view, proj, skinMatrices_, frame);
+  } else {
+    resource_.Draw(cmdList, world, view, proj, frame);
+  }
 }
 
 void ModelObject::DrawBatch(ID3D12GraphicsCommandList *cmdList,
@@ -520,6 +525,33 @@ void ModelObject::UpdateAnimation(float dt) {
     if (hasSkeleton_) {
         ApplyAnimation(skeleton_, animation_, animationTime_);
         UpdateSkeleton(skeleton_);
+
+        // スキニング行列パレット計算: T_i = InverseBindPose_i * SkeletonSpaceMatrix_i
+        const auto mesh = resource_.GetMesh();
+        if (mesh && mesh->HasSkinData()) {
+            const auto &skinData = mesh->GetSkinData();
+            const auto &ibpMatrices = skinData.inverseBindPoseMatrices;
+            skinMatrices_.resize(ibpMatrices.size());
+
+            for (const auto &[jointName, boneIdx] : skinData.jointNameToIndex) {
+                // Skeletonの同名ジョイントを探す
+                bool found = false;
+                for (const auto &joint : skeleton_.joints) {
+                    if (joint.name == jointName) {
+                        // T_i = IBP_i * SSM_i
+                        skinMatrices_[boneIdx] = Multiply(
+                            ibpMatrices[boneIdx],
+                            joint.skeletonSpaceMatrix);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    // ボーン名がSkeletonに無い場合は単位行列
+                    skinMatrices_[boneIdx] = MakeIdentity4x4();
+                }
+            }
+        }
     }
 
     // レガシーパス: アニメーションチャンネルが1つだけの場合
@@ -593,3 +625,7 @@ void ModelObject::DrawSkeleton() {
     }
 }
 
+bool ModelObject::HasSkinData() const {
+    const auto mesh = resource_.GetMesh();
+    return mesh && mesh->HasSkinData() && !skinMatrices_.empty();
+}

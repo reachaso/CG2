@@ -83,6 +83,9 @@ struct VertexData {
   RC::Vector4 position; ///< 頂点座標 (x, y, z, w)
   RC::Vector2 texcoord; ///< テクスチャ座標 (u, v)
   RC::Vector3 normal;   ///< 法線ベクトル
+  // === Skinning ===
+  int32_t boneIndices[4] = {0, 0, 0, 0}; ///< 影響するボーンのインデックス (最大4)
+  float   boneWeights[4] = {0, 0, 0, 0}; ///< 各ボーンのウェイト (合計1.0)
 };
 
 /// @brief マテリアルの基本データ（ファイルパス等）

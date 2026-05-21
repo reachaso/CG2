@@ -269,6 +269,12 @@ public:
   /// @brief Skeleton が有効かどうか
   bool HasSkeleton() const { return hasSkeleton_; }
 
+  /// @brief スキンデータが有効かどうか（ボーンウェイト付きモデルか）
+  bool HasSkinData() const;
+
+  /// @brief スキニング行列パレットを取得する
+  const std::vector<RC::Matrix4x4> &GetSkinMatrices() const { return skinMatrices_; }
+
 private:
   RC::Animation animation_;   ///< ロードしたアニメーションデータ
   float animationTime_ = 0.0f;///< アニメーション再生時間
@@ -277,4 +283,7 @@ private:
 
   Skeleton skeleton_;          ///< スケルトンデータ
   bool hasSkeleton_ = false;   ///< スケルトンが構築済みか
+
+  // === スキニング関連 ===
+  std::vector<RC::Matrix4x4> skinMatrices_; ///< スキンクラスター行列パレット (T_i = IBP_i * SSM_i)
 };

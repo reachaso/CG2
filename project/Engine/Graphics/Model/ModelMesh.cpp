@@ -89,7 +89,7 @@ bool ModelMesh::LoadModel(ID3D12Device *device, const std::string &modelPath) {
 
 bool ModelMesh::LoadAssimp_(const std::string &filePath) {
   Assimp::Importer importer;
-  const unsigned int flags = aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_FlipWindingOrder;
+  const unsigned int flags = aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_FlipWindingOrder | aiProcess_MakeLeftHanded;
 
   auto start = std::chrono::high_resolution_clock::now();
   const aiScene *scene = importer.ReadFile(filePath.c_str(), flags);
@@ -109,6 +109,8 @@ bool ModelMesh::LoadAssimp_(const std::string &filePath) {
   materials_.clear();
   submeshes_.clear();
   drawItems_.clear();
+  indices_.clear();
+  skinData_ = {};
   materialFile_ = {};
 
   start = std::chrono::high_resolution_clock::now();
@@ -118,6 +120,9 @@ bool ModelMesh::LoadAssimp_(const std::string &filePath) {
   end = std::chrono::high_resolution_clock::now();
   Log::Print(std::format("[ModelMesh] ExtractScene: {:.3f}ms", std::chrono::duration<float, std::milli>(end - start).count()));
 
+  // スキンデータ抽出（ボーンがある場合）
+  ExtractSkinData_(scene, verts);
+
   // RootNode（階層）
   rootNode_ = ReadNode_(scene->mRootNode);
 
@@ -125,14 +130,16 @@ bool ModelMesh::LoadAssimp_(const std::string &filePath) {
   drawItems_.clear();
   BuildDrawItems_(rootNode_, MakeIdentity4x4());
 
-  Log::Print(std::format("[ModelMesh] DrawItems: {}, Vertices: {}, Submeshes: {}, Materials: {}, Path: {}",
-      drawItems_.size(), verts.size(), submeshes_.size(), materials_.size(), filePath));
+  Log::Print(std::format("[ModelMesh] DrawItems: {}, Vertices: {}, Indices: {}, Submeshes: {}, Materials: {}, HasSkin: {}, Path: {}",
+      drawItems_.size(), verts.size(), indices_.size(), submeshes_.size(), materials_.size(), HasSkinData(), filePath));
 
   start = std::chrono::high_resolution_clock::now();
   // VBアップロード
   UploadVB_(verts);
+  // IBアップロード
+  UploadIB_();
   end = std::chrono::high_resolution_clock::now();
-  Log::Print(std::format("[ModelMesh] UploadVB: {:.3f}ms", std::chrono::duration<float, std::milli>(end - start).count()));
+  Log::Print(std::format("[ModelMesh] UploadVB+IB: {:.3f}ms", std::chrono::duration<float, std::milli>(end - start).count()));
   return true;
 }
 
@@ -159,21 +166,43 @@ bool ModelMesh::ExtractScene_(const aiScene *scene, const std::string &baseDir,
 
   // ---------------------------------------------------------
   // Mesh: 全meshを1本のVBに連結し、meshIndex->範囲 を記録
+  //       IndexBuffer方式: 頂点をそのままコピーし、Faceからインデックスを抽出
   // ---------------------------------------------------------
   submeshes_.resize(scene->mNumMeshes);
 
   outVertices.clear();
   outVertices.reserve(65536);
+  indices_.clear();
+  indices_.reserve(65536);
 
   for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
     const aiMesh *mesh = scene->mMeshes[meshIndex];
     if (!mesh)
       continue;
 
-    const uint32_t start = static_cast<uint32_t>(outVertices.size());
+    const uint32_t vtxStart = static_cast<uint32_t>(outVertices.size());
+    const uint32_t idxStart = static_cast<uint32_t>(indices_.size());
     const bool hasNormals = mesh->HasNormals();
     const bool hasUV0 = mesh->HasTextureCoords(0);
 
+    // 頂点をそのままコピー（Face展開しない）
+    for (uint32_t vi = 0; vi < mesh->mNumVertices; ++vi) {
+      const aiVector3D &p = mesh->mVertices[vi];
+      const aiVector3D n =
+          hasNormals ? mesh->mNormals[vi] : aiVector3D(0, 1, 0);
+      const aiVector3D t =
+          hasUV0 ? mesh->mTextureCoords[0][vi] : aiVector3D(0, 0, 0);
+
+      VertexData v{};
+      // aiProcess_MakeLeftHanded により Assimp が座標系変換済み
+      v.position = {p.x, p.y, p.z, 1.0f};
+      v.normal = {n.x, n.y, n.z};
+      // UVは aiProcess_FlipUVs に任せる
+      v.texcoord = {t.x, t.y};
+      outVertices.push_back(v);
+    }
+
+    // Faceからインデックスを抽出
     for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; ++faceIndex) {
       const aiFace &face = mesh->mFaces[faceIndex];
       if (face.mNumIndices != 3) {
@@ -181,31 +210,18 @@ bool ModelMesh::ExtractScene_(const aiScene *scene, const std::string &baseDir,
       }
 
       for (uint32_t k = 0; k < 3; ++k) {
-        const uint32_t vi = face.mIndices[k];
-        if (vi >= mesh->mNumVertices)
-          continue;
-
-        const aiVector3D &p = mesh->mVertices[vi];
-        const aiVector3D n =
-            hasNormals ? mesh->mNormals[vi] : aiVector3D(0, 1, 0);
-        const aiVector3D t =
-            hasUV0 ? mesh->mTextureCoords[0][vi] : aiVector3D(0, 0, 0);
-
-        VertexData v{};
-        // 右手→左手：X反転（資料通りに手動変換）
-        v.position = {-p.x, p.y, p.z, 1.0f};
-        v.normal = {-n.x, n.y, n.z};
-        // UVは aiProcess_FlipUVs に任せる
-        v.texcoord = {t.x, t.y};
-        outVertices.push_back(v);
+        indices_.push_back(face.mIndices[k]);
       }
     }
 
-    const uint32_t count = static_cast<uint32_t>(outVertices.size()) - start;
+    const uint32_t vtxCount = static_cast<uint32_t>(mesh->mNumVertices);
+    const uint32_t idxCount = static_cast<uint32_t>(indices_.size()) - idxStart;
 
     SubmeshRange r{};
-    r.vertexStart = start;
-    r.vertexCount = count;
+    r.vertexStart = vtxStart;
+    r.vertexCount = vtxCount;
+    r.indexStart = idxStart;
+    r.indexCount = idxCount;
     r.materialIndex = mesh->mMaterialIndex;
     // 念のため範囲外は 0 に丸める（壊れたデータ対策）
     if (!materials_.empty() && r.materialIndex >= materials_.size()) {
@@ -230,8 +246,8 @@ Node ModelMesh::ReadNode_(const aiNode *node) const {
   }
 
   // ---------------------------------------------------------
-  // 1. localMatrix: 旧方式（Transpose + ConvertNodeMatrixRHtoLH_）
-  //    既存のモデル描画（terrain, AnimatedCube等）を壊さないために維持。
+  // 1. localMatrix: Transpose + ConvertNodeMatrixRHtoLH_
+  //    非スキンモデルのBuildDrawItems_で使われる。
   // ---------------------------------------------------------
   aiMatrix4x4 a = node->mTransformation;
   a.Transpose();
@@ -242,20 +258,64 @@ Node ModelMesh::ReadNode_(const aiNode *node) const {
       m.m[r][c] = a[r][c];
     }
   }
-  m = ConvertNodeMatrixRHtoLH_(m);
+  // aiProcess_MakeLeftHanded により Assimp が座標系変換済みのため手動変換不要
   result.localMatrix = m;
 
   // ---------------------------------------------------------
-  // 2. transform: Decompose → 右手系→左手系変換
-  //    Skeleton用のSRTデータ。Animation.cpp と同じ変換ルール。
+  // 2. transform: ConvertRHtoLH_済みのlocalMatrixからSRTを抽出
+  //    Skeleton/スキニング用のSRTデータ。
+  //    localMatrixとの一致を保証するために、localMatrixから直接分解する。
   // ---------------------------------------------------------
-  aiVector3D aiScale, aiTranslate;
-  aiQuaternion aiRotate;
-  node->mTransformation.Decompose(aiScale, aiRotate, aiTranslate);
+  {
+    // Translate: 行列の平行移動成分 (row-major: m[3][0..2])
+    result.transform.translate = { m.m[3][0], m.m[3][1], m.m[3][2] };
 
-  result.transform.scale     = { aiScale.x,      aiScale.y,      aiScale.z };
-  result.transform.rotate    = { aiRotate.x,    -aiRotate.y,    -aiRotate.z,  aiRotate.w };
-  result.transform.translate = {-aiTranslate.x,  aiTranslate.y,  aiTranslate.z };
+    // Scale: 各行(row-majorなので行ベクトル)の長さ
+    float sx = std::sqrt(m.m[0][0]*m.m[0][0] + m.m[0][1]*m.m[0][1] + m.m[0][2]*m.m[0][2]);
+    float sy = std::sqrt(m.m[1][0]*m.m[1][0] + m.m[1][1]*m.m[1][1] + m.m[1][2]*m.m[1][2]);
+    float sz = std::sqrt(m.m[2][0]*m.m[2][0] + m.m[2][1]*m.m[2][1] + m.m[2][2]*m.m[2][2]);
+    if (sx < 1e-6f) sx = 1e-6f;
+    if (sy < 1e-6f) sy = 1e-6f;
+    if (sz < 1e-6f) sz = 1e-6f;
+    result.transform.scale = { sx, sy, sz };
+
+    // Rotation: スケールを除去した3x3回転行列からQuaternionを抽出
+    float r00 = m.m[0][0]/sx, r01 = m.m[0][1]/sx, r02 = m.m[0][2]/sx;
+    float r10 = m.m[1][0]/sy, r11 = m.m[1][1]/sy, r12 = m.m[1][2]/sy;
+    float r20 = m.m[2][0]/sz, r21 = m.m[2][1]/sz, r22 = m.m[2][2]/sz;
+
+    float trace = r00 + r11 + r22;
+    RC::Quaternion q;
+    if (trace > 0.0f) {
+      float s = std::sqrt(trace + 1.0f) * 2.0f; // s = 4*w
+      q.w = 0.25f * s;
+      q.x = (r12 - r21) / s;
+      q.y = (r20 - r02) / s;
+      q.z = (r01 - r10) / s;
+    } else if (r00 > r11 && r00 > r22) {
+      float s = std::sqrt(1.0f + r00 - r11 - r22) * 2.0f;
+      q.w = (r12 - r21) / s;
+      q.x = 0.25f * s;
+      q.y = (r01 + r10) / s;
+      q.z = (r20 + r02) / s;
+    } else if (r11 > r22) {
+      float s = std::sqrt(1.0f + r11 - r00 - r22) * 2.0f;
+      q.w = (r20 - r02) / s;
+      q.x = (r01 + r10) / s;
+      q.y = 0.25f * s;
+      q.z = (r12 + r21) / s;
+    } else {
+      float s = std::sqrt(1.0f + r22 - r00 - r11) * 2.0f;
+      q.w = (r01 - r10) / s;
+      q.x = (r20 + r02) / s;
+      q.y = (r12 + r21) / s;
+      q.z = 0.25f * s;
+    }
+    // Normalize
+    float len = std::sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
+    if (len > 1e-6f) { q.x /= len; q.y /= len; q.z /= len; q.w /= len; }
+    result.transform.rotate = q;
+  }
 
   result.name = node->mName.C_Str();
 
@@ -279,18 +339,20 @@ void ModelMesh::BuildDrawItems_(const Node &node,
   // Nodeの累積：childWorld = local * parentWorld
   const RC::Matrix4x4 nodeWorld = Multiply(node.localMatrix, parentWorld);
 
-  // nodeが参照しているmeshを、VB範囲に変換して描画単位にする
+  // nodeが参照しているmeshを、VB/IB範囲に変換して描画単位にする
   for (uint32_t mi : node.meshIndices) {
     if (mi >= submeshes_.size())
       continue;
 
     const SubmeshRange &r = submeshes_[mi];
-    if (r.vertexCount == 0)
+    if (r.vertexCount == 0 && r.indexCount == 0)
       continue;
 
     DrawItem item{};
     item.vertexStart = r.vertexStart;
     item.vertexCount = r.vertexCount;
+    item.indexStart = r.indexStart;
+    item.indexCount = r.indexCount;
     item.materialIndex = r.materialIndex;
     item.meshIndex = mi;
     item.nodeWorld = nodeWorld;
@@ -366,6 +428,100 @@ void ModelMesh::UploadVB_(const std::vector<VertexData> &vertices) {
   vb_.view.BufferLocation = vb_.resource->GetGPUVirtualAddress();
   vb_.view.SizeInBytes = static_cast<UINT>(sizeBytes);
   vb_.view.StrideInBytes = sizeof(VertexData);
+}
+
+void ModelMesh::UploadIB_() {
+  ib_.indexCount = static_cast<uint32_t>(indices_.size());
+  if (ib_.indexCount == 0)
+    return;
+
+  const size_t sizeBytes = sizeof(uint32_t) * ib_.indexCount;
+
+  if (ib_.resource) {
+    ib_.resource.Reset();
+  }
+
+  ib_.resource = CreateBufferResource(
+      device_.Get(), sizeBytes,
+      (L"ModelIB: " + std::wstring(sourceInputPath_.begin(), sourceInputPath_.end()))
+          .c_str());
+
+  void *mapped = nullptr;
+  ib_.resource->Map(0, nullptr, &mapped);
+  std::memcpy(mapped, indices_.data(), sizeBytes);
+  ib_.resource->Unmap(0, nullptr);
+
+  ib_.view.BufferLocation = ib_.resource->GetGPUVirtualAddress();
+  ib_.view.SizeInBytes = static_cast<UINT>(sizeBytes);
+  ib_.view.Format = DXGI_FORMAT_R32_UINT;
+}
+
+void ModelMesh::ExtractSkinData_(const aiScene *scene,
+                                 std::vector<VertexData> &vertices) {
+  if (!scene)
+    return;
+
+  // 全メッシュを走査してボーンデータを収集
+  for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
+    const aiMesh *mesh = scene->mMeshes[meshIndex];
+    if (!mesh || !mesh->HasBones())
+      continue;
+
+    // このメッシュの頂点がoutVertices上でどこから始まるか
+    const uint32_t vtxOffset = submeshes_[meshIndex].vertexStart;
+
+    for (uint32_t boneIdx = 0; boneIdx < mesh->mNumBones; ++boneIdx) {
+      const aiBone *bone = mesh->mBones[boneIdx];
+      if (!bone)
+        continue;
+
+      const std::string boneName = bone->mName.C_Str();
+
+      // ボーンインデックスを取得または登録
+      uint32_t skinBoneIdx;
+      auto it = skinData_.jointNameToIndex.find(boneName);
+      if (it != skinData_.jointNameToIndex.end()) {
+        skinBoneIdx = it->second;
+      } else {
+        skinBoneIdx = static_cast<uint32_t>(skinData_.inverseBindPoseMatrices.size());
+        skinData_.jointNameToIndex[boneName] = skinBoneIdx;
+
+        // InverseBindPoseMatrixを右手系から左手系に変換
+        aiMatrix4x4 a = bone->mOffsetMatrix;
+        a.Transpose(); // Assimpはcolumn-major、エンジンはrow-major
+        RC::Matrix4x4 m = MakeIdentity4x4();
+        for (int r = 0; r < 4; ++r)
+          for (int c = 0; c < 4; ++c)
+            m.m[r][c] = a[r][c];
+        // aiProcess_MakeLeftHanded により Assimp が座標系変換済みのため手動変換不要
+        skinData_.inverseBindPoseMatrices.push_back(m);
+      }
+
+      // 各頂点にウェイトを書き込み
+      for (uint32_t w = 0; w < bone->mNumWeights; ++w) {
+        const aiVertexWeight &vw = bone->mWeights[w];
+        const uint32_t globalVtxIdx = vtxOffset + vw.mVertexId;
+        if (globalVtxIdx >= vertices.size())
+          continue;
+
+        VertexData &v = vertices[globalVtxIdx];
+
+        // 空いているスロットに書き込み（最大4ボーン）
+        for (int s = 0; s < 4; ++s) {
+          if (v.boneWeights[s] == 0.0f) {
+            v.boneIndices[s] = static_cast<int32_t>(skinBoneIdx);
+            v.boneWeights[s] = vw.mWeight;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (!skinData_.inverseBindPoseMatrices.empty()) {
+    Log::Print(std::format("[ModelMesh] SkinData: {} bones extracted",
+                           skinData_.inverseBindPoseMatrices.size()));
+  }
 }
 
 std::string ModelMesh::ResolveTexturePath_(const aiScene *scene,

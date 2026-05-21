@@ -167,8 +167,18 @@ void ModelResource::Draw(ID3D12GraphicsCommandList *cmdList,
     cmdList->SetGraphicsRootDescriptorTable(
         2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
 
-    cmdList->DrawInstanced(mesh_->VertexCount(), 1, 0, 0);
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->IASetIndexBuffer(&mesh_->IBV());
+      cmdList->DrawIndexedInstanced(mesh_->IndexCount(), 1, 0, 0, 0);
+    } else {
+      cmdList->DrawInstanced(mesh_->VertexCount(), 1, 0, 0);
+    }
     return;
+  }
+
+  // IndexBufferがある場合はIASetを事前に行う
+  if (mesh_->HasIndexBuffer()) {
+    cmdList->IASetIndexBuffer(&mesh_->IBV());
   }
 
   for (uint32_t i = 0; i < items.size(); ++i) {
@@ -195,8 +205,12 @@ void ModelResource::Draw(ID3D12GraphicsCommandList *cmdList,
                                : GetSrvForMaterial_(it.materialIndex);
     cmdList->SetGraphicsRootDescriptorTable(2, srv);
 
-    // mesh範囲だけ描画
-    cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
+    // 描画
+    if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
+      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, it.vertexStart, 0);
+    } else {
+      cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
+    }
   }
 }
 
@@ -253,14 +267,26 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
   if (items.empty()) {
     cmdList->SetGraphicsRootDescriptorTable(
         2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
-    cmdList->DrawInstanced(mesh_->VertexCount(), count, 0, 0);
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->IASetIndexBuffer(&mesh_->IBV());
+      cmdList->DrawIndexedInstanced(mesh_->IndexCount(), count, 0, 0, 0);
+    } else {
+      cmdList->DrawInstanced(mesh_->VertexCount(), count, 0, 0);
+    }
   } else {
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->IASetIndexBuffer(&mesh_->IBV());
+    }
     for (const auto &it : items) {
       const D3D12_GPU_DESCRIPTOR_HANDLE srv =
           (textureSrv_.ptr != 0) ? textureSrv_
                                  : GetSrvForMaterial_(it.materialIndex);
       cmdList->SetGraphicsRootDescriptorTable(2, srv);
-      cmdList->DrawInstanced(it.vertexCount, count, it.vertexStart, 0);
+      if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
+        cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, it.vertexStart, 0);
+      } else {
+        cmdList->DrawInstanced(it.vertexCount, count, it.vertexStart, 0);
+      }
     }
   }
 }
@@ -319,14 +345,123 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
   if (items.empty()) {
     cmdList->SetGraphicsRootDescriptorTable(
         2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
-    cmdList->DrawInstanced(mesh_->VertexCount(), count, 0, 0);
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->IASetIndexBuffer(&mesh_->IBV());
+      cmdList->DrawIndexedInstanced(mesh_->IndexCount(), count, 0, 0, 0);
+    } else {
+      cmdList->DrawInstanced(mesh_->VertexCount(), count, 0, 0);
+    }
   } else {
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->IASetIndexBuffer(&mesh_->IBV());
+    }
     for (const auto &it : items) {
       const D3D12_GPU_DESCRIPTOR_HANDLE srv =
           (textureSrv_.ptr != 0) ? textureSrv_
                                  : GetSrvForMaterial_(it.materialIndex);
       cmdList->SetGraphicsRootDescriptorTable(2, srv);
-      cmdList->DrawInstanced(it.vertexCount, count, it.vertexStart, 0);
+      if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
+        cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, it.vertexStart, 0);
+      } else {
+        cmdList->DrawInstanced(it.vertexCount, count, it.vertexStart, 0);
+      }
+    }
+  }
+}
+
+// ============================================================================
+// DrawSkinned（スキニング描画）
+// ============================================================================
+
+void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
+                                const Matrix4x4 &world, const Matrix4x4 &view,
+                                const Matrix4x4 &proj,
+                                const std::vector<Matrix4x4> &skinMatrices,
+                                FrameResource &frame) {
+  if (!isReady_ || !mesh_ || !mesh_->Ready() || skinMatrices.empty())
+    return;
+
+  const auto &items = mesh_->DrawItems();
+
+  // テクスチャ
+  if (textureSrv_.ptr == 0) {
+    EnsureMaterialSrvsLoaded_();
+  }
+
+  const auto &vbv = mesh_->VBV();
+  cmdList->IASetVertexBuffers(0, 1, &vbv);
+  cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  if (mesh_->HasIndexBuffer()) {
+    cmdList->IASetIndexBuffer(&mesh_->IBV());
+  }
+
+  // Material CB (slot 0, PS)
+  cmdList->SetGraphicsRootConstantBufferView(
+      0, cbMat_.resource->GetGPUVirtualAddress());
+
+  // Light CB (slot 3, PS)
+  const D3D12_GPU_VIRTUAL_ADDRESS lightAddr =
+      (externalLightCBAddress_ != 0)
+          ? externalLightCBAddress_
+          : cbLight_.resource->GetGPUVirtualAddress();
+  cmdList->SetGraphicsRootConstantBufferView(3, lightAddr);
+
+  // 行列パレットをSRVとして転送 (slot 9, VS)
+  const uint32_t matCount = static_cast<uint32_t>(skinMatrices.size());
+  const uint32_t matSize = matCount * static_cast<uint32_t>(sizeof(Matrix4x4));
+  void *matMapped = nullptr;
+  D3D12_GPU_VIRTUAL_ADDRESS matAddr = frame.AllocSRV(matSize, &matMapped);
+  std::memcpy(matMapped, skinMatrices.data(), matSize);
+  cmdList->SetGraphicsRootShaderResourceView(9, matAddr);
+
+  // スキニングモデルではnodeWorldは掛けない
+  // （スキニング計算で既にスケルトン空間→ワールドはworldだけで十分）
+
+  if (items.empty()) {
+    // DrawItem無しの場合
+    void *dst = nullptr;
+    D3D12_GPU_VIRTUAL_ADDRESS addr =
+        frame.AllocCB(sizeof(TransformationMatrix), &dst);
+    auto *tm = reinterpret_cast<TransformationMatrix *>(dst);
+    tm->World = world;
+    tm->WVP = Multiply(world, Multiply(view, proj));
+    tm->worldInverseTranspose = Transpose(Inverse(world));
+    cmdList->SetGraphicsRootConstantBufferView(1, addr);
+
+    cmdList->SetGraphicsRootDescriptorTable(
+        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->DrawIndexedInstanced(mesh_->IndexCount(), 1, 0, 0, 0);
+    } else {
+      cmdList->DrawInstanced(mesh_->VertexCount(), 1, 0, 0);
+    }
+    return;
+  }
+
+  for (uint32_t i = 0; i < items.size(); ++i) {
+    const auto &it = items[i];
+
+    // スキニングモデルではnodeWorldは使わない（スキニング行列で処理済み）
+    void *dst = nullptr;
+    D3D12_GPU_VIRTUAL_ADDRESS addr =
+        frame.AllocCB(sizeof(TransformationMatrix), &dst);
+    auto *tm = reinterpret_cast<TransformationMatrix *>(dst);
+    tm->World = world;
+    tm->WVP = Multiply(world, Multiply(view, proj));
+    tm->worldInverseTranspose = Transpose(Inverse(world));
+    cmdList->SetGraphicsRootConstantBufferView(1, addr);
+
+    const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+        (textureSrv_.ptr != 0) ? textureSrv_
+                               : GetSrvForMaterial_(it.materialIndex);
+    cmdList->SetGraphicsRootDescriptorTable(2, srv);
+
+    if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
+      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, it.vertexStart, 0);
+    } else {
+      cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
     }
   }
 }

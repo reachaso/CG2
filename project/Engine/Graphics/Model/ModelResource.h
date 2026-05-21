@@ -122,6 +122,19 @@ public:
                  const RC::Vector4 &color,
                  RC::FrameResource &frame);
 
+  /// @brief スキニング付きモデルを描画する
+  /// @param cmdList コマンドリスト
+  /// @param world ワールド行列
+  /// @param view ビュー行列
+  /// @param proj プロジェクション行列
+  /// @param skinMatrices スキニング行列パレット
+  /// @param frame フレームリソース
+  void DrawSkinned(ID3D12GraphicsCommandList *cmdList,
+                   const RC::Matrix4x4 &world,
+                   const RC::Matrix4x4 &view, const RC::Matrix4x4 &proj,
+                   const std::vector<RC::Matrix4x4> &skinMatrices,
+                   RC::FrameResource &frame);
+
   /// @brief バッチ描画用のカーソルをリセットする
   /// @note FrameResource 移行後は内部で管理されるため、現在は実質的な処理を行いません。
   void ResetBatchCursor() { /* FrameResource 側で管理 */ }

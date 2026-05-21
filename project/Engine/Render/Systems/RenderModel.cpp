@@ -82,12 +82,12 @@ static bool IsDebugShadingMode_(ViewShadingMode mode) {
 }
 
 /// ViewShadingMode に応じた単体描画用 Pipeline prefix を返す
-static std::string_view ResolveSinglePrefix_(ViewShadingMode mode) {
+static std::string_view ResolveSinglePrefix_(ViewShadingMode mode, bool skinned) {
   switch (mode) {
-  case ViewShadingMode::FaceOrientation: return "object3d_faceori";
-  case ViewShadingMode::RandomColor:     return "object3d_randcolor";
-  case ViewShadingMode::SolidShading:    return "object3d_solid";
-  default:                               return "object3d";
+  case ViewShadingMode::FaceOrientation: return skinned ? "object3d_faceori_skin" : "object3d_faceori";
+  case ViewShadingMode::RandomColor:     return skinned ? "object3d_randcolor_skin" : "object3d_randcolor";
+  case ViewShadingMode::SolidShading:    return skinned ? "object3d_solid_skin" : "object3d_solid";
+  default:                               return skinned ? "object3d_skin" : "object3d";
   }
 }
 
@@ -106,11 +106,12 @@ static std::string_view ResolveInstPrefix_(ViewShadingMode mode) {
 static void DrawDebugSingle_(RenderContext &ctx, ModelObject *m,
                               ID3D12GraphicsCommandList *cl,
                               const Matrix4x4 &world,
-                              ViewShadingMode mode) {
+                              ViewShadingMode mode,
+                              bool skinned) {
   auto prevBlend = ctx.CurrentBlendMode();
   ctx.SetBlendMode(kBlendModeNone);
 
-  if (BindStandard3D_(ctx, ResolveSinglePrefix_(mode))) {
+  if (BindStandard3D_(ctx, ResolveSinglePrefix_(mode, skinned))) {
     m->Draw(cl, world, ctx.CurrentFrame());
   }
 
@@ -202,16 +203,21 @@ void DrawModel(int modelHandle, int texHandle) {
 
     ViewShadingMode shadingMode = ctx.GetViewShadingMode();
 
+    // スキニングモデルかどうかでパイプラインを分岐
+    const bool skinned = m->HasSkinData();
+    const std::string_view pipelinePrefix = skinned ? "object3d_skin" : "object3d";
+
     if (IsDebugShadingMode_(shadingMode)) {
-      DrawDebugSingle_(ctx, m, cl, world, shadingMode);
+      DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned);
     } else {
       if (shadingMode != ViewShadingMode::Wireframe) {
-        if (BindStandard3D_(ctx, "object3d")) {
+        if (BindStandard3D_(ctx, pipelinePrefix)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }
       }
       if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
-        if (BindStandard3D_(ctx, "object3d_wire")) {
+        const std::string_view wirePipeline = skinned ? "object3d_wire_skin" : "object3d_wire";
+        if (BindStandard3D_(ctx, wirePipeline)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }
       }
@@ -252,17 +258,20 @@ void DrawModelNoCull(int modelHandle, int texHandle) {
     m->Update(ctx.View(), ctx.Proj());
 
     ViewShadingMode shadingMode = ctx.GetViewShadingMode();
+    const bool skinned = m->HasSkinData();
 
     if (IsDebugShadingMode_(shadingMode)) {
-      DrawDebugSingle_(ctx, m, cl, world, shadingMode);
+      DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned);
     } else {
+      const std::string_view pipeline = skinned ? "object3d_skin_nocull" : "object3d_nocull";
       if (shadingMode != ViewShadingMode::Wireframe) {
-        if (BindStandard3D_(ctx, "object3d_nocull")) {
+        if (BindStandard3D_(ctx, pipeline)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }
       }
       if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
-        if (BindStandard3D_(ctx, "object3d_wire")) {
+        const std::string_view wirePipeline = skinned ? "object3d_wire_skin" : "object3d_wire";
+        if (BindStandard3D_(ctx, wirePipeline)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }
       }
@@ -407,9 +416,10 @@ void DrawModelGlass(int modelHandle, int texHandle) {
         m->Update(ctx.View(), ctx.Proj());
 
         ViewShadingMode shadingMode = ctx.GetViewShadingMode();
+        const bool skinned = m->HasSkinData();
 
         if (IsDebugShadingMode_(shadingMode)) {
-          DrawDebugSingle_(ctx, m, cl, world, shadingMode);
+          DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned);
         } else {
           if (shadingMode != ViewShadingMode::Wireframe) {
             if (BindStandard3D_(ctx, "object3d_glass")) {
@@ -417,7 +427,8 @@ void DrawModelGlass(int modelHandle, int texHandle) {
             }
           }
           if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
-            if (BindStandard3D_(ctx, "object3d_wire")) {
+            const std::string_view wirePipeline = skinned ? "object3d_wire_skin" : "object3d_wire";
+            if (BindStandard3D_(ctx, wirePipeline)) {
               m->Draw(cl, world, ctx.CurrentFrame());
             }
           }
@@ -563,9 +574,10 @@ void DrawModelGlassTwoPass(int modelHandle, int texHandle) {
         m->Update(ctx.View(), ctx.Proj());
 
         ViewShadingMode shadingMode = ctx.GetViewShadingMode();
+        const bool skinned = m->HasSkinData();
 
         if (IsDebugShadingMode_(shadingMode)) {
-          DrawDebugSingle_(ctx, m, cl, world, shadingMode);
+          DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned);
         } else {
           // 1) 背面（内側） - Solidのみ
           if (shadingMode != ViewShadingMode::Wireframe) {
@@ -580,7 +592,8 @@ void DrawModelGlassTwoPass(int modelHandle, int texHandle) {
             }
           }
           if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
-            if (BindStandard3D_(ctx, "object3d_wire")) {
+            const std::string_view wirePipeline = skinned ? "object3d_wire_skin" : "object3d_wire";
+            if (BindStandard3D_(ctx, wirePipeline)) {
               m->Draw(cl, world, ctx.CurrentFrame());
             }
           }

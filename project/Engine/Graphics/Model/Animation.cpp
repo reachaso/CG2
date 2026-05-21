@@ -11,7 +11,7 @@ Animation LoadAnimationFile(const std::string& filePath) {
     Animation animation;
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile(filePath.c_str(), 0);
+    const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_MakeLeftHanded);
     if (!scene || scene->mNumAnimations == 0) {
         // アニメーションが無い場合は空のAnimationを返す（assertで落とさない）
         return animation;
@@ -30,7 +30,7 @@ Animation LoadAnimationFile(const std::string& filePath) {
             aiVectorKey& keyAssimp = nodeAnimationAssimp->mPositionKeys[keyIndex];
             KeyframeVector3 keyframe;
             keyframe.time = float(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
-            keyframe.value = { -keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z }; // 右手->左手
+            keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z }; // aiProcess_MakeLeftHanded で変換済み
             nodeAnimation.translate.push_back(keyframe);
         }
 
@@ -39,8 +39,8 @@ Animation LoadAnimationFile(const std::string& filePath) {
             aiQuatKey& keyAssimp = nodeAnimationAssimp->mRotationKeys[keyIndex];
             KeyframeQuaternion keyframe;
             keyframe.time = float(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
-            // 右手->左手変換のため、yとzを反転させる
-            keyframe.value = { keyAssimp.mValue.x, -keyAssimp.mValue.y, -keyAssimp.mValue.z, keyAssimp.mValue.w };
+            // aiProcess_MakeLeftHanded で変換済みのため手動反転不要
+            keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z, keyAssimp.mValue.w };
             nodeAnimation.rotate.push_back(keyframe);
         }
 
