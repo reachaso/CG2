@@ -19,6 +19,7 @@ enum BlendMode {
 enum class RootSignatureType {
   Object3D,           ///< 3Dオブジェクト用
   Object3DInstancing, ///< 3Dオブジェクト（インスタンシング）用
+  Object3DSkin,       ///< 3Dオブジェクト（スキニング）用
   Sprite,             ///< スプライト用
   Particle,           ///< パーティクル用
   FogOverlay,         ///< フォグオーバーレイ用

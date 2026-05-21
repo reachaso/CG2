@@ -9,6 +9,7 @@
 #include <d3d12.h>
 #include <filesystem>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include <wrl/client.h>
 
@@ -21,12 +22,23 @@ public:
   /// @struct DrawItem
   /// @brief ノード階層を反映した描画単位の構造体
   struct DrawItem {
-    uint32_t vertexStart = 0;     ///< 頂点バッファ上の開始頂点インデックス
-    uint32_t vertexCount = 0;     ///< 描画する頂点数
+    uint32_t vertexStart = 0;     ///< 頂点バッファ上の開始頂点インデックス（BaseVertex）
+    uint32_t vertexCount = 0;     ///< 頂点数
+    uint32_t indexStart = 0;      ///< IndexBuffer上の開始インデックス
+    uint32_t indexCount = 0;      ///< 描画するインデックス数
     uint32_t materialIndex = 0;   ///< 使用するマテリアルのインデックス
     uint32_t meshIndex = 0;       ///< 元のメッシュインデックス（デバッグ用）
     RC::Matrix4x4 nodeWorld = {}; ///< モデル空間での累積行列（Rootからの変換）
     std::string nodeName;         ///< ノード名（デバッグ用）
+  };
+
+  /// @struct SkinData
+  /// @brief スキニング情報を保持する構造体
+  struct SkinData {
+    /// Joint名 → ボーンインデックスのマッピング
+    std::unordered_map<std::string, uint32_t> jointNameToIndex;
+    /// 各ボーンの InverseBindPoseMatrix
+    std::vector<RC::Matrix4x4> inverseBindPoseMatrices;
   };
 
   ModelMesh() = default;
@@ -60,6 +72,21 @@ public:
   /// @brief 総頂点数を取得する
   /// @return 総頂点数
   uint32_t VertexCount() const { return vb_.vertexCount; }
+
+  /// @brief IndexBufferが存在するか
+  bool HasIndexBuffer() const { return ib_.resource != nullptr && ib_.indexCount > 0; }
+
+  /// @brief インデックスバッファビューを取得する
+  const D3D12_INDEX_BUFFER_VIEW &IBV() const { return ib_.view; }
+
+  /// @brief 総インデックス数を取得する
+  uint32_t IndexCount() const { return ib_.indexCount; }
+
+  /// @brief スキンデータが存在するか
+  bool HasSkinData() const { return !skinData_.inverseBindPoseMatrices.empty(); }
+
+  /// @brief スキンデータを取得する
+  const SkinData &GetSkinData() const { return skinData_; }
 
   /// @brief 代表的なマテリアル情報を取得する（互換用）
   /// @return マテリアルデータ
@@ -98,23 +125,36 @@ private:
     uint32_t vertexCount = 0;                       ///< 頂点数
   };
 
+  /// @struct IB
+  /// @brief インデックスバッファリソースを管理する内部構造体
+  struct IB {
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource; ///< GPU リソース
+    D3D12_INDEX_BUFFER_VIEW view{};                 ///< バッファビュー
+    uint32_t indexCount = 0;                        ///< インデックス数
+  };
+
   /// @struct SubmeshRange
-  /// @brief 各メッシュごとの頂点範囲とマテリアルを保持する内部構造体
+  /// @brief 各メッシュごとの頂点/インデックス範囲とマテリアルを保持する内部構造体
   struct SubmeshRange {
-    uint32_t vertexStart = 0;   ///< 開始頂点
+    uint32_t vertexStart = 0;   ///< 開始頂点（BaseVertex）
     uint32_t vertexCount = 0;   ///< 頂点数
+    uint32_t indexStart = 0;    ///< 開始インデックス
+    uint32_t indexCount = 0;    ///< インデックス数
     uint32_t materialIndex = 0; ///< マテリアルインデックス
   };
 
   Microsoft::WRL::ComPtr<ID3D12Device> device_;
   VB vb_{};
+  IB ib_{};
 
   MaterialData materialFile_{}; ///< 最初に見つかったテクスチャ情報（互換用）
 
   std::vector<MaterialData> materials_;  ///< 解析されたマテリアル一覧
-  std::vector<SubmeshRange> submeshes_;  ///< メッシュごとの範囲（インデックスから範囲へのマップ）
+  std::vector<SubmeshRange> submeshes_;  ///< メッシュごとの範囲
+  std::vector<uint32_t> indices_;        ///< インデックスデータ
   Node rootNode_{};                      ///< 解析されたノード階層のルート
   std::vector<DrawItem> drawItems_;      ///< 最終的な描画項目のリスト
+  SkinData skinData_{};                  ///< スキンデータ
 
   /// @brief Assimpを使用してファイルを読み込む（内部処理）
   bool LoadAssimp_(const std::string &filePath);
@@ -146,6 +186,12 @@ private:
 
   /// @brief 頂点データを GPU にアップロードする
   void UploadVB_(const std::vector<VertexData> &vertices);
+
+  /// @brief インデックスデータを GPU にアップロードする
+  void UploadIB_();
+
+  /// @brief Assimpのボーンデータからスキン情報を抽出する
+  void ExtractSkinData_(const aiScene *scene, std::vector<VertexData> &vertices);
 
   /// @brief 実際に使用されているマテリアルだけに整理し、インデックスを詰め直す
   void CompactMaterials_();

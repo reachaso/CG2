@@ -103,6 +103,17 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   // ===== AnimatedCube =====
   animatedCube_ = RC::LoadModel("Resources/model/AnimatedCube/AnimatedCube.gltf");
   RC::AttachModelAnimation(animatedCube_);
+
+  // ===== Skeletonテストモデル =====
+  walkModel_ = RC::LoadModel("Resources/model/human/walk.gltf");
+  RC::AttachModelAnimation(walkModel_);
+
+  simpleSkinModel_ = RC::LoadModel("Resources/model/simpleSkin");
+  RC::AttachModelAnimation(simpleSkinModel_);
+  // simpleSkinはwalkの右側に配置
+  if (auto* t = RC::GetModelTransformPtr(simpleSkinModel_)) {
+    t->translation = {3.0f, 0.0f, 0.0f};
+  }
 }
 
 void SampleScene::OnExit(SceneContext &) {
@@ -159,6 +170,15 @@ void SampleScene::OnExit(SceneContext &) {
     RC::UnloadModel(animatedCube_);
     animatedCube_ = -1;
   }
+
+  if (walkModel_ != -1) {
+    RC::UnloadModel(walkModel_);
+    walkModel_ = -1;
+  }
+  if (simpleSkinModel_ != -1) {
+    RC::UnloadModel(simpleSkinModel_);
+    simpleSkinModel_ = -1;
+  }
 }
 
 void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
@@ -198,6 +218,10 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   // === AnimatedCube ===
   RC::UpdateModelAnimation(animatedCube_);
+
+  // === Skeletonテストモデル ===
+  RC::UpdateModelAnimation(walkModel_);
+  RC::UpdateModelAnimation(simpleSkinModel_);
 }
 
 void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
@@ -228,6 +252,13 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   if (animatedCube_ != -1) {
       RC::DrawModel(animatedCube_);
   }
+
+  // === Skeletonテストモデル ===
+  RC::DrawModel(walkModel_);
+  RC::DrawModelSkeleton(walkModel_);
+
+  RC::DrawModel(simpleSkinModel_);
+  RC::DrawModelSkeleton(simpleSkinModel_);
 
   RC::DrawModelGlassTwoPass(blockModel);
 
@@ -277,6 +308,10 @@ void SampleScene::DrawImGui() {
       if (animatedCube_ != -1) {
           RC::DrawImGui3D(animatedCube_, "AnimatedCube");
       }
+
+      RC::DrawImGui3D(walkModel_, "walkModel");
+
+      RC::DrawImGui3D(simpleSkinModel_, "simpleSkinModel");
 
       RC::DrawImGui3D(blockModel, "blockModel");
       // 色変更用

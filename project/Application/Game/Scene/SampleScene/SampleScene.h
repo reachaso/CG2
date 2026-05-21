@@ -48,6 +48,10 @@ private:
   // ===== AnimatedCube =====
   int animatedCube_ = -1;
 
+  // ===== Skeletonテストモデル =====
+  int walkModel_ = -1;
+  int simpleSkinModel_ = -1;
+
   // ===== 天球 (Skydome) =====
   int skydome = -1;
   int tx_Skydome_ = -1;

@@ -386,6 +386,10 @@ void AttachModelAnimation(int modelHandle, const std::string& filePath);
 /// @param dt 経過時間 (負の値ならエンジンの deltaTime を自動使用)
 void UpdateModelAnimation(int modelHandle, float dt = -1.0f);
 
+/// @brief モデルのスケルトンをデバッグ描画する（Joint球 + Bone線）
+/// @param modelHandle モデルハンドル
+void DrawModelSkeleton(int modelHandle);
+
 /// @brief モデルのライティングモードを設定する
 /// @param modelHandle モデルハンドル
 /// @param m ライティングモード

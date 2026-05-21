@@ -258,12 +258,32 @@ public:
   /// @param filePath アニメーションファイル(.gltf等)のパス
   void AttachAnimation(const std::string& filePath);
 
-  /// @brief アニメーションを更新し、自身のTransformに適用する
+  /// @brief アニメーションを更新し、Skeletonに適用する
   /// @param dt 経過時間
   void UpdateAnimation(float dt);
+
+  /// @brief スケルトンのデバッグ描画を行う
+  /// @details 各Jointを球で、親子関係のあるJoint同士を線で描画する
+  void DrawSkeleton();
+
+  /// @brief Skeleton が有効かどうか
+  bool HasSkeleton() const { return hasSkeleton_; }
+
+  /// @brief スキンデータが有効かどうか（ボーンウェイト付きモデルか）
+  bool HasSkinData() const;
+
+  /// @brief スキニング行列パレットを取得する
+  const std::vector<RC::Matrix4x4> &GetSkinMatrices() const { return skinMatrices_; }
 
 private:
   RC::Animation animation_;   ///< ロードしたアニメーションデータ
   float animationTime_ = 0.0f;///< アニメーション再生時間
   bool isAnimated_ = false;   ///< アニメーションが有効かどうか
+  bool animationRequested_ = false; ///< AttachAnimationが呼ばれたか（遅延ロード用）
+
+  Skeleton skeleton_;          ///< スケルトンデータ
+  bool hasSkeleton_ = false;   ///< スケルトンが構築済みか
+
+  // === スキニング関連 ===
+  std::vector<RC::Matrix4x4> skinMatrices_; ///< スキンクラスター行列パレット (T_i = IBP_i * SSM_i)
 };

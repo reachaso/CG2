@@ -2,6 +2,8 @@
 #include "EngineConfig.h"
 #include "Math/MathTypes.h"
 #include <cstdint>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,6 +83,9 @@ struct VertexData {
   RC::Vector4 position; ///< 頂点座標 (x, y, z, w)
   RC::Vector2 texcoord; ///< テクスチャ座標 (u, v)
   RC::Vector3 normal;   ///< 法線ベクトル
+  // === Skinning ===
+  int32_t boneIndices[4] = {0, 0, 0, 0}; ///< 影響するボーンのインデックス (最大4)
+  float   boneWeights[4] = {0, 0, 0, 0}; ///< 各ボーンのウェイト (合計1.0)
 };
 
 /// @brief マテリアルの基本データ（ファイルパス等）
@@ -88,12 +93,44 @@ struct MaterialData {
   std::string textureFilePath; ///< テクスチャファイルのパス
 };
 
+/// @brief クォータニオンベースの変換情報（SRT）
+/// @details Euler回転ではなくQuaternionで回転を保持する。
+/// アニメーション補間やスケルトンのジョイント管理に使用する。
+struct QuaternionTransform {
+  RC::Vector3 scale;       ///< スケール
+  RC::Quaternion rotate;   ///< 回転 (Quaternion)
+  RC::Vector3 translate;   ///< 並進
+};
+
 /// @brief モデル内のノード構造体（階層構造管理用）
 struct Node {
+  QuaternionTransform transform;     ///< SRT変換情報 (Quaternion回転)
   RC::Matrix4x4 localMatrix;         ///< 親ノードからの相対変換行列
   std::string name;                  ///< ノード名
   std::vector<uint32_t> meshIndices; ///< このノードが参照するメッシュのインデックス
   std::vector<Node> children;        ///< 子ノードの配列
+};
+
+/// @brief スケルトンの1つのジョイント（関節）
+/// @details ノード階層からフラット配列に変換されたジョイントデータ。
+/// parentのIndexは必ず自身より若い値になるため、配列先頭から順に処理できる。
+struct Joint {
+  QuaternionTransform transform;          ///< Transform情報
+  RC::Matrix4x4 localMatrix;              ///< localMatrix
+  RC::Matrix4x4 skeletonSpaceMatrix;      ///< skeletonSpaceでの変換行列
+  std::string name;                       ///< 名前
+  std::vector<int32_t> children;          ///< 子JointのIndexのリスト。いなければ空
+  int32_t index;                          ///< 自身のIndex
+  std::optional<int32_t> parent;          ///< 親JointのIndex。いなければnull
+};
+
+/// @brief スケルトン（ジョイント階層を管理する構造体）
+/// @details Nodeの階層構造をフラットなJoint配列に変換し、
+/// 名前からIndexへの高速検索を提供する。
+struct Skeleton {
+  int32_t root;                                 ///< RootJointのIndex
+  std::map<std::string, int32_t> jointMap;      ///< Joint名とIndexとの辞書
+  std::vector<Joint> joints;                    ///< 所属しているジョイント
 };
 
 /// @brief モデル全体のデータ構造体
