@@ -82,6 +82,13 @@ public:
   /// @brief 総インデックス数を取得する
   uint32_t IndexCount() const { return ib_.indexCount; }
 
+  /// @brief 頂点バッファの GPU リソースを取得する（CS スキニング用）
+  /// @return GPU リソースへのポインタ
+  ID3D12Resource *GetVBResource() const { return vb_.resource.Get(); }
+
+  /// @brief 頂点1つあたりのバイト数を取得する
+  uint32_t GetVertexStrideBytes() const { return static_cast<uint32_t>(sizeof(VertexData)); }
+
   /// @brief スキンデータが存在するか
   bool HasSkinData() const { return !skinData_.inverseBindPoseMatrices.empty(); }
 

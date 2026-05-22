@@ -72,6 +72,14 @@ public:
   Handle CreateStructuredBuffer(ID3D12Resource *res, UINT elementCount,
                                 UINT strideBytes);
 
+  /// @brief ストラクチャードバッファ用のUAVを作成する
+  /// @param res 対象リソース（D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS必須）
+  /// @param elementCount 要素数
+  /// @param strideBytes 1要素あたりのバイトサイズ
+  /// @return 作成されたUAVのハンドル
+  Handle CreateStructuredBufferUAV(ID3D12Resource *res, UINT elementCount,
+                                   UINT strideBytes);
+
 private:
   ID3D12Device *device_ = nullptr; ///< デバイス（非所有）
   DescriptorHeap *srvHeap_ = nullptr; ///< デスクリプタヒープ（非所有）

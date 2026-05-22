@@ -37,6 +37,12 @@ void ModelManager::Init(ID3D12Device *device, TextureManager *texman) {
   meshCache_.clear();
 }
 
+void ModelManager::SetSkinningCS(PipelineManager *pm,
+                                  SRVManager *srvMgr) {
+  pipelineMgr_ = pm;
+  srvMgr_ = srvMgr;
+}
+
 void ModelManager::Term() {
   models_.clear();
   meshCache_.clear();
@@ -145,6 +151,10 @@ int ModelManager::Load(const std::string &path) {
         if (ptr) {
           ptr->Initialize(device_);
           ptr->SetMesh(mesh);
+          // CS スキニングの自動設定
+          if (pipelineMgr_ && srvMgr_ && mesh->HasSkinData()) {
+            ptr->Resource().SetSkinningCS(device_, pipelineMgr_, srvMgr_);
+          }
           ptr->SetReady(true); // 完了！
         }
       }
@@ -243,6 +253,8 @@ void ModelManager::ResetAllBatchCursors() {
   for (auto &s : models_) {
     if (s.inUse && s.ptr) {
       s.ptr->ResetBatchCursor();
+      // CS スキニングの Dispatch フラグをリセット
+      s.ptr->Resource().ResetSkinningDispatched();
     }
   }
 }

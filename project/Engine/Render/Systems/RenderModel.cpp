@@ -205,10 +205,17 @@ void DrawModel(int modelHandle, int texHandle) {
 
     // スキニングモデルかどうかでパイプラインを分岐
     const bool skinned = m->HasSkinData();
-    const std::string_view pipelinePrefix = skinned ? "object3d_skin" : "object3d";
+    // CS スキニングが有効なら通常パイプライン（object3d）で描画
+    const bool useCSSkinning = skinned && m->Resource().HasCSSkinning();
+    const std::string_view pipelinePrefix = (skinned && !useCSSkinning) ? "object3d_skin" : "object3d";
+
+    // CS スキニング: Graphics パイプラインバインド前に Dispatch を実行
+    if (useCSSkinning && !m->Resource().IsSkinningDispatched()) {
+      m->Resource().DispatchSkinning(cl, m->GetSkinMatrices(), ctx.CurrentFrame());
+    }
 
     if (IsDebugShadingMode_(shadingMode)) {
-      DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned);
+      DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned && !useCSSkinning);
     } else {
       if (shadingMode != ViewShadingMode::Wireframe) {
         if (BindStandard3D_(ctx, pipelinePrefix)) {
@@ -216,7 +223,7 @@ void DrawModel(int modelHandle, int texHandle) {
         }
       }
       if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
-        const std::string_view wirePipeline = skinned ? "object3d_wire_skin" : "object3d_wire";
+        const std::string_view wirePipeline = (skinned && !useCSSkinning) ? "object3d_wire_skin" : "object3d_wire";
         if (BindStandard3D_(ctx, wirePipeline)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }
@@ -259,18 +266,24 @@ void DrawModelNoCull(int modelHandle, int texHandle) {
 
     ViewShadingMode shadingMode = ctx.GetViewShadingMode();
     const bool skinned = m->HasSkinData();
+    const bool useCSSkinning = skinned && m->Resource().HasCSSkinning();
+
+    // CS スキニング: Graphics パイプラインバインド前に Dispatch を実行
+    if (useCSSkinning && !m->Resource().IsSkinningDispatched()) {
+      m->Resource().DispatchSkinning(cl, m->GetSkinMatrices(), ctx.CurrentFrame());
+    }
 
     if (IsDebugShadingMode_(shadingMode)) {
-      DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned);
+      DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned && !useCSSkinning);
     } else {
-      const std::string_view pipeline = skinned ? "object3d_skin_nocull" : "object3d_nocull";
+      const std::string_view pipeline = (skinned && !useCSSkinning) ? "object3d_skin_nocull" : "object3d_nocull";
       if (shadingMode != ViewShadingMode::Wireframe) {
         if (BindStandard3D_(ctx, pipeline)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }
       }
       if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
-        const std::string_view wirePipeline = skinned ? "object3d_wire_skin" : "object3d_wire";
+        const std::string_view wirePipeline = (skinned && !useCSSkinning) ? "object3d_wire_skin" : "object3d_wire";
         if (BindStandard3D_(ctx, wirePipeline)) {
           m->Draw(cl, world, ctx.CurrentFrame());
         }

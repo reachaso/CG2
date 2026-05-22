@@ -142,6 +142,7 @@
     <ClCompile Include="..\Engine\Dx12\PipelineManager.cpp" />
     <ClCompile Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.cpp" />
     <ClCompile Include="..\Engine\Dx12\SRVManager\SRVManager.cpp" />
+    <ClCompile Include="..\Engine\Dx12\ComputeShader\ComputeShader.cpp" />
     <ClCompile Include="..\Engine\Dx12\StructuredBufferManager\StructuredBufferManager.cpp" />
     <ClCompile Include="..\Engine\Dx12\SwapChain\SwapChain.cpp" />
     <!-- Graphics -->
@@ -243,6 +244,7 @@
     <ClInclude Include="..\Engine\Dx12\PipelineManager.h" />
     <ClInclude Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.h" />
     <ClInclude Include="..\Engine\Dx12\SRVManager\SRVManager.h" />
+    <ClInclude Include="..\Engine\Dx12\ComputeShader\ComputeShader.h" />
     <ClInclude Include="..\Engine\Dx12\StructuredBufferManager\StructuredBufferManager.h" />
     <ClInclude Include="..\Engine\Dx12\SwapChain\SwapChain.h" />
     <!-- Graphics -->

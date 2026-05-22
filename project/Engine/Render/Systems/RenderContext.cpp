@@ -75,6 +75,11 @@ void RenderContext::Init(SceneContext &ctx) {
 
   initialized_ = true;
 
+  // CS スキニング用パイプラインを ModelManager に注入
+  if (ctxRef_ && ctxRef_->pipelineManager) {
+    modelMan_.SetSkinningCS(ctxRef_->pipelineManager, &ctx.core->SRVMan());
+  }
+
   // Dissolve ノイズテクスチャ初期化 (TextureManager が有効な状態で行う)
   if (postProcess_) {
     postProcess_->InitDissolveNoiseTextures();

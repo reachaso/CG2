@@ -46,9 +46,17 @@ void ModelObject::Draw(ID3D12GraphicsCommandList *cmdList,
   const Matrix4x4 view = hasVP_ ? cachedView_ : MakeIdentity4x4();
   const Matrix4x4 proj = hasVP_ ? cachedProj_ : MakeIdentity4x4();
 
-  // スキニングモデルの場合はDrawSkinnedを使用
+  // スキニングモデルの場合
   if (HasSkinData()) {
-    resource_.DrawSkinned(cmdList, world, view, proj, skinMatrices_, frame);
+    // CS スキニングが有効かつ Dispatch 済みの場合
+    if (resource_.HasCSSkinning() && resource_.IsSkinningDispatched()) {
+      // CS スキニング済み頂点で通常描画（object3d パイプラインで描画）
+      resource_.DrawSkinnedCS(cmdList, world, view, proj, frame);
+    } else if (!resource_.HasCSSkinning()) {
+      // フォールバック: 従来の VS スキニング
+      resource_.DrawSkinned(cmdList, world, view, proj, skinMatrices_, frame);
+    }
+    // CS 有効だが未 Dispatch → スキップ（次フレームで描画）
   } else {
     resource_.Draw(cmdList, world, view, proj, frame);
   }
