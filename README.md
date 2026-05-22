@@ -28,6 +28,7 @@ DirectX 12ベースの自作ゲームエンジンです。
   - カスタム頂点バッファ・インデックスバッファによる高速な描画。
   - テクスチャマッピングおよびUVアニメーション。
   - スケルタルアニメーション・スキニング対応（ボーン階層、InverseBindPose、キーフレーム補間）。
+  - GPU Compute Shader によるスキニング計算の高速化（汎用 `ComputeShader` クラス）。
 - **2Dグラフィックス**:
   - スプライト描画、2Dプリミティブ描画（線、矩形、球体デバッグ表示等）。
 - **パーティクルシステム**:
@@ -47,7 +48,7 @@ DirectX 12ベースの自作ゲームエンジンです。
 - **ウィンドウ管理**: Win32 APIによる堅牢なウィンドウ制御とメッセージループ。
 - **入力管理**: `Input` クラスによる統括管理。`Keyboard`, `Mouse`, `Controller` (XInput) の各デバイスを個別に取得・制御可能。
 - **FPS制御**: デルタタイム計算および60FPS固定機能。
-- **シェーダ**: HLSL (Shader Model 6.0+) 対応。
+- **シェーダ**: HLSL (Shader Model 6.0+) 対応。Compute Shader (CS) による GPU 汎用計算サポート。
 
 ### オーディオ (Audio)
 - **サウンド再生**: `Media Foundation` を利用したBGMおよび効果音 (SE) の再生管理。
@@ -78,7 +79,7 @@ DirectX 12ベースの自作ゲームエンジンです。
 
 | ディレクトリ | 役割 |
 | :--- | :--- |
-| **[Dx12/](project/Engine/Dx12/)** | デバイス、スワップチェーン、パイプライン等のコアラッパー |
+| **[Dx12/](project/Engine/Dx12/)** | デバイス、スワップチェーン、パイプライン、汎用 ComputeShader 等のコアラッパー |
 | **[Graphics/](project/Engine/Graphics/)** | モデル、スプライト、ライト、エフェクト等の描画オブジェクトの実装 |
 | **[Render/](project/Engine/Render/)** | モジュール化された描画クラス（Model/Sprite/Light等）とコンテキスト管理 |
 | **[Audio/](project/Engine/Audio/)** | サウンド再生（Sound/BGM/SE）の制御と管理 |
@@ -101,7 +102,7 @@ DirectX 12ベースの自作ゲームエンジンです。
 | ディレクトリ | 役割 |
 | :--- | :--- |
 | **[Externals/](project/Externals/)** | 外部ライブラリ (Assimp / DirectXTex / ImGui / curl / nlohmann) |
-| **[Resources/](project/Resources/)** | テクスチャ、モデル、シェーダ等のリソースファイル |
+| **[Resources/](project/Resources/)** | テクスチャ、モデル、シェーダ等のリソースファイル（`Shader/Compute/` に CS シェーダ） |
 
 ## ビルド方法 (Build)
 

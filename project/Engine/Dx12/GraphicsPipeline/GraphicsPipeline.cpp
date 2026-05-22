@@ -595,6 +595,57 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
 
     paramCount = 4;
     break;
+
+  case RootSignatureType::GPUParticle:
+    // GPU Particle 描画用ルートシグネチャ
+    // 0: CBV b0 (VS) PerView (viewProjection + billboardMatrix)
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[0].Descriptor.ShaderRegister = 0; // b0
+
+    // 1: SRV table t0 (VS) Particles StructuredBuffer
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[0].BaseShaderRegister = 0; // t0
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[1].DescriptorTable.NumDescriptorRanges = 1;
+    params[1].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 2: SRV table t0 (PS) Texture
+    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[1].BaseShaderRegister = 0; // t0 (PS)
+    ranges[1].NumDescriptors = 1;
+    ranges[1].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[1];
+
+    paramCount = 3;
+    break;
+
+  case RootSignatureType::InitParticleCS:
+    // GPU Particle 初期化 CS 用ルートシグネチャ
+    // 0: UAV u0 (ALL) Particles RWStructuredBuffer
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[0].BaseShaderRegister = 0; // u0
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].DescriptorTable.NumDescriptorRanges = 1;
+    params[0].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    paramCount = 1;
+    break;
   }
 
   // ====================
@@ -634,13 +685,13 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // ====================
   // ルートシグネチャ作成
   D3D12_ROOT_SIGNATURE_DESC desc{};
-  desc.Flags = (type == RootSignatureType::SkinningCS)
+  desc.Flags = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS)
       ? D3D12_ROOT_SIGNATURE_FLAG_NONE
       : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
   desc.pParameters = params;
   desc.NumParameters = paramCount;
   desc.pStaticSamplers = samplers;
-  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS) ? 0u : 3u;
+  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS) ? 0u : 3u;
 
   Microsoft::WRL::ComPtr<ID3DBlob> sig;
   Microsoft::WRL::ComPtr<ID3DBlob> err;

@@ -303,6 +303,9 @@
     <ClCompile Include="..\Engine\Particle\ParticleManager.cpp">
       <Filter>Particle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Engine\Particle\GPUParticle.cpp">
+      <Filter>Particle</Filter>
+    </ClCompile>
     <ClCompile Include="..\Engine\Audio\Sound.cpp">
       <Filter>Audio</Filter>
     </ClCompile>
@@ -560,6 +563,9 @@
     <ClInclude Include="..\Engine\Particle\ParticleManager.h">
       <Filter>Particle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Engine\Particle\GPUParticle.h">
+      <Filter>Particle</Filter>
+    </ClInclude>
     <ClInclude Include="..\Engine\Particle\EffectPreset.h">
       <Filter>Particle</Filter>
     </ClInclude>
@@ -723,6 +729,9 @@
       <Filter>Resources\Shader\Object3d</Filter>
     </None>
     <None Include="..\Resources\Shader\Particle\Particle.hlsli">
+      <Filter>Resources\Shader\Particle</Filter>
+    </None>
+    <None Include="..\Resources\Shader\Particle\GPUParticle.hlsli">
       <Filter>Resources\Shader\Particle</Filter>
     </None>
     <None Include="..\Resources\Shader\Skybox\Skybox.hlsli">

@@ -171,6 +171,25 @@ struct ParticleForGPU {
   RC::Vector4 color;   ///< 色 (RGBA)
 };
 
+/// @brief GPU Particle 用の粒子データ（HLSL の Particle 構造体と共通レイアウト）
+/// @details Compute Shader で初期化・更新し、Vertex Shader で参照するデータ。
+/// DEFAULT ヒープに配置される。
+struct ParticleCS {
+  RC::Vector3 translate;   ///< 位置
+  float pad0;              ///< パディング（16byteアラインメント）
+  RC::Vector3 scale;       ///< スケール
+  float lifeTime;          ///< 生存時間 (秒)
+  RC::Vector3 velocity;    ///< 速度ベクトル
+  float currentTime;       ///< 経過時間 (秒)
+  RC::Vector4 color;       ///< 色 (RGBA)
+};
+
+/// @brief GPU Particle 描画用のビュー定数バッファ（VS b0）
+struct GPUParticlePerView {
+  RC::Matrix4x4 viewProjection;  ///< View-Projection 行列
+  RC::Matrix4x4 billboardMatrix; ///< ビルボード回転行列
+};
+
 /// @brief 平行光源データ
 struct DirectionalLight {
   RC::Vector4 color;     ///< 光の色 (RGBA)

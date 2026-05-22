@@ -994,6 +994,32 @@ void PipelineManager::RegisterDefaultPipelines() {
                 L"Resources/Shader/Compute/Skinning.CS.hlsl",
                 RootSignatureType::SkinningCS);
 
+  // init_particle_cs: GPU Particle 初期化用 Compute Shader
+  CreateCompute("init_particle_cs",
+                L"Resources/Shader/Compute/InitializeParticle.CS.hlsl",
+                RootSignatureType::InitParticleCS);
+
+  // gpu_particle: GPU Particle 描画用（ブレンドモード別）
+  {
+    const std::wstring gpuPtlVs = L"Resources/Shader/Particle/GPUParticle.VS.hlsl";
+    const std::wstring gpuPtlPs = L"Resources/Shader/Particle/GPUParticle.PS.hlsl";
+
+    for (int m = (int)kBlendModeNone; m <= (int)kBlendModePremultiplied; ++m) {
+      const BlendMode mode = (BlendMode)m;
+
+      GPipelineOptions opt{};
+      opt.rootType = RootSignatureType::GPUParticle;
+      opt.enableDepth = true;
+      opt.enableDepthWrite = false;
+      opt.enableAlphaBlend = (mode != kBlendModeNone);
+      opt.blendMode = mode;
+      opt.cull = D3D12_CULL_MODE_NONE;
+
+      CreateFromFiles(MakeKey("gpu_particle", mode), gpuPtlVs, gpuPtlPs,
+                      InputLayoutType::Particle, opt);
+    }
+  }
+
   Log::Print(std::format("[PipelineManager] デフォルトパイプライン登録完了 (Graphics: {}, Compute: {})", pipelines_.size(), computePipelines_.size()));
 
   // キャッシュ保存
@@ -1026,47 +1052,59 @@ void PipelineManager::CreateCompute(const std::string &key,
     return;
   }
 
-  // ルートシグネチャ構築（GraphicsPipelineのbuildRootSignature_を再利用）
-  // SkinningCS用のルートシグネチャを直接ここで構築する
-  GraphicsPipeline tempPipeline;
-  tempPipeline.Init(device_);
-  // buildRootSignature_ は private なので、一時的な GraphicsPipeline を作って
-  // BuildEx を呼ぶ代わりに、直接ルートシグネチャを構築する
-
   // --- Root Signature 構築 ---
   D3D12_ROOT_PARAMETER params[4] = {};
   D3D12_DESCRIPTOR_RANGE ranges[1] = {};
+  UINT paramCount = 0;
 
-  // 0: SRV t0 MatrixPalette
-  params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-  params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-  params[0].Descriptor.ShaderRegister = 0;
+  if (rootType == RootSignatureType::InitParticleCS) {
+    // InitParticleCS: UAV u0 のみ
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[0].BaseShaderRegister = 0;
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-  // 1: SRV t1 InputVertices
-  params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-  params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-  params[1].Descriptor.ShaderRegister = 1;
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].DescriptorTable.NumDescriptorRanges = 1;
+    params[0].DescriptorTable.pDescriptorRanges = &ranges[0];
 
-  // 2: UAV u0 OutputVertices (descriptor table)
-  ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-  ranges[0].BaseShaderRegister = 0;
-  ranges[0].NumDescriptors = 1;
-  ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    paramCount = 1;
+  } else {
+    // SkinningCS: SRV t0, SRV t1, UAV u0, CBV b0
+    // 0: SRV t0 MatrixPalette
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].Descriptor.ShaderRegister = 0;
 
-  params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-  params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-  params[2].DescriptorTable.NumDescriptorRanges = 1;
-  params[2].DescriptorTable.pDescriptorRanges = &ranges[0];
+    // 1: SRV t1 InputVertices
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].Descriptor.ShaderRegister = 1;
 
-  // 3: CBV b0 SkinningInformation
-  params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-  params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-  params[3].Descriptor.ShaderRegister = 0;
+    // 2: UAV u0 OutputVertices (descriptor table)
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[0].BaseShaderRegister = 0;
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 3: CBV b0 SkinningInformation
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[3].Descriptor.ShaderRegister = 0;
+
+    paramCount = 4;
+  }
 
   D3D12_ROOT_SIGNATURE_DESC rsDesc{};
   rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
   rsDesc.pParameters = params;
-  rsDesc.NumParameters = 4;
+  rsDesc.NumParameters = paramCount;
   rsDesc.pStaticSamplers = nullptr;
   rsDesc.NumStaticSamplers = 0;
 
@@ -1086,7 +1124,10 @@ void PipelineManager::CreateCompute(const std::string &key,
     Log::Print(std::format("[PipelineManager] CS root sig create failed: {}", key));
     return;
   }
-  entry.root->SetName(L"SkinningCS::RootSignature");
+
+  // デバッグ名設定
+  std::wstring rootName = std::wstring(key.begin(), key.end()) + L"::RootSignature";
+  entry.root->SetName(rootName.c_str());
 
   // --- Compute PSO 構築 ---
   D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
@@ -1098,12 +1139,12 @@ void PipelineManager::CreateCompute(const std::string &key,
     Log::Print(std::format("[PipelineManager] CS PSO create failed: {}", key));
     return;
   }
-  entry.pso->SetName(L"SkinningCS::PSO");
+
+  std::wstring psoName = std::wstring(key.begin(), key.end()) + L"::PSO";
+  entry.pso->SetName(psoName.c_str());
 
   computePipelines_[key] = std::move(entry);
   Log::Print(std::format("[PipelineManager] Compute Pipeline created: {}", key));
-
-  tempPipeline.Term();
 }
 
 ID3D12PipelineState *PipelineManager::GetComputePSO(const std::string &key) {

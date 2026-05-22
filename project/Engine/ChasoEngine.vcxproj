@@ -158,6 +158,7 @@
     <ClCompile Include="..\Engine\Graphics\Primitive\Primitive3D.cpp" />
     <ClCompile Include="..\Engine\Graphics\Primitive\PrimitiveObject.cpp" />
     <ClCompile Include="..\Engine\Particle\ParticleManager.cpp" />
+    <ClCompile Include="..\Engine\Particle\GPUParticle.cpp" />
     <ClCompile Include="..\Engine\Audio\Sound.cpp" />
     <ClCompile Include="..\Engine\Graphics\Skydome\Skydome.cpp" />
     <ClCompile Include="..\Engine\Graphics\Skybox\Skybox.cpp" />
@@ -260,6 +261,7 @@
     <ClInclude Include="..\Engine\Graphics\Primitive\Primitive3D.h" />
     <ClInclude Include="..\Engine\Graphics\Primitive\PrimitiveObject.h" />
     <ClInclude Include="..\Engine\Particle\ParticleManager.h" />
+    <ClInclude Include="..\Engine\Particle\GPUParticle.h" />
     <ClInclude Include="..\Engine\Particle\EffectPreset.h" />
     <ClInclude Include="..\Engine\Audio\BgmManager.h" />
     <ClInclude Include="..\Engine\Audio\SeManager.h" />
@@ -329,6 +331,7 @@
   <ItemGroup>
     <None Include="..\Resources\Shader\Object3d\Object3d.hlsli" />
     <None Include="..\Resources\Shader\Particle\Particle.hlsli" />
+    <None Include="..\Resources\Shader\Particle\GPUParticle.hlsli" />
     <None Include="..\Resources\Shader\Skybox\Skybox.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
