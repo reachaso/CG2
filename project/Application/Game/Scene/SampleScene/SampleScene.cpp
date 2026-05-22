@@ -114,6 +114,12 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   if (auto* t = RC::GetModelTransformPtr(simpleSkinModel_)) {
     t->translation = {3.0f, 0.0f, 0.0f};
   }
+
+  // =============================
+  // GPU Particle
+  // =============================
+  gpuParticle_ = std::make_unique<GPUParticle>();
+  gpuParticle_->Initialize(ctx);
 }
 
 void SampleScene::OnExit(SceneContext &) {
@@ -179,6 +185,9 @@ void SampleScene::OnExit(SceneContext &) {
     RC::UnloadModel(simpleSkinModel_);
     simpleSkinModel_ = -1;
   }
+
+  // GPU Particle 解放
+  gpuParticle_.reset();
 }
 
 void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
@@ -222,6 +231,11 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
   // === Skeletonテストモデル ===
   RC::UpdateModelAnimation(walkModel_);
   RC::UpdateModelAnimation(simpleSkinModel_);
+
+  // === GPU Particle 更新 ===
+  if (gpuParticle_) {
+    gpuParticle_->Update(view_, proj_, 1.0f / 60.0f);
+  }
 }
 
 void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
@@ -261,6 +275,11 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   RC::DrawModelSkeleton(simpleSkinModel_);
 
   RC::DrawModelGlassTwoPass(blockModel);
+
+  // === GPU Particle 描画 ===
+  if (gpuParticle_) {
+    gpuParticle_->Render(ctx, cl);
+  }
 
   // ===========================================
   // 2D描画

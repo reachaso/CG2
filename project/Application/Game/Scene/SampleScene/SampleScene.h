@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.h"
+#include "GPUParticle.h"
 #include <dinput.h>
 #include <RC.h>
 
@@ -85,4 +86,9 @@ private:
 
   Transform spriteTransform_;
   RC::Vector2 spriteSize_ = {100.0f, 100.0f};
+
+  // ===============
+  // GPU Particle
+  // ===============
+  std::unique_ptr<GPUParticle> gpuParticle_;
 };

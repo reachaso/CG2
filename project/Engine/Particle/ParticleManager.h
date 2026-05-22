@@ -26,7 +26,8 @@ public:
     /// @brief 全てのパーティクルシステムを更新する
     /// @param view ビュー行列
     /// @param proj プロジェクション行列
-    void Update(const RC::Matrix4x4& view, const RC::Matrix4x4& proj);
+    /// @param deltaTime フレーム間隔 (秒)
+    void Update(const RC::Matrix4x4& view, const RC::Matrix4x4& proj, float deltaTime = 0.016f);
 
     /// @brief 全てのパーティクルシステムを描画する
     /// @param ctx シーンコンテキスト

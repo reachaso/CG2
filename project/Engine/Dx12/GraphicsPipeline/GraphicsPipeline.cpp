@@ -646,6 +646,28 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
 
     paramCount = 1;
     break;
+
+  case RootSignatureType::UpdateParticleCS:
+    // GPU Particle 更新 CS 用ルートシグネチャ
+    // 0: UAV u0 (ALL) Particles RWStructuredBuffer
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[0].BaseShaderRegister = 0; // u0
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].DescriptorTable.NumDescriptorRanges = 1;
+    params[0].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 1: CBV b0 (ALL) PerFrame (deltaTime)
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].Descriptor.ShaderRegister = 0; // b0
+
+    paramCount = 2;
+    break;
   }
 
   // ====================
@@ -685,13 +707,13 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // ====================
   // ルートシグネチャ作成
   D3D12_ROOT_SIGNATURE_DESC desc{};
-  desc.Flags = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS)
+  desc.Flags = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS)
       ? D3D12_ROOT_SIGNATURE_FLAG_NONE
       : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
   desc.pParameters = params;
   desc.NumParameters = paramCount;
   desc.pStaticSamplers = samplers;
-  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS) ? 0u : 3u;
+  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS) ? 0u : 3u;
 
   Microsoft::WRL::ComPtr<ID3DBlob> sig;
   Microsoft::WRL::ComPtr<ID3DBlob> err;

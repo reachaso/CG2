@@ -3,7 +3,7 @@
 
 namespace RC {
 
-void ParticleManager::Update(const RC::Matrix4x4& view, const RC::Matrix4x4& proj) {
+void ParticleManager::Update(const RC::Matrix4x4& view, const RC::Matrix4x4& proj, float deltaTime) {
     for (auto& pair : systems_) {
         if (pair.second) {
             pair.second->Update(view, proj);
@@ -11,7 +11,7 @@ void ParticleManager::Update(const RC::Matrix4x4& view, const RC::Matrix4x4& pro
     }
     for (auto& pair : gpuSystems_) {
         if (pair.second) {
-            pair.second->Update(view, proj);
+            pair.second->Update(view, proj, deltaTime);
         }
     }
 }

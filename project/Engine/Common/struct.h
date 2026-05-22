@@ -190,6 +190,12 @@ struct GPUParticlePerView {
   RC::Matrix4x4 billboardMatrix; ///< ビルボード回転行列
 };
 
+/// @brief GPU Particle 更新 CS 用のフレーム定数バッファ（CS b0）
+struct GPUParticlePerFrame {
+  float deltaTime;     ///< フレーム間隔 (秒)
+  float padding[3];    ///< パディング（16byteアラインメント）
+};
+
 /// @brief 平行光源データ
 struct DirectionalLight {
   RC::Vector4 color;     ///< 光の色 (RGBA)
