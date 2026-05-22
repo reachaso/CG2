@@ -1,10 +1,15 @@
-﻿#include "ParticleManager.h"
+#include "ParticleManager.h"
 #include <Common/Log/Log.h>
 
 namespace RC {
 
 void ParticleManager::Update(const RC::Matrix4x4& view, const RC::Matrix4x4& proj) {
     for (auto& pair : systems_) {
+        if (pair.second) {
+            pair.second->Update(view, proj);
+        }
+    }
+    for (auto& pair : gpuSystems_) {
         if (pair.second) {
             pair.second->Update(view, proj);
         }
@@ -17,11 +22,20 @@ void ParticleManager::Render(SceneContext& ctx, ID3D12GraphicsCommandList* cl) {
             pair.second->Render(ctx, cl);
         }
     }
+    for (auto& pair : gpuSystems_) {
+        if (pair.second) {
+            pair.second->Render(ctx, cl);
+        }
+    }
 }
 
 void ParticleManager::DrawImGui() {
 #ifdef _DEBUG
-    // 螳溯｣・・蠢・ｦ√↓蠢懊§縺ｦ諡｡蠑ｵ
+    for (auto& pair : gpuSystems_) {
+        if (pair.second) {
+            pair.second->DrawImGui();
+        }
+    }
 #endif
 }
 
@@ -43,6 +57,25 @@ Particle* ParticleManager::GetSystem(const std::string& name) {
 void ParticleManager::ClearSystems() {
     systems_.clear();
     presets_.clear();
+}
+
+void ParticleManager::RegisterGPUSystem(const std::string& name, std::unique_ptr<GPUParticle> system) {
+    if (gpuSystems_.find(name) != gpuSystems_.end()) {
+        Log::Print("ParticleManager: GPU System '" + name + "' is already registered. Overwriting.");
+    }
+    gpuSystems_[name] = std::move(system);
+}
+
+GPUParticle* ParticleManager::GetGPUSystem(const std::string& name) {
+    auto it = gpuSystems_.find(name);
+    if (it != gpuSystems_.end()) {
+        return it->second.get();
+    }
+    return nullptr;
+}
+
+void ParticleManager::ClearGPUSystems() {
+    gpuSystems_.clear();
 }
 
 void ParticleManager::RegisterPreset(const EffectPreset& preset) {

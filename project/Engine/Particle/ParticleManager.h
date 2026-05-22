@@ -1,5 +1,6 @@
 #pragma once
 #include "Particle.h"
+#include "GPUParticle.h"
 #include "EffectPreset.h"
 #include <unordered_map>
 #include <string>
@@ -53,6 +54,23 @@ public:
     void ClearSystems();
 
     // ============================================
+    // GPU Particle（GPU 系統）の管理
+    // ============================================
+
+    /// @brief GPU パーティクルシステムを登録する
+    /// @param name 登録名
+    /// @param system GPU パーティクルシステムの unique_ptr
+    void RegisterGPUSystem(const std::string& name, std::unique_ptr<GPUParticle> system);
+
+    /// @brief 名前で GPU パーティクルシステムを取得する
+    /// @param name 登録名
+    /// @return GPUParticle へのポインタ（見つからない場合は nullptr）
+    GPUParticle* GetGPUSystem(const std::string& name);
+
+    /// @brief 登録されている全ての GPU システムを削除する
+    void ClearGPUSystems();
+
+    // ============================================
     // エフェクト（プリセット）の管理
     // ============================================
 
@@ -81,8 +99,9 @@ private:
     ParticleManager() = default;
     ~ParticleManager() = default;
 
-    std::unordered_map<std::string, std::unique_ptr<Particle>> systems_; ///< 登録済みパーティクルシステムのマップ
-    std::unordered_map<std::string, EffectPreset> presets_;             ///< 登録済みエフェクトプリセットのマップ
+    std::unordered_map<std::string, std::unique_ptr<Particle>> systems_;       ///< 登録済み CPU パーティクルシステムのマップ
+    std::unordered_map<std::string, std::unique_ptr<GPUParticle>> gpuSystems_; ///< 登録済み GPU パーティクルシステムのマップ
+    std::unordered_map<std::string, EffectPreset> presets_;                    ///< 登録済みエフェクトプリセットのマップ
 };
 
 } // namespace RC
