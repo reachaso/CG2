@@ -118,3 +118,25 @@ SRVManager::Handle SRVManager::CreateStructuredBuffer(ID3D12Resource *res,
   device_->CreateShaderResourceView(res, &srvDesc, h.cpu);
   return h;
 }
+
+SRVManager::Handle SRVManager::CreateStructuredBufferUAV(ID3D12Resource *res,
+                                                          UINT elementCount,
+                                                          UINT strideBytes) {
+  assert(res);
+  assert(elementCount > 0);
+  assert(strideBytes > 0);
+
+  auto h = Allocate();
+
+  D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+  uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+  uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+  uavDesc.Buffer.FirstElement = 0;
+  uavDesc.Buffer.NumElements = elementCount;
+  uavDesc.Buffer.StructureByteStride = strideBytes;
+  uavDesc.Buffer.CounterOffsetInBytes = 0;
+  uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+  device_->CreateUnorderedAccessView(res, nullptr, &uavDesc, h.cpu);
+  return h;
+}

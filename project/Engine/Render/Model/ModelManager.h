@@ -22,7 +22,9 @@
 class ModelObject;
 class ModelMesh;
 
-class TextureManager; // 前方宣言
+class TextureManager;   // 前方宣言
+class SRVManager;       // 前方宣言
+class PipelineManager;  // 前方宣言
 
 namespace RC {
 
@@ -34,6 +36,11 @@ public:
   /// @param device DirectX12デバイス
   /// @param texman テクスチャマネージャ（マテリアル用テクスチャのロードに使用）
   void Init(ID3D12Device *device, TextureManager *texman);
+
+  /// @brief CS スキニング用のパイプラインを設定する
+  /// @param pm PipelineManager
+  /// @param srvMgr SRVマネージャ
+  void SetSkinningCS(PipelineManager *pm, SRVManager *srvMgr);
 
   /// @brief デストラクタ
   ~ModelManager();
@@ -133,6 +140,10 @@ private:
 
   mutable std::recursive_mutex mtx_;   ///< 排他制御用ミューテックス
   std::unordered_map<std::string, std::shared_future<void>> loadingTasks_; ///< ロードタスクの管理
+
+  // CS スキニング用
+  PipelineManager *pipelineMgr_ = nullptr;
+  SRVManager *srvMgr_ = nullptr;
 };
 
 } // namespace RC

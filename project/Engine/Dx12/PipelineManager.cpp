@@ -33,6 +33,7 @@ void PipelineManager::Term() {
       kv.second.pipeline->Term();
   }
   pipelines_.clear();
+  computePipelines_.clear();
   device_ = nullptr;
 }
 
@@ -985,8 +986,132 @@ void PipelineManager::RegisterDefaultPipelines() {
                     InputLayoutType::None, opt);
   }
 
-  Log::Print(std::format("[PipelineManager] デフォルトパイプライン登録完了 (Total: {})", pipelines_.size()));
+  // ====================
+  // Compute Shader
+  // ====================
+  // skinning_cs: Compute Shader スキニング
+  CreateCompute("skinning_cs",
+                L"Resources/Shader/Compute/Skinning.CS.hlsl",
+                RootSignatureType::SkinningCS);
+
+  Log::Print(std::format("[PipelineManager] デフォルトパイプライン登録完了 (Graphics: {}, Compute: {})", pipelines_.size(), computePipelines_.size()));
 
   // キャッシュ保存
   SaveCache("Resources/Shader/pso_cache.bin");
+}
+
+// ============================================================================
+// Compute Pipeline
+// ============================================================================
+
+void PipelineManager::CreateCompute(const std::string &key,
+                                     const std::wstring &csPath,
+                                     RootSignatureType rootType) {
+  // シェーダーコンパイル
+  ShaderDesc cs{};
+  cs.path = csPath.c_str();
+  cs.entry = L"main";
+  cs.target = L"cs_6_0";
+#ifdef _DEBUG
+  cs.optimize = false;
+  cs.debugInfo = true;
+#else
+  cs.optimize = true;
+  cs.debugInfo = false;
+#endif
+
+  CompiledShader CS = compiler_.Compile(cs);
+  if (!CS.HasBlob()) {
+    Log::Print(std::format("[PipelineManager] CS compile failed: {}", key));
+    return;
+  }
+
+  // ルートシグネチャ構築（GraphicsPipelineのbuildRootSignature_を再利用）
+  // SkinningCS用のルートシグネチャを直接ここで構築する
+  GraphicsPipeline tempPipeline;
+  tempPipeline.Init(device_);
+  // buildRootSignature_ は private なので、一時的な GraphicsPipeline を作って
+  // BuildEx を呼ぶ代わりに、直接ルートシグネチャを構築する
+
+  // --- Root Signature 構築 ---
+  D3D12_ROOT_PARAMETER params[4] = {};
+  D3D12_DESCRIPTOR_RANGE ranges[1] = {};
+
+  // 0: SRV t0 MatrixPalette
+  params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+  params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+  params[0].Descriptor.ShaderRegister = 0;
+
+  // 1: SRV t1 InputVertices
+  params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+  params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+  params[1].Descriptor.ShaderRegister = 1;
+
+  // 2: UAV u0 OutputVertices (descriptor table)
+  ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+  ranges[0].BaseShaderRegister = 0;
+  ranges[0].NumDescriptors = 1;
+  ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+  params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+  params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+  params[2].DescriptorTable.NumDescriptorRanges = 1;
+  params[2].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+  // 3: CBV b0 SkinningInformation
+  params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+  params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+  params[3].Descriptor.ShaderRegister = 0;
+
+  D3D12_ROOT_SIGNATURE_DESC rsDesc{};
+  rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+  rsDesc.pParameters = params;
+  rsDesc.NumParameters = 4;
+  rsDesc.pStaticSamplers = nullptr;
+  rsDesc.NumStaticSamplers = 0;
+
+  Microsoft::WRL::ComPtr<ID3DBlob> sig, err;
+  HRESULT hr = D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+                                            sig.GetAddressOf(), err.GetAddressOf());
+  if (FAILED(hr)) {
+    if (err) OutputDebugStringA((char *)err->GetBufferPointer());
+    Log::Print(std::format("[PipelineManager] CS root sig serialize failed: {}", key));
+    return;
+  }
+
+  ComputeEntry entry{};
+  hr = device_->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(),
+                                    IID_PPV_ARGS(&entry.root));
+  if (FAILED(hr)) {
+    Log::Print(std::format("[PipelineManager] CS root sig create failed: {}", key));
+    return;
+  }
+  entry.root->SetName(L"SkinningCS::RootSignature");
+
+  // --- Compute PSO 構築 ---
+  D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
+  psoDesc.pRootSignature = entry.root.Get();
+  psoDesc.CS = {CS.Blob()->GetBufferPointer(), CS.Blob()->GetBufferSize()};
+
+  hr = device_->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&entry.pso));
+  if (FAILED(hr)) {
+    Log::Print(std::format("[PipelineManager] CS PSO create failed: {}", key));
+    return;
+  }
+  entry.pso->SetName(L"SkinningCS::PSO");
+
+  computePipelines_[key] = std::move(entry);
+  Log::Print(std::format("[PipelineManager] Compute Pipeline created: {}", key));
+
+  tempPipeline.Term();
+}
+
+ID3D12PipelineState *PipelineManager::GetComputePSO(const std::string &key) {
+  auto it = computePipelines_.find(key);
+  return (it != computePipelines_.end()) ? it->second.pso.Get() : nullptr;
+}
+
+ID3D12RootSignature *PipelineManager::GetComputeRoot(const std::string &key) {
+  auto it = computePipelines_.find(key);
+  return (it != computePipelines_.end()) ? it->second.root.Get() : nullptr;
 }

@@ -563,6 +563,38 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
 
     paramCount = 4;
     break;
+
+  case RootSignatureType::SkinningCS:
+    // Compute Shader 用ルートシグネチャ（スキニング）
+    // 0: SRV t0 (ALL) MatrixPalette (StructuredBuffer<float4x4>)
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].Descriptor.ShaderRegister = 0; // t0
+
+    // 1: SRV t1 (ALL) InputVertices (StructuredBuffer<Vertex>)
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].Descriptor.ShaderRegister = 1; // t1
+
+    // 2: UAV u0 (ALL) OutputVertices (RWStructuredBuffer<Vertex>)
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[0].BaseShaderRegister = 0; // u0
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 3: CBV b0 (ALL) SkinningInformation (numVertices)
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[3].Descriptor.ShaderRegister = 0; // b0
+
+    paramCount = 4;
+    break;
   }
 
   // ====================
@@ -602,11 +634,13 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // ====================
   // ルートシグネチャ作成
   D3D12_ROOT_SIGNATURE_DESC desc{};
-  desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+  desc.Flags = (type == RootSignatureType::SkinningCS)
+      ? D3D12_ROOT_SIGNATURE_FLAG_NONE
+      : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
   desc.pParameters = params;
   desc.NumParameters = paramCount;
   desc.pStaticSamplers = samplers;
-  desc.NumStaticSamplers = 3;
+  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS) ? 0u : 3u;
 
   Microsoft::WRL::ComPtr<ID3DBlob> sig;
   Microsoft::WRL::ComPtr<ID3DBlob> err;

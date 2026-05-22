@@ -3,6 +3,7 @@
 #include "ShaderCompiler/ShaderCompiler.h"
 
 #include <d3d12.h>
+#include <dxcapi.h>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -97,6 +98,23 @@ public:
   /// @param filePath キャッシュファイルのパス
   void SaveCache(const std::string &filePath);
 
+  /// @brief Compute Pipeline を作成・登録する
+  /// @param key 登録名
+  /// @param csPath Compute Shader ファイルパス
+  /// @param rootType ルートシグネチャの種類
+  void CreateCompute(const std::string &key, const std::wstring &csPath,
+                     RootSignatureType rootType);
+
+  /// @brief 登録済みの Compute PSO を取得する
+  /// @param key 登録名
+  /// @return PSO ポインタ (見つからなければ nullptr)
+  ID3D12PipelineState *GetComputePSO(const std::string &key);
+
+  /// @brief 登録済みの Compute Root Signature を取得する
+  /// @param key 登録名
+  /// @return RootSignature ポインタ (見つからなければ nullptr)
+  ID3D12RootSignature *GetComputeRoot(const std::string &key);
+
   /// @brief 接頭辞とブレンドモードを組み合わせて一意なキーを生成するヘルパー関数
   /// @param prefix 接頭辞 (例: "Object3D")
   /// @param mode ブレンドモード
@@ -133,12 +151,19 @@ private:
     std::unique_ptr<GraphicsPipeline> pipeline; ///< パイプライン本体
   };
 
+  /// @brief Compute Pipeline のエントリ
+  struct ComputeEntry {
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> root; ///< ルートシグネチャ
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;  ///< PSO
+  };
+
   ID3D12Device *device_ = nullptr; ///< デバイス（非所有）
   DXGI_FORMAT rtvFmt_{DXGI_FORMAT_R8G8B8A8_UNORM_SRGB}; ///< デフォルトRTVフォーマット
   DXGI_FORMAT dsvFmt_{DXGI_FORMAT_D24_UNORM_S8_UINT};   ///< デフォルトDSVフォーマット
 
   ShaderCompiler compiler_; ///< シェーダーコンパイラ
   std::unordered_map<std::string, Entry> pipelines_; ///< 登録済みパイプラインマップ
+  std::unordered_map<std::string, ComputeEntry> computePipelines_; ///< Compute パイプライン
   std::unordered_map<std::string, PsoCache> psoCache_; ///< PSOキャッシュマップ
   bool cacheUpdated_ = false; ///< キャッシュが更新されたかどうかのフラグ
 };

@@ -1,9 +1,12 @@
 #include "ModelResource.h"
 #include "Render/FrameResource.h"
 #include "Texture/TextureManager/TextureManager.h"
+#include "SRVManager/SRVManager.h"
+#include "Common/Log/Log.h"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <format>
 
 using namespace RC;
 
@@ -452,6 +455,183 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
     tm->WVP = Multiply(world, Multiply(view, proj));
     tm->worldInverseTranspose = Transpose(Inverse(world));
     cmdList->SetGraphicsRootConstantBufferView(1, addr);
+
+    const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+        (textureSrv_.ptr != 0) ? textureSrv_
+                               : GetSrvForMaterial_(it.materialIndex);
+    cmdList->SetGraphicsRootDescriptorTable(2, srv);
+
+    if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
+      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, it.vertexStart, 0);
+    } else {
+      cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
+    }
+  }
+}
+
+// ============================================================================
+// CS スキニング
+// ============================================================================
+
+void ModelResource::SetSkinningCS(ID3D12Device * /*device*/,
+                                   PipelineManager *pm,
+                                   SRVManager *srvMgr) {
+  skinningCS_.Initialize(device_.Get(), pm, "skinning_cs");
+  srvMgr_ = srvMgr;
+}
+
+void ModelResource::InitSkinningResources_() {
+  if (skinningResourcesReady_ || !mesh_ || !mesh_->Ready() || !device_ || !srvMgr_)
+    return;
+
+  const uint32_t vtxCount = mesh_->VertexCount();
+  if (vtxCount == 0)
+    return;
+
+  const uint32_t stride = mesh_->GetVertexStrideBytes();
+  const size_t totalBytes = static_cast<size_t>(stride) * vtxCount;
+
+  // UAV 用バッファ作成 (DEFAULT heap + UAV flag)
+  D3D12_HEAP_PROPERTIES heapProps{};
+  heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+  D3D12_RESOURCE_DESC bufDesc{};
+  bufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+  bufDesc.Width = totalBytes;
+  bufDesc.Height = 1;
+  bufDesc.DepthOrArraySize = 1;
+  bufDesc.MipLevels = 1;
+  bufDesc.SampleDesc.Count = 1;
+  bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+  bufDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+  HRESULT hr = device_->CreateCommittedResource(
+      &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
+      D3D12_RESOURCE_STATE_COMMON, nullptr,
+      IID_PPV_ARGS(&skinnedVertexBuffer_));
+  if (FAILED(hr)) {
+    Log::Print("[ModelResource] Failed to create skinned vertex buffer");
+    return;
+  }
+  skinnedVertexBuffer_->SetName(L"ModelResource::SkinnedVertexBuffer");
+
+  // UAV ディスクリプタ作成
+  auto uavHandle = srvMgr_->CreateStructuredBufferUAV(
+      skinnedVertexBuffer_.Get(), vtxCount, stride);
+  skinnedUAVHandle_ = uavHandle.gpu;
+
+  // VBV 設定
+  skinnedVBV_.BufferLocation = skinnedVertexBuffer_->GetGPUVirtualAddress();
+  skinnedVBV_.SizeInBytes = static_cast<UINT>(totalBytes);
+  skinnedVBV_.StrideInBytes = stride;
+
+  skinnedVertexCount_ = vtxCount;
+
+  // SkinningInfo CB 作成 (numVertices だけの小さなCB)
+  skinningInfoCB_ = CreateBufferResource(device_.Get(), 256, // 256byteアライン
+                                          L"ModelResource::SkinningInfoCB");
+  skinningInfoCB_->Map(0, nullptr, reinterpret_cast<void **>(&skinningInfoMapped_));
+  *skinningInfoMapped_ = vtxCount;
+
+  skinningResourcesReady_ = true;
+  Log::Print(std::format("[ModelResource] CS skinning resources initialized: {} vertices", vtxCount));
+}
+
+void ModelResource::DispatchSkinning(ID3D12GraphicsCommandList *cmdList,
+                                      const std::vector<Matrix4x4> &skinMatrices,
+                                      FrameResource &frame) {
+  if (!skinningCS_.IsReady() || !mesh_ || !mesh_->Ready())
+    return;
+
+  // 遅延初期化
+  if (!skinningResourcesReady_) {
+    InitSkinningResources_();
+    if (!skinningResourcesReady_)
+      return;
+  }
+
+  // 行列パレットを FrameResource から確保してコピー
+  const uint32_t matCount = static_cast<uint32_t>(skinMatrices.size());
+  const uint32_t matSize = matCount * static_cast<uint32_t>(sizeof(Matrix4x4));
+  void *matMapped = nullptr;
+  D3D12_GPU_VIRTUAL_ADDRESS matAddr = frame.AllocSRV(matSize, &matMapped);
+  std::memcpy(matMapped, skinMatrices.data(), matSize);
+
+  // 入力頂点の GPU アドレス
+  D3D12_GPU_VIRTUAL_ADDRESS inputVtxAddr = mesh_->GetVBResource()->GetGPUVirtualAddress();
+
+  // ComputeShader API でバインド & Dispatch
+  skinningCS_.Bind(cmdList);
+  skinningCS_.SetSRV(cmdList, 0, matAddr)         // t0: 行列パレット
+             .SetSRV(cmdList, 1, inputVtxAddr)    // t1: 入力頂点
+             .SetUAV(cmdList, 2, skinnedUAVHandle_) // u0: 出力頂点
+             .SetCBV(cmdList, 3, skinningInfoCB_->GetGPUVirtualAddress()); // b0: 頂点数
+  skinningCS_.Dispatch(cmdList, skinnedVertexCount_);
+  ComputeShader::UAVBarrier(cmdList, skinnedVertexBuffer_.Get());
+
+  skinningDispatched_ = true;
+}
+
+// ============================================================================
+// DrawSkinnedCS（CS スキニング済み頂点で通常描画）
+// ============================================================================
+
+void ModelResource::DrawSkinnedCS(ID3D12GraphicsCommandList *cmdList,
+                                   const Matrix4x4 &world, const Matrix4x4 &view,
+                                   const Matrix4x4 &proj, FrameResource &frame) {
+  if (!isReady_ || !mesh_ || !mesh_->Ready() || !skinningDispatched_)
+    return;
+
+  const auto &items = mesh_->DrawItems();
+
+  // テクスチャ
+  if (textureSrv_.ptr == 0) {
+    EnsureMaterialSrvsLoaded_();
+  }
+
+  // CS スキニング済みの VBV を使用
+  cmdList->IASetVertexBuffers(0, 1, &skinnedVBV_);
+  cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  if (mesh_->HasIndexBuffer()) {
+    cmdList->IASetIndexBuffer(&mesh_->IBV());
+  }
+
+  // Material CB (slot 0, PS)
+  cmdList->SetGraphicsRootConstantBufferView(
+      0, cbMat_.resource->GetGPUVirtualAddress());
+
+  // Transform CB (slot 1, VS)
+  void *dst = nullptr;
+  D3D12_GPU_VIRTUAL_ADDRESS addr =
+      frame.AllocCB(sizeof(TransformationMatrix), &dst);
+  auto *tm = reinterpret_cast<TransformationMatrix *>(dst);
+  tm->World = world;
+  tm->WVP = Multiply(world, Multiply(view, proj));
+  tm->worldInverseTranspose = Transpose(Inverse(world));
+  cmdList->SetGraphicsRootConstantBufferView(1, addr);
+
+  // Light CB (slot 3, PS)
+  const D3D12_GPU_VIRTUAL_ADDRESS lightAddr =
+      (externalLightCBAddress_ != 0)
+          ? externalLightCBAddress_
+          : cbLight_.resource->GetGPUVirtualAddress();
+  cmdList->SetGraphicsRootConstantBufferView(3, lightAddr);
+
+  if (items.empty()) {
+    cmdList->SetGraphicsRootDescriptorTable(
+        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+
+    if (mesh_->HasIndexBuffer()) {
+      cmdList->DrawIndexedInstanced(mesh_->IndexCount(), 1, 0, 0, 0);
+    } else {
+      cmdList->DrawInstanced(mesh_->VertexCount(), 1, 0, 0);
+    }
+    return;
+  }
+
+  for (uint32_t i = 0; i < items.size(); ++i) {
+    const auto &it = items[i];
 
     const D3D12_GPU_DESCRIPTOR_HANDLE srv =
         (textureSrv_.ptr != 0) ? textureSrv_

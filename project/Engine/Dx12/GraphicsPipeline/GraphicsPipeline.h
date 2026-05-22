@@ -25,6 +25,7 @@ enum class RootSignatureType {
   FogOverlay,         ///< フォグオーバーレイ用
   Primitive3D,        ///< 3Dプリミティブ用
   PostProcess,        ///< ポストプロセス用
+  SkinningCS,         ///< Compute Shader スキニング用
 };
 
 /// @brief パイプライン構築時のオプション設定構造体

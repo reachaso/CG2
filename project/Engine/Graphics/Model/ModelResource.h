@@ -8,8 +8,11 @@
 #include <memory>
 #include <vector>
 #include <wrl/client.h>
+#include "ComputeShader/ComputeShader.h"
 
 class TextureManager; // 前方宣言
+class SRVManager;     // 前方宣言
+class PipelineManager; // 前方宣言
 
 namespace RC {
 class FrameResource; // 前方宣言
@@ -147,6 +150,45 @@ public:
   /// @param r 状態
   void SetReady(bool r) { isReady_ = r; }
 
+  // === CS スキニング ===
+
+  /// @brief CS スキニングをセットアップする
+  /// @param device D3D12 デバイス
+  /// @param pm PipelineManager
+  /// @param srvMgr SRVマネージャ
+  void SetSkinningCS(ID3D12Device *device, PipelineManager *pm,
+                     SRVManager *srvMgr);
+
+  /// @brief CS スキニングを実行する (Dispatch)
+  /// @param cmdList コマンドリスト
+  /// @param skinMatrices スキニング行列パレット
+  /// @param frame フレームリソース
+  void DispatchSkinning(ID3D12GraphicsCommandList *cmdList,
+                        const std::vector<RC::Matrix4x4> &skinMatrices,
+                        RC::FrameResource &frame);
+
+  /// @brief CS スキニングが有効か
+  bool HasCSSkinning() const { return skinningCS_.IsReady(); }
+
+  /// @brief CS スキニング済み VBV を取得する
+  const D3D12_VERTEX_BUFFER_VIEW &GetSkinnedVBV() const { return skinnedVBV_; }
+
+  /// @brief CS スキニングが完了しているか (Dispatch済み)
+  bool IsSkinningDispatched() const { return skinningDispatched_; }
+
+  /// @brief CS スキニングの Dispatch フラグをリセットする
+  void ResetSkinningDispatched() { skinningDispatched_ = false; }
+
+  /// @brief CS スキニング済み頂点を使って描画する（通常の object3d パイプラインで）
+  /// @param cmdList コマンドリスト
+  /// @param world ワールド行列
+  /// @param view ビュー行列
+  /// @param proj プロジェクション行列
+  /// @param frame フレームリソース
+  void DrawSkinnedCS(ID3D12GraphicsCommandList *cmdList,
+                     const RC::Matrix4x4 &world, const RC::Matrix4x4 &view,
+                     const RC::Matrix4x4 &proj, RC::FrameResource &frame);
+
 private:
   /// @struct CB_Material
   /// @brief マテリアル定数バッファのリソースとポインタを保持する内部構造体
@@ -193,4 +235,21 @@ private:
 
   TextureManager *texman_ = nullptr;
   bool isReady_ = false;
+
+  // === CS スキニング用 ===
+  ComputeShader skinningCS_;               ///< CS スキニング用ラッパ
+  SRVManager *srvMgr_ = nullptr;               ///< SRVマネージャ
+
+  Microsoft::WRL::ComPtr<ID3D12Resource> skinnedVertexBuffer_;  ///< スキニング済み頂点バッファ (UAV)
+  D3D12_VERTEX_BUFFER_VIEW skinnedVBV_{};      ///< スキニング済み VBV
+  D3D12_GPU_DESCRIPTOR_HANDLE skinnedUAVHandle_{}; ///< UAV ディスクリプタハンドル
+  uint32_t skinnedVertexCount_ = 0;            ///< スキニング対象頂点数
+  bool skinningResourcesReady_ = false;        ///< CS リソースが初期化済みか
+  bool skinningDispatched_ = false;            ///< 今フレーム Dispatch 済みか
+
+  Microsoft::WRL::ComPtr<ID3D12Resource> skinningInfoCB_;  ///< SkinningInfo CB
+  uint32_t *skinningInfoMapped_ = nullptr;     ///< CB のマップ済みポインタ
+
+  /// @brief CS スキニング用リソースを初期化する
+  void InitSkinningResources_();
 };
