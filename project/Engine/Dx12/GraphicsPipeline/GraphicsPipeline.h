@@ -28,6 +28,8 @@ enum class RootSignatureType {
   SkinningCS,         ///< Compute Shader スキニング用
   GPUParticle,        ///< GPU Particle 描画用
   InitParticleCS,     ///< GPU Particle 初期化 CS 用
+  UpdateParticleCS,   ///< GPU Particle 更新 CS 用
+  EmitParticleCS,     ///< GPU Particle 射出 CS 用
 };
 
 /// @brief パイプライン構築時のオプション設定構造体

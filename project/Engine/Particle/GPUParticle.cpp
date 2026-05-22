@@ -2,6 +2,7 @@
 #include "Dx12Core.h"
 #include "PipelineManager.h"
 #include "RenderCommon.h"
+#include "RenderContext.h"
 #include <Math/Math.h>
 #include <function/function.h>
 #include <format>
@@ -10,7 +11,7 @@
 #include "Common/EngineConfig.h"
 
 #if RC_ENABLE_IMGUI
-#include <imgui/imgui.h>
+#include "imgui/imgui.h"
 #endif
 
 GPUParticle::~GPUParticle() { Finalize(); }
@@ -45,15 +46,55 @@ void GPUParticle::Initialize(SceneContext &ctx) {
   }
 
   // ==================
-  // 2. UAV / SRV ビュー作成
+  // 2. FreeList バッファ作成（DEFAULT ヒープ、UAV 対応）
+  // ==================
+  {
+    D3D12_HEAP_PROPERTIES heapProp{};
+    heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+    // FreeList: uint32_t × kMaxParticles
+    D3D12_RESOURCE_DESC bufDesc{};
+    bufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufDesc.Width = sizeof(uint32_t) * kMaxParticles;
+    bufDesc.Height = 1;
+    bufDesc.DepthOrArraySize = 1;
+    bufDesc.MipLevels = 1;
+    bufDesc.SampleDesc.Count = 1;
+    bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    bufDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    HRESULT hr = device_->CreateCommittedResource(
+        &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
+        D3D12_RESOURCE_STATE_COMMON, nullptr,
+        IID_PPV_ARGS(&freeListBuffer_));
+    assert(SUCCEEDED(hr));
+    freeListBuffer_->SetName(L"GPUParticle::freeListBuffer");
+
+    // FreeListIndex: int32_t × 1
+    bufDesc.Width = sizeof(int32_t);
+    hr = device_->CreateCommittedResource(
+        &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
+        D3D12_RESOURCE_STATE_COMMON, nullptr,
+        IID_PPV_ARGS(&freeListIndexBuffer_));
+    assert(SUCCEEDED(hr));
+    freeListIndexBuffer_->SetName(L"GPUParticle::freeListIndexBuffer");
+  }
+
+  // ==================
+  // 3. UAV / SRV ビュー作成
   // ==================
   uavHandle_ = srvMgr_->CreateStructuredBufferUAV(
       particleBuffer_.Get(), kMaxParticles, sizeof(ParticleCS));
   srvHandle_ = srvMgr_->CreateStructuredBuffer(
       particleBuffer_.Get(), kMaxParticles, sizeof(ParticleCS));
 
+  freeListIndexUavHandle_ = srvMgr_->CreateStructuredBufferUAV(
+      freeListIndexBuffer_.Get(), 1, sizeof(int32_t));
+  freeListUavHandle_ = srvMgr_->CreateStructuredBufferUAV(
+      freeListBuffer_.Get(), kMaxParticles, sizeof(uint32_t));
+
   // ==================
-  // 3. PerView 定数バッファ作成（UPLOAD ヒープ）
+  // 4. PerView 定数バッファ作成（UPLOAD ヒープ）
   // ==================
   perViewCB_ = CreateBufferResource(device_.Get(),
                                     Align256(sizeof(GPUParticlePerView)),
@@ -62,7 +103,7 @@ void GPUParticle::Initialize(SceneContext &ctx) {
   *perViewMapped_ = GPUParticlePerView{};
 
   // ==================
-  // 4. 板ポリ VB 作成（6 頂点のクワッド）
+  // 5. 板ポリ VB 作成（6 頂点のクワッド）
   // ==================
   {
     struct SimpleVertex {
@@ -81,9 +122,6 @@ void GPUParticle::Initialize(SceneContext &ctx) {
     };
     vertexCount_ = 6;
 
-    // VertexData にはスキニング用の boneIndices/boneWeights があるが、
-    // InputLayout は Particle 用（POSITION, TEXCOORD, NORMAL）なので
-    // VertexData のサイズで作成し、余分なフィールドは 0 クリアされる
     vbResource_ = CreateBufferResource(device_.Get(),
                                        sizeof(VertexData) * vertexCount_,
                                        L"GPUParticle::vbResource");
@@ -104,22 +142,34 @@ void GPUParticle::Initialize(SceneContext &ctx) {
   }
 
   // ==================
-  // 5. テクスチャ読み込み
+  // 6. テクスチャ読み込み
   // ==================
   texHandle_ = RC::LoadTex("Resources/Particle/circle.png", true);
 
   // ==================
-  // 6. ComputeShader パイプライン取得（実行は初回 Render に遅延）
+  // 7. ComputeShader パイプライン取得（実行は初回 Render に遅延）
   // ==================
   if (ctx.pipelineManager) {
     initCS_.Initialize(device_.Get(), ctx.pipelineManager, "init_particle_cs");
     if (initCS_.IsReady()) {
       needsCSInit_ = true;
     }
+
+    emitCS_.Initialize(device_.Get(), ctx.pipelineManager, "emit_particle_cs");
+    updateCS_.Initialize(device_.Get(), ctx.pipelineManager, "update_particle_cs");
   }
 
+  // ==================
+  // 8. PerFrame 定数バッファ作成（deltaTime 用）
+  // ==================
+  perFrameCB_ = CreateBufferResource(device_.Get(),
+                                     Align256(sizeof(GPUParticlePerFrame)),
+                                     L"GPUParticle::perFrameCB");
+  perFrameCB_->Map(0, nullptr, reinterpret_cast<void **>(&perFrameMapped_));
+  *perFrameMapped_ = GPUParticlePerFrame{};
+
   initialized_ = true;
-  Log::Print(std::format("[GPUParticle] Initialized: {} particles", kMaxParticles));
+  Log::Print(std::format("[GPUParticle] Initialized: {} particles (FreeList)", kMaxParticles));
 }
 
 void GPUParticle::Finalize() {
@@ -135,6 +185,14 @@ void GPUParticle::Finalize() {
       srvMgr_->Free(srvHandle_);
       srvHandle_ = {};
     }
+    if (freeListUavHandle_.IsValid()) {
+      srvMgr_->Free(freeListUavHandle_);
+      freeListUavHandle_ = {};
+    }
+    if (freeListIndexUavHandle_.IsValid()) {
+      srvMgr_->Free(freeListIndexUavHandle_);
+      freeListIndexUavHandle_ = {};
+    }
   }
 
   if (perViewCB_) {
@@ -143,22 +201,29 @@ void GPUParticle::Finalize() {
     perViewCB_.Reset();
   }
 
+  if (perFrameCB_) {
+    perFrameCB_->Unmap(0, nullptr);
+    perFrameMapped_ = nullptr;
+    perFrameCB_.Reset();
+  }
+
   particleBuffer_.Reset();
+  freeListBuffer_.Reset();
+  freeListIndexBuffer_.Reset();
   vbResource_.Reset();
   device_.Reset();
   srvMgr_ = nullptr;
   initialized_ = false;
 }
 
-void GPUParticle::Update(const RC::Matrix4x4 &view, const RC::Matrix4x4 &proj) {
-  if (!perViewMapped_)
+void GPUParticle::Update(const RC::Matrix4x4 &view, const RC::Matrix4x4 &proj,
+                         float deltaTime) {
+  if (!initialized_)
     return;
 
-  using namespace RC;
-
-  // ビルボード行列: カメラのワールド行列から回転成分を抽出
-  Matrix4x4 cameraWorld = Inverse(view);
-  Matrix4x4 billboard = MakeIdentity4x4();
+  // Billboard 行列の構築（ビュー行列の逆回転）
+  RC::Matrix4x4 cameraWorld = Inverse(view);
+  RC::Matrix4x4 billboard = MakeIdentity4x4();
 
   // 右方向
   billboard.m[0][0] = cameraWorld.m[0][0];
@@ -183,6 +248,11 @@ void GPUParticle::Update(const RC::Matrix4x4 &view, const RC::Matrix4x4 &proj) {
   // viewProjection = view * proj
   perViewMapped_->viewProjection = Multiply(view, proj);
   perViewMapped_->billboardMatrix = billboard;
+
+  // PerFrame 更新
+  if (perFrameMapped_) {
+    perFrameMapped_->deltaTime = deltaTime;
+  }
 }
 
 void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
@@ -193,10 +263,39 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   if (needsCSInit_) {
     initCS_.Bind(cl);
     initCS_.SetUAV(cl, 0, uavHandle_.gpu);
+    initCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
+    initCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
     initCS_.DispatchDirect(cl, 1, 1, 1);
     ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
+    ComputeShader::UAVBarrier(cl, freeListBuffer_.Get());
+    ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
     needsCSInit_ = false;
-    Log::Print("[GPUParticle] CS init executed (deferred)");
+    Log::Print("[GPUParticle] CS init executed (deferred, FreeList)");
+  }
+
+  // 毎フレーム EmitParticle CS を Dispatch（emitCount_ 個射出）
+  if (emitCS_.IsReady() && perFrameCB_) {
+    emitCS_.Bind(cl);
+    emitCS_.SetUAV(cl, 0, uavHandle_.gpu);
+    emitCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
+    emitCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
+    emitCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
+    emitCS_.Dispatch(cl, emitCount_, 1024);
+    ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
+    ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
+  }
+
+  // 毎フレーム UpdateParticle CS を Dispatch
+  if (updateCS_.IsReady() && perFrameCB_) {
+    updateCS_.Bind(cl);
+    updateCS_.SetUAV(cl, 0, uavHandle_.gpu);
+    updateCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
+    updateCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
+    updateCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
+    updateCS_.DispatchDirect(cl, 1, 1, 1);
+    ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
+    ComputeShader::UAVBarrier(cl, freeListBuffer_.Get());
+    ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
   }
 
   // テクスチャ SRV（非同期ロード対応）
@@ -220,47 +319,58 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   if (!pso)
     return;
 
-  BlendMode prevBlend = RC::GetBlendMode();
-  RC::SetBlendMode(blendMode_);
+  // 描画コマンドをキューに積む（Execute3DCommands で Skybox 等と一緒にフラッシュ）
+  // sortKey を大きくしてモデルの後（手前）に描画する
+  constexpr uint64_t kParticleSortKey = UINT64_MAX - 1;
+  auto *capturedPso = pso;
+  auto vbView = vbView_;
+  auto vertexCount = vertexCount_;
+  auto perViewAddr = perViewCB_->GetGPUVirtualAddress();
+  auto srvGpu = srvHandle_.gpu;
+  auto blend = blendMode_;
 
-  cl->SetGraphicsRootSignature(pso->Root());
-  cl->SetPipelineState(pso->PSO());
+  RC::RenderContext::GetInstance().PushCommand3D(
+      kParticleSortKey,
+      [capturedPso, vbView, vertexCount, perViewAddr, srvGpu, textureSrv,
+       blend](ID3D12GraphicsCommandList *cmdList) {
+        BlendMode prevBlend = RC::GetBlendMode();
+        RC::SetBlendMode(blend);
 
-  // IA 設定
-  cl->IASetVertexBuffers(0, 1, &vbView_);
-  cl->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmdList->SetGraphicsRootSignature(capturedPso->Root());
+        cmdList->SetPipelineState(capturedPso->PSO());
 
-  // リソースバインド
-  // 0: CBV b0 (VS) PerView
-  cl->SetGraphicsRootConstantBufferView(0, perViewCB_->GetGPUVirtualAddress());
-  // 1: SRV table t0 (VS) Particles
-  cl->SetGraphicsRootDescriptorTable(1, srvHandle_.gpu);
-  // 2: SRV table t0 (PS) Texture
-  cl->SetGraphicsRootDescriptorTable(2, textureSrv);
+        // IA 設定
+        cmdList->IASetVertexBuffers(0, 1, &vbView);
+        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-  // インスタンシング描画
-  cl->DrawInstanced(vertexCount_, kMaxParticles, 0, 0);
+        // リソースバインド
+        cmdList->SetGraphicsRootConstantBufferView(0, perViewAddr);
+        cmdList->SetGraphicsRootDescriptorTable(1, srvGpu);
+        cmdList->SetGraphicsRootDescriptorTable(2, textureSrv);
 
-  RC::SetBlendMode(prevBlend);
+        // インスタンシング描画
+        cmdList->DrawInstanced(vertexCount, kMaxParticles, 0, 0);
+
+        RC::SetBlendMode(prevBlend);
+      });
 }
 
 #if RC_ENABLE_IMGUI
 void GPUParticle::DrawImGui() {
   if (ImGui::TreeNode("GPUParticle")) {
     ImGui::Checkbox("Visible", &visible_);
-    ImGui::Text("Max Particles: %u", kMaxParticles);
-    ImGui::Text("Buffer Size: %u bytes",
-                static_cast<uint32_t>(sizeof(ParticleCS) * kMaxParticles));
+    int emit = static_cast<int>(emitCount_);
+    if (ImGui::SliderInt("Emit Count", &emit, 0, 100)) {
+      emitCount_ = static_cast<uint32_t>(emit);
+    }
 
-    {
-      static const char *kBlendNames[] = {
-          "None", "Normal", "Add", "Subtract", "Multiply", "Screen",
-      };
-      int current = static_cast<int>(blendMode_);
-      if (ImGui::Combo("Blend Mode##gpu", &current, kBlendNames,
-                       IM_ARRAYSIZE(kBlendNames))) {
-        blendMode_ = static_cast<BlendMode>(current);
-      }
+    // BlendMode
+    const char *blendNames[] = {"None", "Normal", "Add", "Subtract",
+                                "Multiply", "Screen", "Premultiplied"};
+    int current = static_cast<int>(blendMode_);
+    if (ImGui::Combo("BlendMode", &current, blendNames,
+                     IM_ARRAYSIZE(blendNames))) {
+      blendMode_ = static_cast<BlendMode>(current);
     }
 
     ImGui::TreePop();
