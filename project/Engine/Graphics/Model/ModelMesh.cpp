@@ -210,7 +210,7 @@ bool ModelMesh::ExtractScene_(const aiScene *scene, const std::string &baseDir,
       }
 
       for (uint32_t k = 0; k < 3; ++k) {
-        indices_.push_back(face.mIndices[k]);
+        indices_.push_back(vtxStart + face.mIndices[k]);
       }
     }
 

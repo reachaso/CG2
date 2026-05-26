@@ -213,7 +213,9 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   camera_.Update();
 
-  planeTransform_->rotation.y += 0.01f;
+  if (ctx.isPlaying()) {
+    planeTransform_->rotation.y += 0.01f;
+  }
 
   // viewとprojを渡す
   view_ = camera_.GetView();
@@ -222,19 +224,21 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
   RC::SetCamera(view_, proj_, camera_.GetWorldPos());
 
 
-  // === 天球回転 ===
-  skydomeT_->rotation.y += 0.001f;
-
   // === AnimatedCube ===
-  RC::UpdateModelAnimation(animatedCube_);
+  RC::UpdateModelAnimation(animatedCube_, ctx.isPlaying() ? -1.0f : 0.0f);
 
   // === Skeletonテストモデル ===
-  RC::UpdateModelAnimation(walkModel_);
-  RC::UpdateModelAnimation(simpleSkinModel_);
+  RC::UpdateModelAnimation(walkModel_, ctx.isPlaying() ? -1.0f : 0.0f);
+  RC::UpdateModelAnimation(simpleSkinModel_, ctx.isPlaying() ? -1.0f : 0.0f);
 
-  // === GPU Particle 更新 ===
-  if (gpuParticle_) {
-    gpuParticle_->Update(view_, proj_, 1.0f / 60.0f);
+  if (ctx.isPlaying()) {
+    // === 天球回転 ===
+    skydomeT_->rotation.y += 0.001f;
+
+    // === GPU Particle 更新 ===
+    if (gpuParticle_) {
+      gpuParticle_->Update(view_, proj_, 1.0f / 60.0f);
+    }
   }
 }
 

@@ -6,6 +6,7 @@
 #include "Graphics/Texture/RenderTexture/RenderTexture.h"
 #include "GraphicsPipeline/GraphicsPipeline.h"
 #include "ImGuiManager/ImGuiManager.h"
+#include "Editor/EditorManager.h"
 #include "Input/Input.h"
 #include "PipelineManager.h"
 #include "Scene.h"
@@ -68,12 +69,14 @@ private:
 
   // ImGui
   ImGuiManager imgui_; ///< ImGui 管理
+  EditorManager editorManager_; ///< Editor 管理
 
   // パイプライン
   PipelineManager pm_; ///< グラフィックスパイプライン管理
 
   // オフスクリーンレンダリング / ポストプロセス
   RenderTexture renderTexture_;             ///< メイン描画用レンダーテクスチャ
+  RenderTexture viewportTexture_;           ///< エディタViewport描画用レンダーテクスチャ
   std::unique_ptr<PostProcess> postProcess_; ///< ポストプロセス（グレイスケール、ガウスぼかし等）
 
   // === シーン管理 ===

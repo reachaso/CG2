@@ -41,6 +41,10 @@ public:
   /// @param ctx シーンコンテキスト
   void ChangeImmediately(const std::string &name, SceneContext &ctx);
 
+  /// @brief 現在のシーンを再読み込みする（OnExit -> OnEnter）
+  /// @param ctx シーンコンテキスト
+  void ReloadCurrentScene(SceneContext &ctx);
+
   /// @brief 更新処理（現在の状態に応じた Update を呼び出す）
   /// @param ctx シーンコンテキスト
   void Update(SceneContext &ctx);

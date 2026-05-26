@@ -228,18 +228,6 @@ void VideoRecorder::DrawImGui(float deltaTime, Dx12Core* core) {
 #if RC_ENABLE_IMGUI
     if (!core) return;
 
-    // --- 録画制御ボタン ---
-    if (isRecording_) {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Recording...");
-        if (ImGui::Button("Stop Recording")) {
-            core->StopRecording();
-        }
-    } else {
-        if (ImGui::Button("Start Recording")) {
-            core->StartRecording();
-        }
-    }
-
     // --- 通知ポップアウト ---
     if (notify_.active) {
         notify_.timer -= deltaTime;

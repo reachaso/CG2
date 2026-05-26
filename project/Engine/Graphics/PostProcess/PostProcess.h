@@ -49,7 +49,8 @@ public:
   /// @param cmdList コマンドリスト
   /// @param renderTexture 描画ソースとなるレンダーテクスチャ
   void Draw(ID3D12GraphicsCommandList *cmdList,
-            const RenderTexture &renderTexture);
+            const RenderTexture &renderTexture,
+            RenderTexture *dstTexture = nullptr);
 
   /// @brief プロジェクション逆行列を設定する (DepthBasedOutline等で使用)
   void SetProjectionInverse(const float* projInv16);

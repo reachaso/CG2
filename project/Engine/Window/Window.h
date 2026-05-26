@@ -19,7 +19,8 @@ public:
 
   void Initialize(const char *windowTitle = "No Title",
                   const int32_t kClientWidth = kDefaultWidth,
-                  const int32_t kClientHeight = kDefaultHeight);
+                  const int32_t kClientHeight = kDefaultHeight,
+                  bool fullscreen = false);
 
   void SetTitleUTF8(const char *utf8);
 

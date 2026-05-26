@@ -114,86 +114,88 @@ void LightScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   RC::SetCamera(view_, proj_, camera_.GetWorldPos());
 
-  // ==============================
-  // キー入力でライト操作
-  // ==============================
-  Input *input = ctx.input;
+  if (ctx.isPlaying()) {
+    // ==============================
+    // キー入力でライト操作
+    // ==============================
+    Input *input = ctx.input;
 
-  // Directional Light ON/OFF
-  if (input->IsKeyTrigger(DIK_1)) {
-    if (RC::IsActiveDirectionalLightEnabled()) {
-      RC::SetActiveDirectionalLightEnabled(false);
-    } else {
-      RC::SetActiveDirectionalLightEnabled(true);
+    // Directional Light ON/OFF
+    if (input->IsKeyTrigger(DIK_1)) {
+      if (RC::IsActiveDirectionalLightEnabled()) {
+        RC::SetActiveDirectionalLightEnabled(false);
+      } else {
+        RC::SetActiveDirectionalLightEnabled(true);
+      }
     }
-  }
 
-  // Point Light1 ON/OFF
-  if (input->IsKeyTrigger(DIK_2)) {
-    if (RC::IsPointLightEnabled(PointLight1_)) {
-      RC::SetPointLightEnabled(PointLight1_, false);
-    } else {
-      RC::SetPointLightEnabled(PointLight1_, true);
+    // Point Light1 ON/OFF
+    if (input->IsKeyTrigger(DIK_2)) {
+      if (RC::IsPointLightEnabled(PointLight1_)) {
+        RC::SetPointLightEnabled(PointLight1_, false);
+      } else {
+        RC::SetPointLightEnabled(PointLight1_, true);
+      }
     }
-  }
 
-  // Point Light2 ON/OFF
-  if (input->IsKeyTrigger(DIK_3)) {
-    if (RC::IsPointLightEnabled(PointLight2_)) {
-      RC::SetPointLightEnabled(PointLight2_, false);
-    } else {
-      RC::SetPointLightEnabled(PointLight2_, true);
+    // Point Light2 ON/OFF
+    if (input->IsKeyTrigger(DIK_3)) {
+      if (RC::IsPointLightEnabled(PointLight2_)) {
+        RC::SetPointLightEnabled(PointLight2_, false);
+      } else {
+        RC::SetPointLightEnabled(PointLight2_, true);
+      }
     }
-  }
 
-  // Spot Light1 ON/OFF
-  if (input->IsKeyTrigger(DIK_4)) {
-    if (RC::IsSpotLightEnabled(SpotLight1_)) {
-      RC::SetSpotLightEnabled(SpotLight1_, false);
-    } else {
-      RC::SetSpotLightEnabled(SpotLight1_, true);
+    // Spot Light1 ON/OFF
+    if (input->IsKeyTrigger(DIK_4)) {
+      if (RC::IsSpotLightEnabled(SpotLight1_)) {
+        RC::SetSpotLightEnabled(SpotLight1_, false);
+      } else {
+        RC::SetSpotLightEnabled(SpotLight1_, true);
+      }
     }
-  }
 
-  // Spot Light2 ON/OFF
-  if (input->IsKeyTrigger(DIK_5)) {
-    if (RC::IsSpotLightEnabled(SpotLight2_)) {
-      RC::SetSpotLightEnabled(SpotLight2_, false);
-    } else {
-      RC::SetSpotLightEnabled(SpotLight2_, true);
+    // Spot Light2 ON/OFF
+    if (input->IsKeyTrigger(DIK_5)) {
+      if (RC::IsSpotLightEnabled(SpotLight2_)) {
+        RC::SetSpotLightEnabled(SpotLight2_, false);
+      } else {
+        RC::SetSpotLightEnabled(SpotLight2_, true);
+      }
     }
-  }
 
-  // Area Light1 ON/OFF
-  if (input->IsKeyTrigger(DIK_6)) {
-    if (RC::IsAreaLightEnabled(AreaLight1_)) {
-      RC::SetAreaLightEnabled(AreaLight1_, false);
-    } else {
-      RC::SetAreaLightEnabled(AreaLight1_, true);
+    // Area Light1 ON/OFF
+    if (input->IsKeyTrigger(DIK_6)) {
+      if (RC::IsAreaLightEnabled(AreaLight1_)) {
+        RC::SetAreaLightEnabled(AreaLight1_, false);
+      } else {
+        RC::SetAreaLightEnabled(AreaLight1_, true);
+      }
     }
-  }
 
-  // Area Light2 ON/OFF
-  if (input->IsKeyTrigger(DIK_7)) {
-    if (RC::IsAreaLightEnabled(AreaLight2_)) {
-      RC::SetAreaLightEnabled(AreaLight2_, false);
-    } else {
-      RC::SetAreaLightEnabled(AreaLight2_, true);
+    // Area Light2 ON/OFF
+    if (input->IsKeyTrigger(DIK_7)) {
+      if (RC::IsAreaLightEnabled(AreaLight2_)) {
+        RC::SetAreaLightEnabled(AreaLight2_, false);
+      } else {
+        RC::SetAreaLightEnabled(AreaLight2_, true);
+      }
     }
-  }
 
-  // wasdでボールのscale変更
-  if (input->IsKeyPressed(DIK_UP)) {
-    ballT_->scale.y += 0.01f;
-  }
-  if (input->IsKeyPressed(DIK_LEFT)) {
-    ballT_->scale.z -= 0.01f;
-  }
-  if (input->IsKeyPressed(DIK_DOWN)) {
-    ballT_->scale.y -= 0.01f;
-  }
-  if (input->IsKeyPressed(DIK_RIGHT)) {
-    ballT_->scale.z += 0.01f;
+    // wasdでボールのscale変更
+    if (input->IsKeyPressed(DIK_UP)) {
+      ballT_->scale.y += 0.01f;
+    }
+    if (input->IsKeyPressed(DIK_LEFT)) {
+      ballT_->scale.z -= 0.01f;
+    }
+    if (input->IsKeyPressed(DIK_DOWN)) {
+      ballT_->scale.y -= 0.01f;
+    }
+    if (input->IsKeyPressed(DIK_RIGHT)) {
+      ballT_->scale.z += 0.01f;
+    }
   }
 }
 

@@ -254,6 +254,20 @@ void Scene::SceneManager::ChangeImmediately(const std::string &name,
   RC::ClearTextureLogHistory();
 }
 
+void Scene::SceneManager::ReloadCurrentScene(SceneContext &ctx) {
+  if (!current_) return;
+  
+  Log::Print("[Scene] シーンリロード: " + currentName_);
+  
+  RC::ClearPostEffects();
+  
+  current_->OnExit(ctx);
+  current_->OnEnter(ctx);
+  
+  RC::WaitAllLoads();
+  RC::ClearTextureLogHistory();
+}
+
 void Scene::SceneManager::Update(SceneContext &ctx) {
   // 常にFadeの更新は行う
   if (fade_) {

@@ -114,9 +114,21 @@ ViewShadingMode GetViewShadingMode() {
 }
 
 #if RC_ENABLE_IMGUI
+static int s_ShadingIconHandles[6] = { -1, -1, -1, -1, -1, -1 };
+
 void DrawViewShadingModeImGui(const char *label) {
+  if (s_ShadingIconHandles[0] == -1) {
+    s_ShadingIconHandles[0] = LoadTex("Resources/icons/solid.png");
+    s_ShadingIconHandles[1] = LoadTex("Resources/icons/wireframe.png");
+    s_ShadingIconHandles[2] = LoadTex("Resources/icons/solid_wire.png");
+    s_ShadingIconHandles[3] = LoadTex("Resources/icons/face.png");
+    s_ShadingIconHandles[4] = LoadTex("Resources/icons/random.png");
+    s_ShadingIconHandles[5] = LoadTex("Resources/icons/lambert.png");
+  }
+
   int current = static_cast<int>(GetViewShadingMode());
-  const char *items[] = {
+  
+  const char *tooltips[] = {
     "Solid",
     "Wireframe",
     "Solid + Wireframe",
@@ -124,9 +136,63 @@ void DrawViewShadingModeImGui(const char *label) {
     "Random Color",
     "Solid Shading (Lambert)"
   };
-  if (ImGui::Combo(label, &current, items, 6)) {
-    SetViewShadingMode(static_cast<ViewShadingMode>(current));
+
+  if (label && label[0] != '\0') {
+    ImGui::Text("%s", label);
+    ImGui::SameLine();
   }
+  
+  // ボタン間の隙間を少しあける
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 0));
+  // ボタン内の余白を固定(上下左右2px)して、ボタン全体の高さを24pxに固定する
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
+  
+  for (int i = 0; i < 6; i++) {
+    if (i > 0) ImGui::SameLine();
+    
+    bool is_selected = (current == i);
+    
+    ImVec4 bgCol = ImVec4(0, 0, 0, 0);
+
+    // 選択中のボタンは色をハイライト
+    if (is_selected) {
+      bgCol = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+      ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+    } else {
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.3f, 0.3f, 0.5f));
+      ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.4f, 0.4f, 0.6f));
+    }
+    
+    char str_id[32];
+    snprintf(str_id, sizeof(str_id), "##ShdBtn%d", i);
+
+    ImTextureID tex_id = 0;
+    if (s_ShadingIconHandles[i] != -1) {
+      tex_id = (ImTextureID)GetSrv(s_ShadingIconHandles[i]).ptr;
+    }
+
+    if (tex_id) {
+        // 画像サイズを少し小さくして余白を持たせる
+        // 引数: id, tex, size, uv0, uv1, bg_col
+        if (ImGui::ImageButton(str_id, tex_id, ImVec2(20, 20), ImVec2(0,0), ImVec2(1,1), bgCol)) {
+            SetViewShadingMode(static_cast<ViewShadingMode>(i));
+        }
+    } else {
+        if (ImGui::Button(tooltips[i])) {
+            SetViewShadingMode(static_cast<ViewShadingMode>(i));
+        }
+    }
+    
+    ImGui::PopStyleColor(2);
+    
+    // ホバー時に名前を表示
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetTooltip("%s", tooltips[i]);
+    }
+  }
+  
+  ImGui::PopStyleVar(2);
 }
 #endif
 

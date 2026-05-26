@@ -84,6 +84,9 @@
     <ClCompile Include="..\Application\Framework\App.cpp">
       <Filter>Framework</Filter>
     </ClCompile>
+    <ClCompile Include="..\Application\Editor\EditorManager.cpp">
+      <Filter>Framework</Filter>
+    </ClCompile>
     <ClCompile Include="..\Application\Game\Game.cpp">
       <Filter>Game</Filter>
     </ClCompile>
@@ -123,6 +126,9 @@
       <Filter>Framework</Filter>
     </ClInclude>
     <ClInclude Include="..\Application\Framework\AppConfig.h">
+      <Filter>Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Application\Editor\EditorManager.h">
       <Filter>Framework</Filter>
     </ClInclude>
     <ClInclude Include="..\Application\Game\Game.h">

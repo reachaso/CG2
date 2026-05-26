@@ -46,7 +46,7 @@ bool App::Init() {
 
   // Window
   window_ = std::make_unique<Window>();
-  window_->Initialize(appConfig_.title.c_str(), appConfig_.width, appConfig_.height);
+  window_->Initialize(appConfig_.title.c_str(), appConfig_.width, appConfig_.height, appConfig_.fullscreen);
   
   auto now = std::chrono::high_resolution_clock::now();
   Log::Print(std::format("[App] Window 生成完了 (Time: {:.3f}ms)", std::chrono::duration<float, std::milli>(now - stepStart).count()));
@@ -73,6 +73,7 @@ bool App::Init() {
 
   // ImGui
   imgui_.Init(window_->GetHwnd(), core_);
+  editorManager_.Initialize();
 
   now = std::chrono::high_resolution_clock::now();
   Log::Print(std::format("[App] ImGui 初期化完了 (Time: {:.3f}ms)", std::chrono::duration<float, std::milli>(now - stepStart).count()));
@@ -89,6 +90,7 @@ bool App::Init() {
   // PostProcess
   // オフスクリーンレンダリング用のテクスチャを初期化（PSOと同じRTVフォーマットを使用）
   renderTexture_.Initialize(&core_, appConfig_.width, appConfig_.height, coreDesc_.rtvFormat);
+  viewportTexture_.Initialize(&core_, appConfig_.width, appConfig_.height, coreDesc_.rtvFormat);
   postProcess_ = std::make_unique<PostProcess>();
   postProcess_->Initialize(&core_, &pm_, appConfig_.width, appConfig_.height);
 
@@ -138,6 +140,21 @@ int App::Run() {
 #if RC_ENABLE_IMGUI
       // ImGui フレーム開始
       imgui_.NewFrame();
+      // エディタのUI構築（DockSpace, MenuBarなど）
+      editorManager_.Update(&core_);
+      
+      // 前フレームのViewportホバー状態を入力クラスに伝達
+      input_->SetViewportHovered(editorManager_.IsViewportHovered());
+
+      // プレイ状態の同期
+      PlayState currentPlayState = editorManager_.GetPlayState();
+      if (sceneCtx_.playState != currentPlayState) {
+          if (currentPlayState == PlayState::Stopped) {
+              // 停止された場合、シーンをリロードする
+              game_.ReloadCurrentScene(sceneCtx_);
+          }
+          sceneCtx_.playState = currentPlayState;
+      }
 #endif
       // 更新
       Update();
@@ -174,10 +191,26 @@ int App::Run() {
       // ビューポートとシザー矩形をバックバッファサイズに再設定（必須）
       core_.ResetViewportScissorToBackbuffer(appConfig_.width, appConfig_.height);
 
-      // ポストプロセス（RenderTextureの内容を画面に転送）
+#if !RC_ENABLE_IMGUI
+      // 通常モード：ポストプロセスをバックバッファに転送
       postProcess_->Draw(cl_, renderTexture_);
+#endif
 
 #if RC_ENABLE_IMGUI
+      // エディタモード：ポストプロセスの出力を viewportTexture_ に書き込む
+      postProcess_->Draw(cl_, renderTexture_, &viewportTexture_);
+      
+      // Viewport 描画用にSRV状態へ遷移
+      viewportTexture_.TransitionToShaderResource(cl_);
+
+      // PostProcessでOMSetRenderTargetsが変更されているため、バックバッファに戻す
+      D3D12_CPU_DESCRIPTOR_HANDLE backRtv = core_.CurrentRTV();
+      cl_->OMSetRenderTargets(1, &backRtv, FALSE, &dsv);
+      core_.ResetViewportScissorToBackbuffer(appConfig_.width, appConfig_.height);
+
+      // エディタの各パネル描画（Viewport含む）
+      editorManager_.DrawUI(viewportTexture_.GetSRVGPU(), &core_, sceneCtx_.deltaTime);
+      
       // ImGui 描画
       imgui_.Render(cl_);
 #endif
@@ -242,6 +275,7 @@ void App::Term() {
   // ====================
   // 追加リソースを解放
   renderTexture_.Release();
+  viewportTexture_.Release();
   postProcess_.reset();
 
   // パイプラインと ImGui 終了

@@ -10,6 +10,26 @@
 
 // 静的メンバの定義
 std::ofstream Log::sLogFile_;
+std::vector<std::string> Log::sHistory_;
+std::mutex Log::sHistoryMutex_;
+
+void Log::AddHistory(const std::string& message) {
+  std::lock_guard<std::mutex> lock(sHistoryMutex_);
+  // 最大1000行程度に制限
+  if (sHistory_.size() >= 1000) {
+    sHistory_.erase(sHistory_.begin());
+  }
+  sHistory_.push_back(message);
+}
+
+const std::vector<std::string>& Log::GetHistory() {
+  return sHistory_;
+}
+
+void Log::ClearHistory() {
+  std::lock_guard<std::mutex> lock(sHistoryMutex_);
+  sHistory_.clear();
+}
 
 void Log::Initialize() {
 
@@ -41,17 +61,25 @@ void Log::Finalize() {
 void Log::WriteLog(std::ostream &os, const std::string &message) {
   os << message << std::endl;
   OutputDebugStringA(message.c_str());
+  
+  std::string fullMsg = message + "\n";
+  AddHistory(fullMsg);
+
   // ファイルにも書き込む
   if (sLogFile_.is_open()) {
-    sLogFile_ << message << std::endl;
+    sLogFile_ << fullMsg;
   }
 }
 
 void Log::WriteLog(const std::string &message) {
   OutputDebugStringA(message.c_str());
+  
+  std::string fullMsg = message + "\n";
+  AddHistory(fullMsg);
+
   // ファイルにも書き込む
   if (sLogFile_.is_open()) {
-    sLogFile_ << message << std::endl;
+    sLogFile_ << fullMsg;
   }
 }
 
@@ -73,6 +101,8 @@ void Log::Print(const std::string &message) {
   Log logger;
   std::wstring wmsg = logger.ConvertString(msg);
   OutputDebugStringW(wmsg.c_str());
+
+  AddHistory(msg);
 
   // ファイルにも書き込む（UTF-8のまま）
   if (sLogFile_.is_open()) {

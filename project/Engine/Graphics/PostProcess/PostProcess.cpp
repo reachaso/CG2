@@ -472,15 +472,40 @@ void PostProcess::DrawSinglePass(ID3D12GraphicsCommandList *cmdList,
 // ============================================================================
 
 void PostProcess::Draw(ID3D12GraphicsCommandList *cmdList,
-                       const RenderTexture &renderTexture) {
+                       const RenderTexture &renderTexture,
+                       RenderTexture *dstTexture) {
+  // ビューポート・シザー（全パス共通サイズ）
+  D3D12_VIEWPORT vp{};
+  vp.Width = static_cast<float>(width_);
+  vp.Height = static_cast<float>(height_);
+  vp.MaxDepth = 1.0f;
+  D3D12_RECT sr{0, 0, static_cast<LONG>(width_), static_cast<LONG>(height_)};
+
+  // 最終描画先を設定するラムダ
+  auto SetFinalRenderTarget = [&]() {
+    if (dstTexture) {
+      dstTexture->TransitionToRenderTarget(cmdList);
+      D3D12_CPU_DESCRIPTOR_HANDLE rtv = dstTexture->GetRTV();
+      cmdList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+      cmdList->RSSetViewports(1, &vp);
+      cmdList->RSSetScissorRects(1, &sr);
+    } else {
+      D3D12_CPU_DESCRIPTOR_HANDLE backRtv = dxCore_->CurrentRTV();
+      cmdList->OMSetRenderTargets(1, &backRtv, FALSE, nullptr);
+      dxCore_->ResetViewportScissorToBackbuffer(width_, height_);
+    }
+  };
+
   // --- エフェクトなし：そのままコピー ---
   if (activeEffects_.empty()) {
+    SetFinalRenderTarget();
     DrawSinglePass(cmdList, renderTexture.GetSRVGPU(), pipelineCopy_, PostEffectType::None);
     return;
   }
 
   // --- 1エフェクト：シングルパス ---
   if (activeEffects_.size() == 1) {
+    SetFinalRenderTarget();
     DrawSinglePass(cmdList, renderTexture.GetSRVGPU(),
                    GetPipelineForEffect(activeEffects_[0]),
                    activeEffects_[0]);
@@ -492,13 +517,6 @@ void PostProcess::Draw(ID3D12GraphicsCommandList *cmdList,
 
   RenderTexture *textures[2] = {pingPongA_.get(), pingPongB_.get()};
   const size_t count = activeEffects_.size();
-
-  // ビューポート・シザー（全パス共通サイズ）
-  D3D12_VIEWPORT vp{};
-  vp.Width = static_cast<float>(width_);
-  vp.Height = static_cast<float>(height_);
-  vp.MaxDepth = 1.0f;
-  D3D12_RECT sr{0, 0, static_cast<LONG>(width_), static_cast<LONG>(height_)};
 
   for (size_t i = 0; i < count; ++i) {
     const bool isFirst = (i == 0);
@@ -527,11 +545,8 @@ void PostProcess::Draw(ID3D12GraphicsCommandList *cmdList,
       cmdList->RSSetViewports(1, &vp);
       cmdList->RSSetScissorRects(1, &sr);
     } else {
-      // 最終パス：バックバッファに書き込む（App が事前に設定済み）
-      // 中間パスでRTを変更しているので再設定する
-      D3D12_CPU_DESCRIPTOR_HANDLE backRtv = dxCore_->CurrentRTV();
-      cmdList->OMSetRenderTargets(1, &backRtv, FALSE, nullptr);
-      dxCore_->ResetViewportScissorToBackbuffer(width_, height_);
+      // 最終パス：バックバッファまたは指定されたテクスチャに書き込む
+      SetFinalRenderTarget();
     }
 
     // ── 描画 ──
