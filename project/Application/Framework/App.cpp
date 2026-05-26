@@ -73,7 +73,6 @@ bool App::Init() {
 
   // ImGui
   imgui_.Init(window_->GetHwnd(), core_);
-  editorManager_.Initialize();
 
   now = std::chrono::high_resolution_clock::now();
   Log::Print(std::format("[App] ImGui 初期化完了 (Time: {:.3f}ms)", std::chrono::duration<float, std::milli>(now - stepStart).count()));
@@ -106,6 +105,9 @@ bool App::Init() {
   sceneCtx_.pipelineManager = &pm_;
   sceneCtx_.postProcess = postProcess_.get();
   RC::Init(sceneCtx_);
+
+  // EditorManagerはTextureをロードするため、RC::Initの後に初期化する
+  editorManager_.Initialize();
 
   now = std::chrono::high_resolution_clock::now();
   Log::Print(std::format("[App] RenderContext 初期化完了 (Time: {:.3f}ms)", std::chrono::duration<float, std::milli>(now - stepStart).count()));
@@ -140,8 +142,12 @@ int App::Run() {
 #if RC_ENABLE_IMGUI
       // ImGui フレーム開始
       imgui_.NewFrame();
+      
       // エディタのUI構築（DockSpace, MenuBarなど）
-      editorManager_.Update(&core_);
+      editorManager_.Update(&core_, [this]() {
+          // ゲーム（シーン）のUIをMenuBarの中（Windowの右）に構築する
+          game_.DrawDebugUI(sceneCtx_);
+      });
       
       // 前フレームのViewportホバー状態を入力クラスに伝達
       input_->SetViewportHovered(editorManager_.IsViewportHovered());
@@ -226,8 +232,7 @@ void App::Update() {
   // ====================
   // Debug UI
   // ====================
-  // デバッグUI描画
-  game_.DrawDebugUI(sceneCtx_);
+  // デバッグUI描画 (App::RunのeditorManager_.Updateの前に移動しました)
 #endif
 
   // ====================

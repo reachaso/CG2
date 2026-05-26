@@ -10,6 +10,7 @@
 #include "Graphics/Texture/TextureManager/TextureManager.h"
 
 void EditorManager::Initialize() {
+#if RC_ENABLE_IMGUI
   playState_ = PlayState::Stopped;
   
   playIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icon/play.png");
@@ -17,9 +18,11 @@ void EditorManager::Initialize() {
   stopIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icon/stop.png");
 
   ApplyDarkTheme();
+#endif
 }
 
 void EditorManager::ApplyDarkTheme() {
+#if RC_ENABLE_IMGUI
   ImGuiStyle& style = ImGui::GetStyle();
   ImVec4* colors = style.Colors;
 
@@ -72,9 +75,10 @@ void EditorManager::ApplyDarkTheme() {
   style.TabRounding       = 4.0f;
   style.WindowBorderSize  = 1.0f;
   style.FrameBorderSize   = 1.0f;
+#endif
 }
 
-void EditorManager::Update(Dx12Core* core) {
+void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend) {
 #if RC_ENABLE_IMGUI
   // ============================
   // メニューバー
@@ -93,6 +97,10 @@ void EditorManager::Update(Dx12Core* core) {
         resetLayout_ = true;
       }
       ImGui::EndMenu();
+    }
+
+    if (onMenuAppend) {
+      onMenuAppend();
     }
 
     // キャプチャ・録画機能の直接ボタン
@@ -203,6 +211,7 @@ void EditorManager::Update(Dx12Core* core) {
 }
 
 void EditorManager::SetupDockingLayout() {
+#if RC_ENABLE_IMGUI
   ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
 
   if (firstLayout_) {
@@ -235,6 +244,7 @@ void EditorManager::SetupDockingLayout() {
   ImGui::DockBuilderDockWindow("Console", dock_id_bottom);
 
   ImGui::DockBuilderFinish(dockspace_id);
+#endif
 }
 
 void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, float deltaTime) {
