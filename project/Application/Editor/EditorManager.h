@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d12.h>
 #include <string>
+#include <functional>
 
 class Dx12Core;
 enum class PlayState;
@@ -17,7 +18,7 @@ public:
 
   /// @brief 毎フレームの更新処理（メニューバーやドッキングスペースの構築）
   /// @param core Dx12Core インスタンスへのポインタ
-  void Update(Dx12Core* core = nullptr);
+  void Update(Dx12Core* core = nullptr, std::function<void()> onMenuAppend = nullptr);
 
   /// @brief 各種パネルの描画
   /// @param viewportSrv ゲーム画面（Viewport）に表示するテクスチャのSRVハンドル

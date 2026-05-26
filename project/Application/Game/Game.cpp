@@ -75,9 +75,6 @@ void Game::ReloadCurrentScene(SceneContext &ctx) {
 
 void Game::DrawDebugUI(SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
-
-#ifdef _DEBUG
-  if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("Scene")) {
       const char *sceneNames[] = {"Title",    "Select", "Game",     "Result",
                                   "GameOver", "Sample", "Particle", "Light"};
@@ -91,9 +88,5 @@ void Game::DrawDebugUI(SceneContext &ctx) {
       }
       ImGui::EndMenu();
     }
-    ImGui::EndMainMenuBar();
-  }
-
-#endif
 #endif
 }
