@@ -1009,6 +1009,21 @@ void PipelineManager::RegisterDefaultPipelines() {
                 L"Resources/Shader/Compute/EmitParticle.CS.hlsl",
                 RootSignatureType::EmitParticleCS);
 
+  // emit_explosion_cs: GPU Particle 爆発射出用 Compute Shader
+  CreateCompute("emit_explosion_cs",
+                L"Resources/Shader/Compute/EmitExplosion.CS.hlsl",
+                RootSignatureType::EmitParticleCS);
+
+  // emit_rain_cs: GPU Particle 雨射出用 Compute Shader
+  CreateCompute("emit_rain_cs",
+                L"Resources/Shader/Compute/EmitRain.CS.hlsl",
+                RootSignatureType::EmitParticleCS);
+
+  // update_rain_cs: GPU Particle 雨更新用 Compute Shader
+  CreateCompute("update_rain_cs",
+                L"Resources/Shader/Compute/UpdateRain.CS.hlsl",
+                RootSignatureType::UpdateParticleCS);
+
   // gpu_particle: GPU Particle 描画用（ブレンドモード別）
   {
     const std::wstring gpuPtlVs = L"Resources/Shader/Particle/GPUParticle.VS.hlsl";

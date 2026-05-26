@@ -170,7 +170,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\Application\Game\Scene\GameOverScene\GameOverScene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\GameScene\GameScene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\LightScene\LightScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\ParticleScene\ParticleScene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\ResultScene\ResultScene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\SampleScene\SampleScene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\SelectScene\SelectScene.cpp" />
@@ -187,7 +186,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="..\Application\Game\Scene\GameOverScene\GameOverScene.h" />
     <ClInclude Include="..\Application\Game\Scene\GameScene\GameScene.h" />
     <ClInclude Include="..\Application\Game\Scene\LightScene\LightScene.h" />
-    <ClInclude Include="..\Application\Game\Scene\ParticleScene\ParticleScene.h" />
     <ClInclude Include="..\Application\Game\Scene\ResultScene\ResultScene.h" />
     <ClInclude Include="..\Application\Game\Scene\SampleScene\SampleScene.h" />
     <ClInclude Include="..\Application\Game\Scene\Scene.h" />

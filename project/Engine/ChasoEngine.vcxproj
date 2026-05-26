@@ -143,6 +143,7 @@
     <ClCompile Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.cpp" />
     <ClCompile Include="..\Engine\Dx12\SRVManager\SRVManager.cpp" />
     <ClCompile Include="..\Engine\Dx12\ComputeShader\ComputeShader.cpp" />
+    <ClCompile Include="..\Engine\Dx12\DeferredReleaseQueue\DeferredReleaseQueue.cpp" />
     <ClCompile Include="..\Engine\Dx12\StructuredBufferManager\StructuredBufferManager.cpp" />
     <ClCompile Include="..\Engine\Dx12\SwapChain\SwapChain.cpp" />
     <!-- Graphics -->
@@ -157,7 +158,6 @@
     <ClCompile Include="..\Engine\Graphics\Primitive\Primitive2D.cpp" />
     <ClCompile Include="..\Engine\Graphics\Primitive\Primitive3D.cpp" />
     <ClCompile Include="..\Engine\Graphics\Primitive\PrimitiveObject.cpp" />
-    <ClCompile Include="..\Engine\Particle\ParticleManager.cpp" />
     <ClCompile Include="..\Engine\Particle\GPUParticle.cpp" />
     <ClCompile Include="..\Engine\Audio\Sound.cpp" />
     <ClCompile Include="..\Engine\Graphics\Skydome\Skydome.cpp" />
@@ -172,19 +172,6 @@
     <ClCompile Include="..\Engine\ImGuiManager\ImGuiManager.cpp" />
     <!-- Input -->
     <ClCompile Include="..\Engine\Input\Input.cpp" />
-    <!-- Particle -->
-    <ClCompile Include="..\Engine\Particle\Circle\CircleParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Explosion\ExplosionParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Fire\FireParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\ImpactSpark\ImpactSparkParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Flash\FlashParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Laser\LaserParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Particle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Rain\RainParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Snow\SnowParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\wind\WindParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Ring\RingParticle.cpp" />
-    <ClCompile Include="..\Engine\Particle\Cylinder\CylinderParticle.cpp" />
     <!-- Render -->
     <ClCompile Include="..\Engine\Render\Light\Area\AreaLightManager.cpp" />
     <ClCompile Include="..\Engine\Render\Light\Directional\DirectionalLightManager.cpp" />
@@ -246,6 +233,7 @@
     <ClInclude Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.h" />
     <ClInclude Include="..\Engine\Dx12\SRVManager\SRVManager.h" />
     <ClInclude Include="..\Engine\Dx12\ComputeShader\ComputeShader.h" />
+    <ClInclude Include="..\Engine\Dx12\DeferredReleaseQueue\DeferredReleaseQueue.h" />
     <ClInclude Include="..\Engine\Dx12\StructuredBufferManager\StructuredBufferManager.h" />
     <ClInclude Include="..\Engine\Dx12\SwapChain\SwapChain.h" />
     <!-- Graphics -->
@@ -260,9 +248,7 @@
     <ClInclude Include="..\Engine\Graphics\Primitive\Primitive2D.h" />
     <ClInclude Include="..\Engine\Graphics\Primitive\Primitive3D.h" />
     <ClInclude Include="..\Engine\Graphics\Primitive\PrimitiveObject.h" />
-    <ClInclude Include="..\Engine\Particle\ParticleManager.h" />
     <ClInclude Include="..\Engine\Particle\GPUParticle.h" />
-    <ClInclude Include="..\Engine\Particle\EffectPreset.h" />
     <ClInclude Include="..\Engine\Audio\BgmManager.h" />
     <ClInclude Include="..\Engine\Audio\SeManager.h" />
     <ClInclude Include="..\Engine\Audio\Sound.h" />
@@ -277,19 +263,6 @@
     <ClInclude Include="..\Engine\ImGuiManager\ImGuiManager.h" />
     <!-- Input -->
     <ClInclude Include="..\Engine\Input\Input.h" />
-    <!-- Particle -->
-    <ClInclude Include="..\Engine\Particle\Circle\CircleParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Explosion\ExplosionParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Fire\FireParticle.h" />
-    <ClInclude Include="..\Engine\Particle\ImpactSpark\ImpactSparkParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Flash\FlashParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Laser\LaserParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Particle.h" />
-    <ClInclude Include="..\Engine\Particle\Rain\RainParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Snow\SnowParticle.h" />
-    <ClInclude Include="..\Engine\Particle\wind\WindParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Ring\RingParticle.h" />
-    <ClInclude Include="..\Engine\Particle\Cylinder\CylinderParticle.h" />
     <!-- Render -->
     <ClInclude Include="..\Engine\Render\Light\Area\AreaLightManager.h" />
     <ClInclude Include="..\Engine\Render\Light\Directional\DirectionalLightManager.h" />

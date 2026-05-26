@@ -1,5 +1,6 @@
 #include "ImGuiManager.h"
 #include "Log/Log.h"
+#include "SRVManager/SRVManager.h"
 #include <cassert>
 #include <string>
 
@@ -32,6 +33,9 @@ void ImGuiManager::Init(HWND hwnd, Dx12Core &core, bool enableDocking, float jpF
 
   ImGui_ImplWin32_Init(hwnd);
 
+  // SRVManager を UserData に渡して、AllocFn/FreeFn で動的割り当てを行う
+  SRVManager *srvMgr = &core.SRVMan();
+
   ImGui_ImplDX12_InitInfo initInfo = {};
   initInfo.Device = core.GetDevice();
   initInfo.CommandQueue = core.Queue();
@@ -39,8 +43,36 @@ void ImGuiManager::Init(HWND hwnd, Dx12Core &core, bool enableDocking, float jpF
   initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
   initInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
   initInfo.SrvDescriptorHeap = core.SRV().Heap();
-  initInfo.LegacySingleSrvCpuDescriptor = core.SRV().CPUAt(0);
-  initInfo.LegacySingleSrvGpuDescriptor = core.SRV().GPUAt(0);
+  initInfo.UserData = srvMgr;
+
+  // 動的ディスクリプタアロケータ: SRVManager を使って割り当て
+  initInfo.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo *info,
+                                     D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu,
+                                     D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu) {
+    SRVManager *mgr = static_cast<SRVManager *>(info->UserData);
+    SRVManager::Handle h = mgr->Allocate();
+    *out_cpu = h.cpu;
+    *out_gpu = h.gpu;
+  };
+  initInfo.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo *info,
+                                    D3D12_CPU_DESCRIPTOR_HANDLE cpu,
+                                    D3D12_GPU_DESCRIPTOR_HANDLE gpu) {
+    SRVManager *mgr = static_cast<SRVManager *>(info->UserData);
+    // Handle を復元して Free
+    SRVManager::Handle h{};
+    h.cpu = cpu;
+    h.gpu = gpu;
+    // index は Free 内で使わないので UINT_MAX のままでも安全だが、
+    // 正しいインデックスを復元する
+    DescriptorHeap *heap = mgr->Heap();
+    if (heap) {
+      SIZE_T offset = cpu.ptr - heap->CPUAt(0).ptr;
+      SIZE_T increment = mgr->Device()->GetDescriptorHandleIncrementSize(
+          D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      h.index = static_cast<UINT>(offset / increment);
+    }
+    mgr->Free(h);
+  };
 
   ImGui_ImplDX12_Init(&initInfo);
 #endif
@@ -50,6 +82,7 @@ void ImGuiManager::Init(HWND hwnd, Dx12Core &core, bool enableDocking, float jpF
 
   initialized_ = true;
 }
+
 
 void ImGuiManager::NewFrame() {
 #if RC_ENABLE_IMGUI
