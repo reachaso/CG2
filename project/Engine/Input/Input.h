@@ -22,6 +22,12 @@ public:
     /// @brief 全てのデバイスの状態を更新する（毎フレーム呼び出す必要があります）
     void Update();
 
+    /// @brief Viewportがホバーされているか設定する
+    void SetViewportHovered(bool hovered) { viewportHovered_ = hovered; }
+
+    /// @brief Viewportがホバーされているか取得する
+    bool IsViewportHovered() const { return viewportHovered_; }
+
     // デバイスへのアクセス
 
     /// @brief キーボード管理オブジェクトを取得する
@@ -153,4 +159,6 @@ private:
     std::unique_ptr<Keyboard> keyboard_;     ///< キーボード
     std::unique_ptr<Mouse> mouse_;           ///< マウス
     std::unique_ptr<Controller> controller_; ///< コントローラー
+
+    bool viewportHovered_ = false;           ///< Viewportウィンドウがホバーされているか
 };

@@ -60,7 +60,7 @@ void Window::UpdateBackgroundBrush() {
 }
 
 void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
-                        const int32_t kClientHeight) {
+                        const int32_t kClientHeight, bool fullscreen) {
 
   timeBeginPeriod(1); // タイマー精度を1msに設定
 
@@ -85,15 +85,20 @@ void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
   // ウィンドウクラスを登録
   RegisterClass(&wc);
 
+  DWORD style = fullscreen ? (WS_POPUP | WS_VISIBLE) : WS_OVERLAPPEDWINDOW;
+
   wrc = {0, 0, kClientWidth, kClientHeight};
-  AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
+  AdjustWindowRect(&wrc, style, false);
+
+  int x = fullscreen ? 0 : CW_USEDEFAULT;
+  int y = fullscreen ? 0 : CW_USEDEFAULT;
 
   // ウィンドウを作成
   hwnd = CreateWindow(wc.lpszClassName,     // 利用するクラス名
                       wTitle.c_str(),       // ウィンドウのタイトル
-                      WS_OVERLAPPEDWINDOW,  // ウィンドウスタイル
-                      CW_USEDEFAULT,        // x座標
-                      CW_USEDEFAULT,        // y座標
+                      style,                // ウィンドウスタイル
+                      x,                    // x座標
+                      y,                    // y座標
                       wrc.right - wrc.left, // 幅
                       wrc.bottom - wrc.top, // 高さ
                       nullptr,              // 親ウィンドウハンドル

@@ -16,6 +16,14 @@ class BgmManager;
 class SeManager;
 class PostProcess;
 
+/// @enum PlayState
+/// @brief ゲームの再生状態を表す列挙型
+enum class PlayState {
+  Stopped, // 停止中（編集モード）
+  Playing, // 再生中
+  Paused   // 一時停止中
+};
+
 /// @struct SceneContext
 /// @brief シーン間で共有されるエンジンコンポーネントへの参照を保持する構造体
 /// @details 各シーンの Update/Render に渡され、グラフィックスデバイス、入力、オーディオ、デバッグツールなどへのアクセスを提供します。
@@ -29,6 +37,13 @@ struct SceneContext {
   BgmManager *bgmManager = nullptr;      ///< BGM 管理
   SeManager *seManager = nullptr;        ///< SE 管理
   float deltaTime = 1.0f / 60.0f;        ///< 前フレームからの経過時間 (秒)
+  
+  PlayState playState = PlayState::Playing; ///< 現在の再生状態
+
+  /// @brief 再生中かどうか判定する
+  bool isPlaying() const {
+    return playState == PlayState::Playing;
+  }
 };
 
 /// @class Scene

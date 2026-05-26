@@ -2,6 +2,8 @@
 #include <ostream>
 #include <fstream>
 #include <string>
+#include <vector>
+#include <mutex>
 
 /// @brief ログ出力および文字列変換を管理するクラス
 class Log {
@@ -40,6 +42,17 @@ public:
   /// @return 正規化されたパス文字列
   static std::string NormalizePath(const std::string &path);
 
+  /// @brief エディタ表示用などに蓄積されたログ履歴を取得する
+  static const std::vector<std::string>& GetHistory();
+
+  /// @brief ログ履歴をクリアする
+  static void ClearHistory();
+
+private:
+  static void AddHistory(const std::string& message);
+
 private:
   static std::ofstream sLogFile_; ///< ログ出力用ファイルストリーム
+  static std::vector<std::string> sHistory_; ///< メモリ上のログ履歴
+  static std::mutex sHistoryMutex_; ///< 履歴操作の排他制御用ミューテックス
 };

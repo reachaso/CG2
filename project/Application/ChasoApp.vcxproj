@@ -162,6 +162,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\main.cpp" />
     <!-- Framework -->
     <ClCompile Include="..\Application\Framework\App.cpp" />
+    <ClCompile Include="..\Application\Editor\EditorManager.cpp" />
     <!-- Game -->
     <ClCompile Include="..\Application\Game\Game.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
@@ -184,6 +185,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <!-- Framework -->
     <ClInclude Include="..\Application\Framework\App.h" />
     <ClInclude Include="..\Application\Framework\AppConfig.h" />
+    <ClInclude Include="..\Application\Editor\EditorManager.h" />
     <!-- Game -->
     <ClInclude Include="..\Application\Game\Game.h" />
     <ClInclude Include="..\Application\Game\Scene\Fade\Fade.h" />

@@ -69,60 +69,30 @@ const std::string &Game::CurrentSceneName() const {
   return sceneMgr_.CurrentName();
 }
 
+void Game::ReloadCurrentScene(SceneContext &ctx) {
+  sceneMgr_.ReloadCurrentScene(ctx);
+}
+
 void Game::DrawDebugUI(SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
 
 #ifdef _DEBUG
-  ImGui::Begin("Scene");
-  const char *sceneNames[] = {"Title",    "Select", "Game",     "Result",
-                              "GameOver", "Sample", "Particle", "Light"};
-  const char *currentSceneName = CurrentSceneName().c_str();
+  if (ImGui::BeginMainMenuBar()) {
+    if (ImGui::BeginMenu("Scene")) {
+      const char *sceneNames[] = {"Title",    "Select", "Game",     "Result",
+                                  "GameOver", "Sample", "Particle", "Light"};
+      const char *currentSceneName = CurrentSceneName().c_str();
 
-  if (ImGui::BeginCombo("##Scene", currentSceneName)) {
-    for (int i = 0; i < IM_ARRAYSIZE(sceneNames); i++) {
-      bool is_selected = (strcmp(currentSceneName, sceneNames[i]) == 0);
-      if (ImGui::Selectable(sceneNames[i], is_selected)) {
-        RequestChange(sceneNames[i]);
+      for (int i = 0; i < IM_ARRAYSIZE(sceneNames); i++) {
+        bool is_selected = (strcmp(currentSceneName, sceneNames[i]) == 0);
+        if (ImGui::MenuItem(sceneNames[i], nullptr, is_selected)) {
+          RequestChange(sceneNames[i]);
+        }
       }
-      if (is_selected) {
-        ImGui::SetItemDefaultFocus();
-      }
+      ImGui::EndMenu();
     }
-    ImGui::EndCombo();
+    ImGui::EndMainMenuBar();
   }
-  
-  RC::DrawViewShadingModeImGui();
-
-  ImGui::End();
-
-  // === FPS overlay ===
-  ImGuiIO &io = ImGui::GetIO();
-  ImGui::SetNextWindowBgAlpha(0.35f);
-  ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
-  ImGuiWindowFlags flags =
-      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-      ImGuiWindowFlags_NoNav;
-  if (ImGui::Begin("Perf", nullptr, flags)) {
-    const float fps = io.Framerate;
-    ImGui::Text("FPS: %.1f", fps);
-    ImGui::Text("Frame: %.3f ms", 1000.0f / (fps > 0.0f ? fps : 1.0f));
-
-    ImGui::Separator();
-    if (ImGui::Button("Capture Screenshot")) {
-      if (ctx.core) {
-        ctx.core->RequestScreenshot();
-      }
-    }
-
-    if (ctx.core) {
-      ctx.core->GetVideoRecorder().DrawImGui(ctx.deltaTime, ctx.core);
-    }
-  }
-  ImGui::End();
-
-  // === Screenshot Pop-out ===
-  ScreenCapture::DrawImGui(ctx.deltaTime, ctx.core);
 
 #endif
 #endif

@@ -40,6 +40,10 @@ public:
   /// @return シーン名
   const std::string &CurrentSceneName() const;
 
+  /// @brief 現在のシーンを再読み込みする
+  /// @param ctx シーンコンテキスト
+  void ReloadCurrentScene(SceneContext &ctx);
+
 private:
   /// @brief 使用する全てのシーンを SceneManager に登録する
   void registerScenes_();

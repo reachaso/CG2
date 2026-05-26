@@ -78,8 +78,22 @@ void CameraController::Update(float dt) {
 
   if (useDebug_) {
     #if RC_ENABLE_IMGUI
-if (!(ImGui::GetIO().WantCaptureMouse ||
-          ImGui::GetIO().WantCaptureKeyboard)) {
+    // Viewport上でマウスボタン（左/右/中）が押されたらドラッグ開始
+    if (input_->IsViewportHovered() && (input_->IsMousePressed(0) || input_->IsMousePressed(1) || input_->IsMousePressed(2))) {
+      isDraggingCamera_ = true;
+    }
+    // 全てのボタンが離されたらドラッグ終了
+    if (!input_->IsMousePressed(0) && !input_->IsMousePressed(1) && !input_->IsMousePressed(2)) {
+      isDraggingCamera_ = false;
+    }
+
+    // マウスがViewport上にあるか、カメラをドラッグ中ならマウスをカメラに渡す
+    bool captureMouse = ImGui::GetIO().WantCaptureMouse && !(input_->IsViewportHovered() || isDraggingCamera_);
+    
+    // Viewport上にあるかドラッグ中なら、キーボード（WASD等）もカメラに渡す
+    bool captureKeyboard = ImGui::GetIO().WantCaptureKeyboard && !(input_->IsViewportHovered() || isDraggingCamera_);
+
+    if (!(captureMouse || captureKeyboard)) {
 #else
 if (true) {
 #endif

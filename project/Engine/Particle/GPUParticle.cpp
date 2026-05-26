@@ -273,29 +273,31 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
     Log::Print("[GPUParticle] CS init executed (deferred, FreeList)");
   }
 
-  // 毎フレーム EmitParticle CS を Dispatch（emitCount_ 個射出）
-  if (emitCS_.IsReady() && perFrameCB_) {
-    emitCS_.Bind(cl);
-    emitCS_.SetUAV(cl, 0, uavHandle_.gpu);
-    emitCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
-    emitCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
-    emitCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
-    emitCS_.Dispatch(cl, emitCount_, 1024);
-    ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
-    ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
-  }
+  if (ctx.isPlaying()) {
+    // 毎フレーム EmitParticle CS を Dispatch（emitCount_ 個射出）
+    if (emitCS_.IsReady() && perFrameCB_) {
+      emitCS_.Bind(cl);
+      emitCS_.SetUAV(cl, 0, uavHandle_.gpu);
+      emitCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
+      emitCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
+      emitCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
+      emitCS_.Dispatch(cl, emitCount_, 1024);
+      ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
+      ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
+    }
 
-  // 毎フレーム UpdateParticle CS を Dispatch
-  if (updateCS_.IsReady() && perFrameCB_) {
-    updateCS_.Bind(cl);
-    updateCS_.SetUAV(cl, 0, uavHandle_.gpu);
-    updateCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
-    updateCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
-    updateCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
-    updateCS_.DispatchDirect(cl, 1, 1, 1);
-    ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
-    ComputeShader::UAVBarrier(cl, freeListBuffer_.Get());
-    ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
+    // 毎フレーム UpdateParticle CS を Dispatch
+    if (updateCS_.IsReady() && perFrameCB_) {
+      updateCS_.Bind(cl);
+      updateCS_.SetUAV(cl, 0, uavHandle_.gpu);
+      updateCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
+      updateCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
+      updateCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
+      updateCS_.DispatchDirect(cl, 1, 1, 1);
+      ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
+      ComputeShader::UAVBarrier(cl, freeListBuffer_.Get());
+      ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
+    }
   }
 
   // テクスチャ SRV（非同期ロード対応）

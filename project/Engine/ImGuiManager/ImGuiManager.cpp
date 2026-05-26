@@ -60,8 +60,8 @@ void ImGuiManager::NewFrame() {
   ImGui::NewFrame();
 
   if (dockingEnabled_) {
-    ImGui::DockSpaceOverViewport(0, nullptr,
-                                 ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+    ImGui::DockSpaceOverViewport(dockspace_id, nullptr, ImGuiDockNodeFlags_None);
   }
 #endif
 }

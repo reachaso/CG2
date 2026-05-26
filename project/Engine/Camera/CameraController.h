@@ -149,6 +149,7 @@ private:
   MainCamera main_;        ///< メイン（追従）カメラ
   bool useDebug_ = false;  ///< デバッグモードフラグ
   bool showGuide_ = false; ///< ガイドライン表示フラグ
+  bool isDraggingCamera_ = false; ///< カメラのドラッグ操作中フラグ
 
   RC::Vector3 worldPos_{0, 0, 0}; ///< 現在のワールド座標
 
