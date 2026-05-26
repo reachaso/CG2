@@ -1,15 +1,15 @@
 // ============================================================================
-// EmitParticle.CS.hlsl
+// EmitRain.CS.hlsl
 // ----------------------------------------------------------------------------
-// GPU Particle の射出用 Compute Shader。
-// FreeList から空きインデックスを取得してパーティクルを初期化する。
+// GPU Particle の雨エフェクト用 Emit Compute Shader。
+// 上空の XZ 平面上にランダム配置し、下方向に落下させる。
 //
 // u0 : gParticles      — パーティクルデータ
 // u1 : gFreeListIndex  — FreeList の現在のインデックス
 // u2 : gFreeList       — 空きパーティクルインデックスの配列
 // b0 : gPerFrame       — deltaTime 等
 //
-// Dispatch(1, 1, 1) で emitCount スレッド（最大1024）実行。
+// Dispatch(emitCount / 1024, 1, 1) で実行。
 // ============================================================================
 
 struct Particle
@@ -65,35 +65,41 @@ void main(uint3 DTid : SV_DispatchThreadID)
         uint particleIndex = gFreeList[freeListIndex];
 
         // ランダムシード
-        uint seed = particleIndex * 1973u + DTid.x * 6547u + 9277u;
+        uint seed = particleIndex * 2371u + DTid.x * 8923u + 17389u;
 
         // パーティクル初期化
         Particle p = (Particle)0;
 
-        // 位置: 原点付近
+        // 位置: 上空の広い XZ 平面上にランダム配置
         p.translate = float3(
-            HashSigned(seed) * 2.0f,
-            Hash(seed + 1u) * 1.0f,
-            HashSigned(seed + 2u) * 2.0f
+            HashSigned(seed) * 10.0f,       // X: -10 ~ 10
+            8.0f + Hash(seed + 1u) * 4.0f,  // Y: 8 ~ 12（上空）
+            HashSigned(seed + 2u) * 10.0f    // Z: -10 ~ 10
         );
 
-        // スケール
-        float s = 0.3f + Hash(seed + 3u) * 0.3f;
-        p.scale = float3(s, s, s);
+        // スケール: 雨粒（縦長の細い形状はVSで処理するが、ここでは小さめに）
+        float s = 0.05f + Hash(seed + 3u) * 0.08f;
+        p.scale = float3(s * 0.3f, s, s * 0.3f); // 縦長
 
-        // 速度: 上方向 + ランダム横揺れ
+        // 速度: 下方向 + わずかな横風
         p.velocity = float3(
-            HashSigned(seed + 4u) * 0.02f,
-            0.01f + Hash(seed + 5u) * 0.03f,
-            HashSigned(seed + 6u) * 0.02f
+            HashSigned(seed + 4u) * 0.005f,  // わずかな横風
+            -(0.08f + Hash(seed + 5u) * 0.04f), // 下方向（負の Y）
+            HashSigned(seed + 6u) * 0.005f   // わずかな横風
         );
 
-        // 寿命
-        p.lifeTime = 3.0f + Hash(seed + 7u) * 5.0f;
+        // 寿命: 中程度（落下時間）
+        p.lifeTime = 3.0f + Hash(seed + 7u) * 3.0f;
         p.currentTime = 0.0f;
 
-        // 色: 白
-        p.color = float4(1.0f, 1.0f, 1.0f, 1.0f);
+        // 色: 水色～薄い白
+        float brightness = 0.7f + Hash(seed + 8u) * 0.3f;
+        p.color = float4(
+            brightness * 0.7f,
+            brightness * 0.85f,
+            brightness,
+            0.6f + Hash(seed + 9u) * 0.4f // 半透明
+        );
 
         gParticles[particleIndex] = p;
     }

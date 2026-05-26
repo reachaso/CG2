@@ -82,6 +82,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
     skinned.position.w = 1.0f; // w を保証
 
     // 法線にもスキニングを適用（回転のみ、正規化）
+    // NOTE: 非等方性スケーリング（X/Y/Zが異なるスケール）が含まれる場合、
+    //       法線が正しく変換されない可能性があります。
+    //       その場合は逆転置行列 (inverse-transpose) の使用を検討してください。
     skinned.normal = normalize(mul(input.normal, (float3x3)skinMat));
 
     // texcoord はそのままコピー

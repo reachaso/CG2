@@ -10,7 +10,6 @@
 #include "GameOverScene/GameOverScene.h"
 #include "GameScene/GameScene.h"
 #include "LightScene/LightScene.h"
-#include "ParticleScene/ParticleScene.h"
 #include "ResultScene/ResultScene.h"
 #include "SampleScene/SampleScene.h"
 #include "SelectScene/SelectScene.h"
@@ -38,7 +37,6 @@ void Game::registerScenes_() {
   sceneMgr_.Register(std::make_unique<ResultScene>());
   sceneMgr_.Register(std::make_unique<GameOverScene>());
   sceneMgr_.Register(std::make_unique<SampleScene>());
-  sceneMgr_.Register(std::make_unique<ParticleScene>());
   sceneMgr_.Register(std::make_unique<LightScene>());
 }
 
@@ -77,7 +75,7 @@ void Game::DrawDebugUI(SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
     if (ImGui::BeginMenu("Scene")) {
       const char *sceneNames[] = {"Title",    "Select", "Game",     "Result",
-                                  "GameOver", "Sample", "Particle", "Light"};
+                                  "GameOver", "Sample", "Light"};
       const char *currentSceneName = CurrentSceneName().c_str();
 
       for (int i = 0; i < IM_ARRAYSIZE(sceneNames); i++) {

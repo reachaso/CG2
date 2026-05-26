@@ -130,6 +130,12 @@ void Dx12Core::Init(HWND hwnd, const Desc &d) {
 
 void Dx12Core::BeginFrame() {
   // ====================
+  // Deferred Release
+  // ====================
+  // 完了済みフェンス値を超えたリソースを解放
+  deferredRelease_.Flush(cmd_.GetCompletedFenceValue());
+
+  // ====================
   // Command
   // ====================
   // フレーム開始とバックバッファ取得
@@ -239,6 +245,12 @@ void Dx12Core::Term() {
   // ====================
   // GPU 完全停止
   cmd_.FlushGPU();
+
+  // ====================
+  // Deferred Release
+  // ====================
+  // 遅延解放キューの全リソースを解放
+  deferredRelease_.FlushAll();
 
   // ====================
   // Resource Release

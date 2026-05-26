@@ -59,6 +59,9 @@ Animation LoadAnimationFile(const std::string& filePath) {
 
 Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyframes, float time) {
     assert(!keyframes.empty()); // キーがないものは返す値がわからないのでダメ
+    if (keyframes.empty()) {
+        return Vector3{0.0f, 0.0f, 0.0f}; // 安全なフォールバック
+    }
     if (keyframes.size() == 1 || time <= keyframes[0].time) {
         return keyframes[0].value;
     }
@@ -76,6 +79,9 @@ Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyframes, float time
 
 Quaternion CalculateValue(const std::vector<KeyframeQuaternion>& keyframes, float time) {
     assert(!keyframes.empty()); // キーがないものは返す値がわからないのでダメ
+    if (keyframes.empty()) {
+        return Quaternion{0.0f, 0.0f, 0.0f, 1.0f}; // 単位クオータニオン（安全なフォールバック）
+    }
     if (keyframes.size() == 1 || time <= keyframes[0].time) {
         return keyframes[0].value;
     }

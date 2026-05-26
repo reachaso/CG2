@@ -412,6 +412,16 @@ void SampleScene::DrawImGui() {
       ImGui::EndTabItem();
     }
 
+    // -------------------
+    // ParticleTab
+    // -------------------
+    if (ImGui::BeginTabItem("ParticleTab")) {
+      if (gpuParticle_) {
+        gpuParticle_->DrawImGui();
+      }
+      ImGui::EndTabItem();
+    }
+
     ImGui::EndTabBar();
   }
 

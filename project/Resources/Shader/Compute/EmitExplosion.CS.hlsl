@@ -1,15 +1,15 @@
 // ============================================================================
-// EmitParticle.CS.hlsl
+// EmitExplosion.CS.hlsl
 // ----------------------------------------------------------------------------
-// GPU Particle の射出用 Compute Shader。
-// FreeList から空きインデックスを取得してパーティクルを初期化する。
+// GPU Particle の爆発エフェクト用 Emit Compute Shader。
+// 全方向にランダム放射するパーティクルを射出する。
 //
 // u0 : gParticles      — パーティクルデータ
 // u1 : gFreeListIndex  — FreeList の現在のインデックス
 // u2 : gFreeList       — 空きパーティクルインデックスの配列
 // b0 : gPerFrame       — deltaTime 等
 //
-// Dispatch(1, 1, 1) で emitCount スレッド（最大1024）実行。
+// Dispatch(emitCount / 1024, 1, 1) で実行。
 // ============================================================================
 
 struct Particle
@@ -52,6 +52,21 @@ float HashSigned(uint seed)
     return Hash(seed) * 2.0f - 1.0f;
 }
 
+// 球面上の均一ランダム方向ベクトルを生成
+float3 RandomSphereDirection(uint seed)
+{
+    // cos(theta) を [-1, 1] でランダム、phi を [0, 2*PI] でランダム
+    float cosTheta = HashSigned(seed);
+    float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+    float phi = Hash(seed + 1u) * 6.28318530718f; // 2 * PI
+
+    return float3(
+        sinTheta * cos(phi),
+        sinTheta * sin(phi),
+        cosTheta
+    );
+}
+
 [numthreads(1024, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -65,35 +80,39 @@ void main(uint3 DTid : SV_DispatchThreadID)
         uint particleIndex = gFreeList[freeListIndex];
 
         // ランダムシード
-        uint seed = particleIndex * 1973u + DTid.x * 6547u + 9277u;
+        uint seed = particleIndex * 1973u + DTid.x * 6547u + 13331u;
 
         // パーティクル初期化
         Particle p = (Particle)0;
 
-        // 位置: 原点付近
+        // 位置: 原点付近に集中
         p.translate = float3(
-            HashSigned(seed) * 2.0f,
-            Hash(seed + 1u) * 1.0f,
-            HashSigned(seed + 2u) * 2.0f
+            HashSigned(seed + 10u) * 0.5f,
+            Hash(seed + 11u) * 0.5f,
+            HashSigned(seed + 12u) * 0.5f
         );
 
-        // スケール
-        float s = 0.3f + Hash(seed + 3u) * 0.3f;
+        // スケール: やや小さめ
+        float s = 0.15f + Hash(seed + 3u) * 0.2f;
         p.scale = float3(s, s, s);
 
-        // 速度: 上方向 + ランダム横揺れ
-        p.velocity = float3(
-            HashSigned(seed + 4u) * 0.02f,
-            0.01f + Hash(seed + 5u) * 0.03f,
-            HashSigned(seed + 6u) * 0.02f
-        );
+        // 速度: 球面上のランダム方向 × ランダム速さ
+        float3 dir = RandomSphereDirection(seed + 20u);
+        float speed = 0.03f + Hash(seed + 30u) * 0.06f;
+        p.velocity = dir * speed;
 
-        // 寿命
-        p.lifeTime = 3.0f + Hash(seed + 7u) * 5.0f;
+        // 寿命: 短め（爆発なので）
+        p.lifeTime = 1.0f + Hash(seed + 7u) * 2.0f;
         p.currentTime = 0.0f;
 
-        // 色: 白
-        p.color = float4(1.0f, 1.0f, 1.0f, 1.0f);
+        // 色: オレンジ～赤のグラデーション
+        float hue = Hash(seed + 40u);
+        p.color = float4(
+            1.0f,
+            0.3f + hue * 0.5f,
+            0.1f,
+            1.0f
+        );
 
         gParticles[particleIndex] = p;
     }

@@ -193,7 +193,8 @@ struct GPUParticlePerView {
 /// @brief GPU Particle 更新 CS 用のフレーム定数バッファ（CS b0）
 struct GPUParticlePerFrame {
   float deltaTime;     ///< フレーム間隔 (秒)
-  float padding[3];    ///< パディング（16byteアラインメント）
+  uint32_t maxParticles; ///< 最大パーティクル数
+  float padding[2];    ///< パディング（16byteアラインメント）
 };
 
 /// @brief 平行光源データ

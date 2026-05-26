@@ -1,5 +1,6 @@
 #pragma once
 #include "CommandContext/CommandContext.h"
+#include "DeferredReleaseQueue/DeferredReleaseQueue.h"
 #include "DepthStencil/DepthStencil.h"
 #include "DescriptorHeap/DescriptorHeap.h"
 #include "Device/Device.h"
@@ -106,6 +107,14 @@ public:
   /// @return SRVManagerへのconst参照
   const SRVManager &SRVMan() const { return srvMgr_; }
 
+  /// @brief 遅延解放キューを取得
+  /// @return DeferredReleaseQueueへの参照
+  DeferredReleaseQueue &DeferredRelease() { return deferredRelease_; }
+
+  /// @brief 現在の完了済みフェンス値を取得
+  /// @return 完了済みフェンス値
+  uint64_t GetCompletedFenceValue() const { return cmd_.GetCompletedFenceValue(); }
+
   /// @brief 画面をクリアする
   /// @param r 赤
   /// @param g 緑
@@ -180,6 +189,7 @@ private:
   std::unique_ptr<FixFps> fixFps_; ///< FPS固定管理
   bool fixFpsEnabled_ = true;      ///< FPS固定有効フラグ
   StructuredBufferManager sbMgr_;  ///< 構造化バッファ管理
+  DeferredReleaseQueue deferredRelease_; ///< GPU リソース遅延解放キュー
   bool requestScreenshot_ = false; ///< スクリーンショット撮影要求フラグ
   std::string latestScreenshotPath_; ///< 最新のスクリーンショットパス
   VideoRecorder videoRecorder_;    ///< ビデオ録画管理

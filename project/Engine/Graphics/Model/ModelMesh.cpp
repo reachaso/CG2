@@ -262,59 +262,19 @@ Node ModelMesh::ReadNode_(const aiNode *node) const {
   result.localMatrix = m;
 
   // ---------------------------------------------------------
-  // 2. transform: ConvertRHtoLH_済みのlocalMatrixからSRTを抽出
+  // 2. transform: aiNode::Decompose で SRT を抽出
   //    Skeleton/スキニング用のSRTデータ。
-  //    localMatrixとの一致を保証するために、localMatrixから直接分解する。
+  //    Assimpの標準機能を使用して安全にSRTを分解する。
   // ---------------------------------------------------------
   {
-    // Translate: 行列の平行移動成分 (row-major: m[3][0..2])
-    result.transform.translate = { m.m[3][0], m.m[3][1], m.m[3][2] };
+    aiVector3D aiScale, aiTranslate;
+    aiQuaternion aiRotate;
+    node->mTransformation.Decompose(aiScale, aiRotate, aiTranslate);
 
-    // Scale: 各行(row-majorなので行ベクトル)の長さ
-    float sx = std::sqrt(m.m[0][0]*m.m[0][0] + m.m[0][1]*m.m[0][1] + m.m[0][2]*m.m[0][2]);
-    float sy = std::sqrt(m.m[1][0]*m.m[1][0] + m.m[1][1]*m.m[1][1] + m.m[1][2]*m.m[1][2]);
-    float sz = std::sqrt(m.m[2][0]*m.m[2][0] + m.m[2][1]*m.m[2][1] + m.m[2][2]*m.m[2][2]);
-    if (sx < 1e-6f) sx = 1e-6f;
-    if (sy < 1e-6f) sy = 1e-6f;
-    if (sz < 1e-6f) sz = 1e-6f;
-    result.transform.scale = { sx, sy, sz };
-
-    // Rotation: スケールを除去した3x3回転行列からQuaternionを抽出
-    float r00 = m.m[0][0]/sx, r01 = m.m[0][1]/sx, r02 = m.m[0][2]/sx;
-    float r10 = m.m[1][0]/sy, r11 = m.m[1][1]/sy, r12 = m.m[1][2]/sy;
-    float r20 = m.m[2][0]/sz, r21 = m.m[2][1]/sz, r22 = m.m[2][2]/sz;
-
-    float trace = r00 + r11 + r22;
-    RC::Quaternion q;
-    if (trace > 0.0f) {
-      float s = std::sqrt(trace + 1.0f) * 2.0f; // s = 4*w
-      q.w = 0.25f * s;
-      q.x = (r12 - r21) / s;
-      q.y = (r20 - r02) / s;
-      q.z = (r01 - r10) / s;
-    } else if (r00 > r11 && r00 > r22) {
-      float s = std::sqrt(1.0f + r00 - r11 - r22) * 2.0f;
-      q.w = (r12 - r21) / s;
-      q.x = 0.25f * s;
-      q.y = (r01 + r10) / s;
-      q.z = (r20 + r02) / s;
-    } else if (r11 > r22) {
-      float s = std::sqrt(1.0f + r11 - r00 - r22) * 2.0f;
-      q.w = (r20 - r02) / s;
-      q.x = (r01 + r10) / s;
-      q.y = 0.25f * s;
-      q.z = (r12 + r21) / s;
-    } else {
-      float s = std::sqrt(1.0f + r22 - r00 - r11) * 2.0f;
-      q.w = (r01 - r10) / s;
-      q.x = (r20 + r02) / s;
-      q.y = (r12 + r21) / s;
-      q.z = 0.25f * s;
-    }
-    // Normalize
-    float len = std::sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
-    if (len > 1e-6f) { q.x /= len; q.y /= len; q.z /= len; q.w /= len; }
-    result.transform.rotate = q;
+    // aiProcess_MakeLeftHanded により座標系変換済み
+    result.transform.scale     = { aiScale.x, aiScale.y, aiScale.z };
+    result.transform.rotate    = { aiRotate.x, aiRotate.y, aiRotate.z, aiRotate.w };
+    result.transform.translate = { aiTranslate.x, aiTranslate.y, aiTranslate.z };
   }
 
   result.name = node->mName.C_Str();
@@ -514,6 +474,19 @@ void ModelMesh::ExtractSkinData_(const aiScene *scene,
             break;
           }
         }
+      }
+    }
+  }
+
+  // ウェイトの正規化: 合計が1.0になるように調整
+  // （4つを超えるボーン影響がある場合や、データの精度問題への対策）
+  for (auto &v : vertices) {
+    float totalWeight = v.boneWeights[0] + v.boneWeights[1]
+                      + v.boneWeights[2] + v.boneWeights[3];
+    if (totalWeight > 1e-6f && std::fabs(totalWeight - 1.0f) > 1e-6f) {
+      float invTotal = 1.0f / totalWeight;
+      for (int s = 0; s < 4; ++s) {
+        v.boneWeights[s] *= invTotal;
       }
     }
   }

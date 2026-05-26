@@ -1009,6 +1009,21 @@ void PipelineManager::RegisterDefaultPipelines() {
                 L"Resources/Shader/Compute/EmitParticle.CS.hlsl",
                 RootSignatureType::EmitParticleCS);
 
+  // emit_explosion_cs: GPU Particle 爆発射出用 Compute Shader
+  CreateCompute("emit_explosion_cs",
+                L"Resources/Shader/Compute/EmitExplosion.CS.hlsl",
+                RootSignatureType::EmitParticleCS);
+
+  // emit_rain_cs: GPU Particle 雨射出用 Compute Shader
+  CreateCompute("emit_rain_cs",
+                L"Resources/Shader/Compute/EmitRain.CS.hlsl",
+                RootSignatureType::EmitParticleCS);
+
+  // update_rain_cs: GPU Particle 雨更新用 Compute Shader
+  CreateCompute("update_rain_cs",
+                L"Resources/Shader/Compute/UpdateRain.CS.hlsl",
+                RootSignatureType::UpdateParticleCS);
+
   // gpu_particle: GPU Particle 描画用（ブレンドモード別）
   {
     const std::wstring gpuPtlVs = L"Resources/Shader/Particle/GPUParticle.VS.hlsl";
@@ -1067,35 +1082,10 @@ void PipelineManager::CreateCompute(const std::string &key,
   D3D12_DESCRIPTOR_RANGE ranges[3] = {};
   UINT paramCount = 0;
 
-  if (rootType == RootSignatureType::InitParticleCS) {
-    // InitParticleCS: UAV u0 (Particles) + UAV u1 (FreeListIndex) + UAV u2 (FreeList)
-    // 各 UAV を個別の Descriptor Table として定義
-    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-    ranges[0].BaseShaderRegister = 0;
-    ranges[0].NumDescriptors = 1;
-    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-    ranges[1].BaseShaderRegister = 1;
-    ranges[1].NumDescriptors = 1;
-    ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-    ranges[2].BaseShaderRegister = 2;
-    ranges[2].NumDescriptors = 1;
-    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    for (int i = 0; i < 3; ++i) {
-      params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-      params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-      params[i].DescriptorTable.NumDescriptorRanges = 1;
-      params[i].DescriptorTable.pDescriptorRanges = &ranges[i];
-    }
-
-    paramCount = 3;
-  } else if (rootType == RootSignatureType::UpdateParticleCS ||
-             rootType == RootSignatureType::EmitParticleCS) {
-    // UpdateParticleCS / EmitParticleCS:
+  if (rootType == RootSignatureType::InitParticleCS ||
+      rootType == RootSignatureType::UpdateParticleCS ||
+      rootType == RootSignatureType::EmitParticleCS) {
+    // InitParticleCS / UpdateParticleCS / EmitParticleCS:
     // UAV u0 (Particles) + UAV u1 (FreeListIndex) + UAV u2 (FreeList) + CBV b0 (PerFrame)
     ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
     ranges[0].BaseShaderRegister = 0;

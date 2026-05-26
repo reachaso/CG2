@@ -3,17 +3,29 @@
 #include "GraphicsPipeline/GraphicsPipeline.h"
 #include "SRVManager/SRVManager.h"
 #include "struct.h"
+#include <array>
+#include <cstdint>
 #include <d3d12.h>
 #include <wrl/client.h>
 
 struct SceneContext;
 class PipelineManager;
+class DeferredReleaseQueue;
+
+/// @brief パーティクルの挙動タイプ
+enum class ParticleType : uint8_t {
+  Default,    ///< 上方向噴出（既存）
+  Explosion,  ///< 全方向放射（爆発）
+  Rain,       ///< 下方向落下（雨）
+  Count
+};
 
 /// @class GPUParticle
 /// @brief GPU 上で初期化・更新・描画を行うパーティクルシステム（FreeList 方式）
 /// @details Compute Shader でパーティクルデータを管理し、
 /// FreeList で寿命切れパーティクルを再利用する。
-/// EmitCS で射出、UpdateCS で更新・返却、VS で billboard 描画。
+/// EmitCS で射出、UpdateCS で更新、VS で billboard 描画。
+/// パーティクルタイプを切り替えることで、Emit/Update の CS を動的に差し替え可能。
 class GPUParticle {
 public:
   GPUParticle() = default;
@@ -41,9 +53,27 @@ public:
   /// @brief 毎フレームの射出数を設定
   void SetEmitCount(uint32_t count) { emitCount_ = count; }
 
+  /// @brief パーティクルタイプを設定する
+  /// @param type 新しいパーティクルタイプ
+  void SetParticleType(ParticleType type);
+
+  /// @brief 現在のパーティクルタイプを取得する
+  ParticleType GetParticleType() const { return currentType_; }
+
+  /// @brief 最大パーティクル数を設定する
+  /// @param maxCount 新しい最大パーティクル数
+  void SetMaxParticles(uint32_t maxCount);
+
 private:
-  static constexpr uint32_t kMaxParticles = 1024;
   static constexpr uint32_t Align256(uint32_t s) { return (s + 255u) & ~255u; }
+  static constexpr uint32_t kParticleTypeCount = static_cast<uint32_t>(ParticleType::Count);
+
+  /// @brief パーティクルタイプごとの Compute Shader セット
+  struct ParticleCSSet {
+    ComputeShader emit;    ///< 射出用 CS
+    ComputeShader update;  ///< 更新用 CS
+    bool ready = false;    ///< 両方の CS が初期化済みか
+  };
 
   // パーティクルバッファ（DEFAULT ヒープ、UAV 対応）
   Microsoft::WRL::ComPtr<ID3D12Resource> particleBuffer_;
@@ -70,10 +100,12 @@ private:
   // テクスチャ
   int texHandle_ = -1;
 
-  // Compute Shader
+  // Compute Shader: 初期化用（タイプ共通）
   ComputeShader initCS_;
-  ComputeShader emitCS_;
-  ComputeShader updateCS_;
+
+  // Compute Shader: タイプ別 Emit/Update セット
+  std::array<ParticleCSSet, kParticleTypeCount> csSets_{};
+  ParticleType currentType_ = ParticleType::Default;
 
   // PerFrame 定数バッファ（deltaTime 用、UPLOAD ヒープ）
   Microsoft::WRL::ComPtr<ID3D12Resource> perFrameCB_;
@@ -88,8 +120,14 @@ private:
   // 参照保持
   Microsoft::WRL::ComPtr<ID3D12Device> device_;
   SRVManager *srvMgr_ = nullptr;
+  DeferredReleaseQueue *deferredRelease_ = nullptr; ///< 遅延解放キュー（非所有）
 
   bool initialized_ = false;
   bool visible_ = true;
   bool needsCSInit_ = false;  ///< CS 初期化を初回フレームに遅延実行するフラグ
+
+  uint32_t maxParticles_ = 1024; ///< 現在の最大パーティクル数
+
+  /// @brief パーティクルバッファ類の再構築（最大数変更時）
+  void rebuildBuffers_();
 };

@@ -20,7 +20,12 @@ struct Particle
     float4 color;
 };
 
-static const uint kMaxParticles = 1024;
+cbuffer PerFrame : register(b0)
+{
+    float gDeltaTime;
+    uint gMaxParticles;
+    float2 gPadding;
+};
 
 RWStructuredBuffer<Particle> gParticles     : register(u0);
 RWStructuredBuffer<int>      gFreeListIndex : register(u1);
@@ -30,7 +35,7 @@ RWStructuredBuffer<uint>     gFreeList      : register(u2);
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint particleIndex = DTid.x;
-    if (particleIndex >= kMaxParticles)
+    if (particleIndex >= gMaxParticles)
     {
         return;
     }
@@ -38,12 +43,12 @@ void main(uint3 DTid : SV_DispatchThreadID)
     // パーティクルを非表示状態（scale=0）で初期化
     gParticles[particleIndex] = (Particle)0;
 
-    // FreeList を連番で初期化: [0, 1, 2, ..., kMaxParticles-1]
+    // FreeList を連番で初期化: [0, 1, 2, ..., gMaxParticles-1]
     gFreeList[particleIndex] = particleIndex;
 
     // スレッド 0 のみ: FreeListIndex を末尾に設定
     if (particleIndex == 0)
     {
-        gFreeListIndex[0] = (int)(kMaxParticles - 1);
+        gFreeListIndex[0] = (int)(gMaxParticles - 1);
     }
 }

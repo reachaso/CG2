@@ -1,9 +1,8 @@
 // ============================================================================
-// UpdateParticle.CS.hlsl
+// UpdateRain.CS.hlsl
 // ----------------------------------------------------------------------------
-// GPU Particle の毎フレーム更新用 Compute Shader。
-// velocity による移動、deltaTime による寿命管理、alpha 減衰を行う。
-// 寿命切れパーティクルは FreeList に返却する。
+// GPU Particle の雨エフェクト用 Update Compute Shader。
+// 重力加速度を適用して落下させ、地面到達で FreeList に返却する。
 //
 // u0 : gParticles      — パーティクルデータ (RWStructuredBuffer)
 // u1 : gFreeListIndex  — FreeList の現在のインデックス
@@ -30,6 +29,8 @@ cbuffer PerFrame : register(b0)
 };
 
 
+static const float kGravity = -0.001f;   // 重力加速度（フレーム単位）
+static const float kGroundY = -1.0f;     // 地面の高さ
 
 RWStructuredBuffer<Particle> gParticles     : register(u0);
 RWStructuredBuffer<int>      gFreeListIndex : register(u1);
@@ -50,6 +51,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
         return;
     }
 
+    // 重力加速度を速度に適用
+    gParticles[particleIndex].velocity.y += kGravity;
+
     // 速度による移動
     gParticles[particleIndex].translate += gParticles[particleIndex].velocity;
 
@@ -58,6 +62,13 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     // 寿命に基づくアルファ減衰
     float alpha = 1.0f - (gParticles[particleIndex].currentTime / gParticles[particleIndex].lifeTime);
+
+    // 地面到達チェック（地面以下なら即座に消滅）
+    if (gParticles[particleIndex].translate.y <= kGroundY)
+    {
+        alpha = 0.0f;
+    }
+
     gParticles[particleIndex].color.a = saturate(alpha);
 
     // alpha が 0 になったら FreeList に返却

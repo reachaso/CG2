@@ -27,12 +27,4 @@
 #include "Light/Area/AreaLightSource.h"
 
 // --- パーティクル ---
-#include "Particle.h"
-#include "Fire/FireParticle.h"
-#include "Rain/RainParticle.h"
-#include "Snow/SnowParticle.h"
-#include "Circle/CircleParticle.h"
-#include "Explosion/ExplosionParticle.h"
-#include "Laser/LaserParticle.h"
-#include "ImpactSpark/ImpactSparkParticle.h"
-#include "wind/WindParticle.h"
+#include "GPUParticle.h"
