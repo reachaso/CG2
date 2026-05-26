@@ -527,7 +527,11 @@ void ModelObject::UpdateAnimation(float dt) {
 
     // アニメーション時間を進める
     animationTime_ += dt;
-    animationTime_ = std::fmod(animationTime_, animation_.duration);
+    if (animation_.duration > 1e-6f) {
+        animationTime_ = std::fmod(animationTime_, animation_.duration);
+    } else {
+        animationTime_ = 0.0f;
+    }
 
     // Skeleton パス: 全Jointの階層行列を更新
     if (hasSkeleton_) {
@@ -542,19 +546,14 @@ void ModelObject::UpdateAnimation(float dt) {
             skinMatrices_.resize(ibpMatrices.size());
 
             for (const auto &[jointName, boneIdx] : skinData.jointNameToIndex) {
-                // Skeletonの同名ジョイントを探す
-                bool found = false;
-                for (const auto &joint : skeleton_.joints) {
-                    if (joint.name == jointName) {
-                        // T_i = IBP_i * SSM_i
-                        skinMatrices_[boneIdx] = Multiply(
-                            ibpMatrices[boneIdx],
-                            joint.skeletonSpaceMatrix);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
+                // jointMapを使って高速検索（O(1)）
+                auto jit = skeleton_.jointMap.find(jointName);
+                if (jit != skeleton_.jointMap.end()) {
+                    // T_i = IBP_i * SSM_i
+                    skinMatrices_[boneIdx] = Multiply(
+                        ibpMatrices[boneIdx],
+                        skeleton_.joints[jit->second].skeletonSpaceMatrix);
+                } else {
                     // ボーン名がSkeletonに無い場合は単位行列
                     skinMatrices_[boneIdx] = MakeIdentity4x4();
                 }
