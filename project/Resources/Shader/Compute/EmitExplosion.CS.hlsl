@@ -25,11 +25,12 @@ struct Particle
 
 cbuffer PerFrame : register(b0)
 {
-    float deltaTime;
-    float3 perFramePad;
+    float gDeltaTime;
+    uint gMaxParticles;
+    float2 gPadding;
 };
 
-static const uint kMaxParticles = 1024;
+
 
 RWStructuredBuffer<Particle> gParticles     : register(u0);
 RWStructuredBuffer<int>      gFreeListIndex : register(u1);
@@ -73,7 +74,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     int freeListIndex;
     InterlockedAdd(gFreeListIndex[0], -1, freeListIndex);
 
-    if (0 <= freeListIndex && freeListIndex < (int)kMaxParticles)
+    if (0 <= freeListIndex && freeListIndex < (int)gMaxParticles)
     {
         // FreeList から空きパーティクルインデックスを取得
         uint particleIndex = gFreeList[freeListIndex];

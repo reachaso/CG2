@@ -23,77 +23,9 @@ void GPUParticle::Initialize(SceneContext &ctx) {
   deferredRelease_ = &ctx.core->DeferredRelease();
 
   // ==================
-  // 1. パーティクル用バッファ作成（DEFAULT ヒープ、UAV 対応）
+  // 1〜3. パーティクル用バッファ・FreeList・UAV/SRV 作成
   // ==================
-  {
-    D3D12_HEAP_PROPERTIES heapProp{};
-    heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-    D3D12_RESOURCE_DESC bufDesc{};
-    bufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    bufDesc.Width = sizeof(ParticleCS) * kMaxParticles;
-    bufDesc.Height = 1;
-    bufDesc.DepthOrArraySize = 1;
-    bufDesc.MipLevels = 1;
-    bufDesc.SampleDesc.Count = 1;
-    bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    bufDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-    HRESULT hr = device_->CreateCommittedResource(
-        &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
-        D3D12_RESOURCE_STATE_COMMON, nullptr,
-        IID_PPV_ARGS(&particleBuffer_));
-    assert(SUCCEEDED(hr));
-    particleBuffer_->SetName(L"GPUParticle::particleBuffer");
-  }
-
-  // ==================
-  // 2. FreeList バッファ作成（DEFAULT ヒープ、UAV 対応）
-  // ==================
-  {
-    D3D12_HEAP_PROPERTIES heapProp{};
-    heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-    // FreeList: uint32_t × kMaxParticles
-    D3D12_RESOURCE_DESC bufDesc{};
-    bufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    bufDesc.Width = sizeof(uint32_t) * kMaxParticles;
-    bufDesc.Height = 1;
-    bufDesc.DepthOrArraySize = 1;
-    bufDesc.MipLevels = 1;
-    bufDesc.SampleDesc.Count = 1;
-    bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    bufDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-    HRESULT hr = device_->CreateCommittedResource(
-        &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
-        D3D12_RESOURCE_STATE_COMMON, nullptr,
-        IID_PPV_ARGS(&freeListBuffer_));
-    assert(SUCCEEDED(hr));
-    freeListBuffer_->SetName(L"GPUParticle::freeListBuffer");
-
-    // FreeListIndex: int32_t × 1
-    bufDesc.Width = sizeof(int32_t);
-    hr = device_->CreateCommittedResource(
-        &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
-        D3D12_RESOURCE_STATE_COMMON, nullptr,
-        IID_PPV_ARGS(&freeListIndexBuffer_));
-    assert(SUCCEEDED(hr));
-    freeListIndexBuffer_->SetName(L"GPUParticle::freeListIndexBuffer");
-  }
-
-  // ==================
-  // 3. UAV / SRV ビュー作成
-  // ==================
-  uavHandle_ = srvMgr_->CreateStructuredBufferUAV(
-      particleBuffer_.Get(), kMaxParticles, sizeof(ParticleCS));
-  srvHandle_ = srvMgr_->CreateStructuredBuffer(
-      particleBuffer_.Get(), kMaxParticles, sizeof(ParticleCS));
-
-  freeListIndexUavHandle_ = srvMgr_->CreateStructuredBufferUAV(
-      freeListIndexBuffer_.Get(), 1, sizeof(int32_t));
-  freeListUavHandle_ = srvMgr_->CreateStructuredBufferUAV(
-      freeListBuffer_.Get(), kMaxParticles, sizeof(uint32_t));
+  rebuildBuffers_();
 
   // ==================
   // 4. PerView 定数バッファ作成（UPLOAD ヒープ）
@@ -191,10 +123,11 @@ void GPUParticle::Initialize(SceneContext &ctx) {
                                      L"GPUParticle::perFrameCB");
   perFrameCB_->Map(0, nullptr, reinterpret_cast<void **>(&perFrameMapped_));
   *perFrameMapped_ = GPUParticlePerFrame{};
+  perFrameMapped_->maxParticles = maxParticles_;
 
   initialized_ = true;
   Log::Print(std::format("[GPUParticle] Initialized: {} particles (FreeList, {} types)",
-                         kMaxParticles, kParticleTypeCount));
+                         maxParticles_, kParticleTypeCount));
 }
 
 void GPUParticle::Finalize() {
@@ -317,9 +250,12 @@ void GPUParticle::Update(const RC::Matrix4x4 &view, const RC::Matrix4x4 &proj,
   perViewMapped_->billboardMatrix = billboard;
 
   // PerFrame 更新
-  if (perFrameMapped_) {
-    perFrameMapped_->deltaTime = deltaTime;
-  }
+  if (!visible_ || !initialized_)
+    return;
+
+  // 定数バッファの更新
+  perFrameMapped_->deltaTime = deltaTime;
+  perFrameMapped_->maxParticles = maxParticles_;
 }
 
 void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
@@ -327,12 +263,15 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
     return;
 
   // 初回フレームで CS 初期化を実行（OnEnter 時はコマンドリスト未準備のため遅延）
-  if (needsCSInit_) {
+  if (needsCSInit_ && initCS_.IsReady()) {
     initCS_.Bind(cl);
     initCS_.SetUAV(cl, 0, uavHandle_.gpu);
     initCS_.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
     initCS_.SetUAV(cl, 2, freeListUavHandle_.gpu);
-    initCS_.DispatchDirect(cl, 1, 1, 1);
+    if (perFrameCB_) {
+      initCS_.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
+    }
+    initCS_.Dispatch(cl, maxParticles_);
     ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
     ComputeShader::UAVBarrier(cl, freeListBuffer_.Get());
     ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
@@ -364,7 +303,7 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
       csSet.update.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
       csSet.update.SetUAV(cl, 2, freeListUavHandle_.gpu);
       csSet.update.SetCBV(cl, 3, perFrameCB_->GetGPUVirtualAddress());
-      csSet.update.DispatchDirect(cl, 1, 1, 1);
+      csSet.update.Dispatch(cl, maxParticles_);
       ComputeShader::UAVBarrier(cl, particleBuffer_.Get());
       ComputeShader::UAVBarrier(cl, freeListBuffer_.Get());
       ComputeShader::UAVBarrier(cl, freeListIndexBuffer_.Get());
@@ -401,10 +340,11 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   auto perViewAddr = perViewCB_->GetGPUVirtualAddress();
   auto srvGpu = srvHandle_.gpu;
   auto blend = blendMode_;
+  auto maxParticles = maxParticles_;
 
   RC::RenderContext::GetInstance().PushCommand3D(
       kParticleSortKey,
-      [capturedPso, vbView, vertexCount, perViewAddr, srvGpu, textureSrv,
+      [capturedPso, vbView, vertexCount, maxParticles, perViewAddr, srvGpu, textureSrv,
        blend](ID3D12GraphicsCommandList *cmdList) {
         BlendMode prevBlend = RC::GetBlendMode();
         RC::SetBlendMode(blend);
@@ -422,7 +362,7 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
         cmdList->SetGraphicsRootDescriptorTable(2, textureSrv);
 
         // インスタンシング描画
-        cmdList->DrawInstanced(vertexCount, kMaxParticles, 0, 0);
+        cmdList->DrawInstanced(vertexCount, maxParticles, 0, 0);
 
         RC::SetBlendMode(prevBlend);
       });
@@ -432,8 +372,14 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
 void GPUParticle::DrawImGui() {
   if (ImGui::TreeNode("GPUParticle")) {
     ImGui::Checkbox("Visible", &visible_);
-    int emit = static_cast<int>(emitCount_);
-    if (ImGui::SliderInt("Emit Count", &emit, 0, 100)) {
+  
+  int maxP = static_cast<int>(maxParticles_);
+  if (ImGui::SliderInt("Max Particles", &maxP, 256, 16384)) {
+    SetMaxParticles(static_cast<uint32_t>(maxP));
+  }
+
+  int emit = static_cast<int>(emitCount_);
+  if (ImGui::SliderInt("Emit Count", &emit, 0, 100)) {
       emitCount_ = static_cast<uint32_t>(emit);
     }
 
@@ -460,3 +406,93 @@ void GPUParticle::DrawImGui() {
 #else
 void GPUParticle::DrawImGui() {}
 #endif
+
+void GPUParticle::SetMaxParticles(uint32_t maxCount) {
+  if (maxParticles_ == maxCount) return;
+  maxParticles_ = maxCount;
+  
+  if (initialized_) {
+    rebuildBuffers_();
+  }
+}
+
+void GPUParticle::rebuildBuffers_() {
+  if (!device_ || !srvMgr_ || !deferredRelease_) return;
+
+  // 1. 既存リソースの遅延解放
+  if (particleBuffer_) {
+    deferredRelease_->Enqueue(particleBuffer_, UINT64_MAX);
+    particleBuffer_ = nullptr;
+  }
+  if (freeListBuffer_) {
+    deferredRelease_->Enqueue(freeListBuffer_, UINT64_MAX);
+    freeListBuffer_ = nullptr;
+  }
+  if (freeListIndexBuffer_) {
+    deferredRelease_->Enqueue(freeListIndexBuffer_, UINT64_MAX);
+    freeListIndexBuffer_ = nullptr;
+  }
+
+  // 既存ハンドルの即時解放 (GPU側はバッファ自体がFence待ちになるため安全)
+  if (uavHandle_.IsValid()) { srvMgr_->Free(uavHandle_); uavHandle_ = {}; }
+  if (srvHandle_.IsValid()) { srvMgr_->Free(srvHandle_); srvHandle_ = {}; }
+  if (freeListUavHandle_.IsValid()) { srvMgr_->Free(freeListUavHandle_); freeListUavHandle_ = {}; }
+  if (freeListIndexUavHandle_.IsValid()) { srvMgr_->Free(freeListIndexUavHandle_); freeListIndexUavHandle_ = {}; }
+
+  // 2. バッファ再作成
+  D3D12_HEAP_PROPERTIES heapProp{};
+  heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+  D3D12_RESOURCE_DESC bufDesc{};
+  bufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+  bufDesc.Height = 1;
+  bufDesc.DepthOrArraySize = 1;
+  bufDesc.MipLevels = 1;
+  bufDesc.SampleDesc.Count = 1;
+  bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+  bufDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+  // particleBuffer_
+  bufDesc.Width = sizeof(ParticleCS) * maxParticles_;
+  HRESULT hr = device_->CreateCommittedResource(
+      &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
+      D3D12_RESOURCE_STATE_COMMON, nullptr,
+      IID_PPV_ARGS(&particleBuffer_));
+  assert(SUCCEEDED(hr));
+  particleBuffer_->SetName(L"GPUParticle::particleBuffer");
+
+  // freeListBuffer_
+  bufDesc.Width = sizeof(uint32_t) * maxParticles_;
+  hr = device_->CreateCommittedResource(
+      &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
+      D3D12_RESOURCE_STATE_COMMON, nullptr,
+      IID_PPV_ARGS(&freeListBuffer_));
+  assert(SUCCEEDED(hr));
+  freeListBuffer_->SetName(L"GPUParticle::freeListBuffer");
+
+  // freeListIndexBuffer_
+  bufDesc.Width = sizeof(int32_t);
+  hr = device_->CreateCommittedResource(
+      &heapProp, D3D12_HEAP_FLAG_NONE, &bufDesc,
+      D3D12_RESOURCE_STATE_COMMON, nullptr,
+      IID_PPV_ARGS(&freeListIndexBuffer_));
+  assert(SUCCEEDED(hr));
+  freeListIndexBuffer_->SetName(L"GPUParticle::freeListIndexBuffer");
+
+  // 3. SRV / UAV 再作成
+  uavHandle_ = srvMgr_->CreateStructuredBufferUAV(
+      particleBuffer_.Get(), maxParticles_, sizeof(ParticleCS));
+  srvHandle_ = srvMgr_->CreateStructuredBuffer(
+      particleBuffer_.Get(), maxParticles_, sizeof(ParticleCS));
+  freeListIndexUavHandle_ = srvMgr_->CreateStructuredBufferUAV(
+      freeListIndexBuffer_.Get(), 1, sizeof(int32_t));
+  freeListUavHandle_ = srvMgr_->CreateStructuredBufferUAV(
+      freeListBuffer_.Get(), maxParticles_, sizeof(uint32_t));
+
+  // 次回の Update() の先頭で再初期化CSを走らせる
+  if (initCS_.IsReady()) {
+    needsCSInit_ = true;
+  }
+  if (perFrameMapped_) {
+    perFrameMapped_->maxParticles = maxParticles_;
+  }
+}

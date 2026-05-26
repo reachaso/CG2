@@ -25,10 +25,11 @@ struct Particle
 cbuffer PerFrame : register(b0)
 {
     float gDeltaTime;
-    float3 gPadding;
+    uint gMaxParticles;
+    float2 gPadding;
 };
 
-static const uint kMaxParticles = 1024;
+
 
 RWStructuredBuffer<Particle> gParticles     : register(u0);
 RWStructuredBuffer<int>      gFreeListIndex : register(u1);
@@ -38,7 +39,7 @@ RWStructuredBuffer<uint>     gFreeList      : register(u2);
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint particleIndex = DTid.x;
-    if (particleIndex >= kMaxParticles)
+    if (particleIndex >= gMaxParticles)
     {
         return;
     }
@@ -70,7 +71,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         InterlockedAdd(gFreeListIndex[0], 1, freeListIndex);
 
         // 最新の FreeListIndex の場所に死んだ ParticleIndex を設定
-        if ((freeListIndex + 1) < (int)kMaxParticles)
+        if ((freeListIndex + 1) < (int)gMaxParticles)
         {
             gFreeList[freeListIndex + 1] = particleIndex;
         }

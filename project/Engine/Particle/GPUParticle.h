@@ -60,8 +60,11 @@ public:
   /// @brief 現在のパーティクルタイプを取得する
   ParticleType GetParticleType() const { return currentType_; }
 
+  /// @brief 最大パーティクル数を設定する
+  /// @param maxCount 新しい最大パーティクル数
+  void SetMaxParticles(uint32_t maxCount);
+
 private:
-  static constexpr uint32_t kMaxParticles = 1024;
   static constexpr uint32_t Align256(uint32_t s) { return (s + 255u) & ~255u; }
   static constexpr uint32_t kParticleTypeCount = static_cast<uint32_t>(ParticleType::Count);
 
@@ -122,4 +125,9 @@ private:
   bool initialized_ = false;
   bool visible_ = true;
   bool needsCSInit_ = false;  ///< CS 初期化を初回フレームに遅延実行するフラグ
+
+  uint32_t maxParticles_ = 1024; ///< 現在の最大パーティクル数
+
+  /// @brief パーティクルバッファ類の再構築（最大数変更時）
+  void rebuildBuffers_();
 };
