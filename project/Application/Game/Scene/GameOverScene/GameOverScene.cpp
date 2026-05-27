@@ -40,6 +40,7 @@ void GameOverScene::OnEnter(SceneContext &ctx) {
   // ======= ポストエフェクト =======
   if (ctx.postProcess) {
     ctx.postProcess->AddEffect(PostEffectType::Grayscale);
+    ctx.postProcess->AddEffect(PostEffectType::GaussianFilter);
     ctx.postProcess->AddEffect(PostEffectType::RandomNoise);
   }
 
