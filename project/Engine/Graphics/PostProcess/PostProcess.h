@@ -19,6 +19,7 @@ enum class PostEffectType {
   Sepia,      ///< セピア調
   Vignette,   ///< ビネット（周辺減光）
   BoxFilter,  ///< ボックスフィルタ（平滑化）
+  GaussianFilter, ///< ガウシアンフィルタ（ガウス分布による平滑化）
   DepthBasedOutline, ///< 深度ベースアウトライン
   RadialBlur, ///< ラジアルブラー
   Dissolve,   ///< ディゾルブ（ノイズマスクによる消失演出）
@@ -175,6 +176,7 @@ private:
   GraphicsPipeline *pipelineSepia_ = nullptr;
   GraphicsPipeline *pipelineVignette_ = nullptr;
   GraphicsPipeline *pipelineBoxFilter_ = nullptr;
+  GraphicsPipeline *pipelineGaussianFilter_ = nullptr;
   GraphicsPipeline *pipelineDepthBasedOutline_ = nullptr;
   GraphicsPipeline *pipelineRadialBlur_ = nullptr;
   GraphicsPipeline *pipelineDissolve_ = nullptr;
@@ -206,6 +208,8 @@ private:
   bool pingPongInitialized_ = false;
 
   int boxFilterK_ = 1; ///< BoxFilter のカーネル半径（1 = 3x3, 2 = 5x5, ...）
+  int gaussianFilterK_ = 1; ///< GaussianFilter のカーネル半径
+  float gaussianSigma_ = 2.0f; ///< GaussianFilter の標準偏差
 
   // RadialBlur パラメータ
   struct {

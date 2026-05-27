@@ -926,6 +926,21 @@ void PipelineManager::RegisterDefaultPipelines() {
                     InputLayoutType::None, opt);
   }
 
+  // gaussianfilter：ガウシアンフィルタ
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::PostProcess;
+    opt.enableDepth = false;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = false;
+    opt.cull = D3D12_CULL_MODE_NONE;
+
+    CreateFromFiles("gaussianfilter.none",
+                    fullscreenVs,
+                    L"Resources/Shader/GaussianFilter/GaussianFilter.PS.hlsl",
+                    InputLayoutType::None, opt);
+  }
+
   // depthbasedoutline：深度ベースアウトライン
   {
     GPipelineOptions opt{};
