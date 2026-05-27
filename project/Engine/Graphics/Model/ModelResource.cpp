@@ -210,7 +210,7 @@ void ModelResource::Draw(ID3D12GraphicsCommandList *cmdList,
 
     // 描画
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
-      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, it.vertexStart, 0);
+      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, 0, 0);
     } else {
       cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
     }
@@ -286,7 +286,7 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
                                  : GetSrvForMaterial_(it.materialIndex);
       cmdList->SetGraphicsRootDescriptorTable(2, srv);
       if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
-        cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, it.vertexStart, 0);
+        cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, 0, 0);
       } else {
         cmdList->DrawInstanced(it.vertexCount, count, it.vertexStart, 0);
       }
@@ -364,7 +364,7 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
                                  : GetSrvForMaterial_(it.materialIndex);
       cmdList->SetGraphicsRootDescriptorTable(2, srv);
       if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
-        cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, it.vertexStart, 0);
+        cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, 0, 0);
       } else {
         cmdList->DrawInstanced(it.vertexCount, count, it.vertexStart, 0);
       }
@@ -462,7 +462,7 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
     cmdList->SetGraphicsRootDescriptorTable(2, srv);
 
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
-      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, it.vertexStart, 0);
+      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, 0, 0);
     } else {
       cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
     }
@@ -639,7 +639,7 @@ void ModelResource::DrawSkinnedCS(ID3D12GraphicsCommandList *cmdList,
     cmdList->SetGraphicsRootDescriptorTable(2, srv);
 
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
-      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, it.vertexStart, 0);
+      cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, 0, 0);
     } else {
       cmdList->DrawInstanced(it.vertexCount, 1, it.vertexStart, 0);
     }
