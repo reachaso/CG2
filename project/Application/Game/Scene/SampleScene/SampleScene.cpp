@@ -56,6 +56,8 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   tx_ball = RC::LoadTex("Resources/monsterBall.png");
   sprite = RC::LoadSprite("Resources/uvChecker.png", ctx);
 
+  multiMesh = RC::LoadModel("Resources/model/multiMesh");
+
   skybox = RC::CreateSkyBox("Resources/Skybox/skybox.dds");
   skyboxT_ = RC::GetSkyBoxTransformPtr(skybox);
 
@@ -280,6 +282,8 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
 
   RC::DrawModelGlassTwoPass(blockModel);
 
+  RC::DrawModel(multiMesh);
+
   // === GPU Particle 描画 ===
   if (gpuParticle_) {
     gpuParticle_->Render(ctx, cl);
@@ -339,6 +343,8 @@ void SampleScene::DrawImGui() {
       RC::DrawImGui3D(blockModel, "blockModel");
       // 色変更用
       ImGui::ColorEdit4("blockColor", &blockColor_.x);
+
+      RC::DrawImGui3D(multiMesh, "multiMesh");
 
       ImGui::EndTabItem();
     }

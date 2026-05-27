@@ -17,6 +17,7 @@ const char* ToString(PostEffectType type) {
   case PostEffectType::Sepia:     return "Sepia";
   case PostEffectType::Vignette:  return "Vignette";
   case PostEffectType::BoxFilter: return "BoxFilter";
+  case PostEffectType::GaussianFilter: return "GaussianFilter";
   case PostEffectType::DepthBasedOutline: return "DepthBasedOutline";
   case PostEffectType::RadialBlur: return "RadialBlur";
   case PostEffectType::Dissolve:   return "Dissolve";
@@ -64,6 +65,9 @@ void PostProcess::Initialize(Dx12Core *dxCore,
 
   pipelineBoxFilter_ = pipelineManager_->Get("boxfilter.none");
   assert(pipelineBoxFilter_ && "Failed to get boxfilter pipeline");
+
+  pipelineGaussianFilter_ = pipelineManager_->Get("gaussianfilter.none");
+  assert(pipelineGaussianFilter_ && "Failed to get gaussianfilter pipeline");
 
   pipelineDepthBasedOutline_ = pipelineManager_->Get("depthbasedoutline.none");
   assert(pipelineDepthBasedOutline_ && "Failed to get depthbasedoutline pipeline");
@@ -371,6 +375,8 @@ GraphicsPipeline *PostProcess::GetPipelineForEffect(PostEffectType type) {
     return pipelineVignette_;
   case PostEffectType::BoxFilter:
     return pipelineBoxFilter_;
+  case PostEffectType::GaussianFilter:
+    return pipelineGaussianFilter_;
   case PostEffectType::DepthBasedOutline:
     return pipelineDepthBasedOutline_;
   case PostEffectType::RadialBlur:
@@ -428,6 +434,9 @@ void PostProcess::DrawSinglePass(ID3D12GraphicsCommandList *cmdList,
 
   if (effectType == PostEffectType::BoxFilter) {
     constants.param0 = static_cast<uint32_t>(boxFilterK_);
+  } else if (effectType == PostEffectType::GaussianFilter) {
+    constants.param0 = static_cast<uint32_t>(gaussianFilterK_);
+    constants.param1 = *(uint32_t *)&gaussianSigma_;
   } else if (effectType == PostEffectType::RadialBlur) {
     constants.param0 = *(uint32_t *)&radialBlurCenter_.x;
     constants.param1 = *(uint32_t *)&radialBlurCenter_.y;
@@ -605,6 +614,22 @@ void PostProcess::DrawImGui([[maybe_unused]] const char *label) {
     if (boxFilter) {
       ImGui::Indent();
       ImGui::SliderInt("K", &boxFilterK_, 1, 10);
+      ImGui::Unindent();
+    }
+
+    bool gaussianFilter = HasEffect(PostEffectType::GaussianFilter);
+    if (ImGui::Checkbox("GaussianFilter", &gaussianFilter)) {
+      if (gaussianFilter) {
+        AddEffect(PostEffectType::GaussianFilter);
+      } else {
+        RemoveEffect(PostEffectType::GaussianFilter);
+      }
+    }
+
+    if (gaussianFilter) {
+      ImGui::Indent();
+      ImGui::SliderInt("Gaussian K", &gaussianFilterK_, 1, 10);
+      ImGui::SliderFloat("Gaussian Sigma", &gaussianSigma_, 0.1f, 10.0f);
       ImGui::Unindent();
     }
 
