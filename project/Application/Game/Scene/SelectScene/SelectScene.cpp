@@ -101,33 +101,20 @@ void SelectScene::OnExit(SceneContext &) {
 void SelectScene::Update(SceneManager &sm, SceneContext &ctx) {
 
 #if RC_ENABLE_IMGUI
-
   ImGui::Begin("Stage Select");
   ImGui::Text("Use A/D to select stage.");
   ImGui::Text("Press SPACE to start the game.");
   ImGui::Separator();
   ImGui::Text("Selected Stage: %d", selectStage + 1);
   ImGui::End();
-
 #endif
 
-  // ======= カメラ更新 =======
-  // 固定デルタタイム
   const float dt = 1.0f / 60.0f;
-  ctx.camera->Update(dt);
-
-  // ======= ビュー・プロジェクション更新 =======
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
   // ======= スカイドーム更新 =======
   if (skydomeT_) {
-    // カメラ座標に追従
     skydomeT_->translation = ctx.camera->GetWorldPos();
-    // 高さオフセット
     skydomeT_->translation.y -= 10.0f;
-    // 自転処理
     skydomeT_->rotation.y += 0.0005f;
   }
 

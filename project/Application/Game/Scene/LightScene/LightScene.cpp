@@ -101,14 +101,6 @@ void LightScene::Update(SceneManager &sm, SceneContext &ctx) {
   // 更新処理
   // ===========================================
 
-  ctx.camera->Update();
-
-  // viewとprojを渡す
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
-
   if (ctx.isPlaying()) {
     // ==============================
     // キー入力でライト操作

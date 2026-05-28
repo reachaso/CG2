@@ -282,9 +282,15 @@ void Scene::SceneManager::Update(SceneContext &ctx) {
     fade_->Update();
   }
 
-  // 現在の状態に更新処理を委譲
+  // 現在の状態に更新処理を委譲（シーンのUpdate内でカメラモード切替等が行われる）
   if (state_) {
     state_->Update(*this, ctx);
+  }
+
+  // カメラ更新 & ビュー/プロジェクション反映（全シーン共通）
+  if (camera_) {
+    camera_->Update();
+    RC::SetCamera(camera_->GetView(), camera_->GetProjection(), camera_->GetWorldPos());
   }
 }
 

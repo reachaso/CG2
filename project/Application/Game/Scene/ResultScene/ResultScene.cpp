@@ -8,7 +8,6 @@ ResultScene::~ResultScene() {
   SceneContext dummy{};
   OnExit(dummy);
 }
-#include "imgui/imgui.h"
 
 void ResultScene::OnEnter(SceneContext &ctx) {
   // カメラは SceneManager が所有 (ctx.camera)
@@ -24,8 +23,7 @@ void ResultScene::OnEnter(SceneContext &ctx) {
   clearModel = RC::LoadModel("Resources/UI/Clear.obj");
   clearModelT_ = RC::GetModelTransformPtr(clearModel);
   tx_white = RC::LoadTex("Resources/white1x1.png");
-  RC::SetModelColor(clearModel, {1.0f, 1.0f, 1.0f, 1.0f}); // 白色
-  // カメラ位置(0, 5, -20)に対して、正面の距離に配置する
+  RC::SetModelColor(clearModel, {1.0f, 1.0f, 1.0f, 1.0f});
   if (clearModelT_) {
     clearModelT_->translation = {0.0f, 5.0f, -10.0f};
     clearModelT_->scale = {1.0f, 1.0f, 1.0f};
@@ -49,24 +47,10 @@ void ResultScene::OnExit(SceneContext &ctx) {
 }
 
 void ResultScene::Update(SceneManager &sm, SceneContext &ctx) {
-
-  // ======= カメラ更新 =======
-  // 固定デルタタイム
-  const float dt = 1.0f / 60.0f;
-  ctx.camera->Update(dt);
-
-  // ======= ビュー・プロジェクション更新 =======
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
-
   // ======= スカイドーム更新 =======
   if (skydomeT_) {
-    // カメラ座標に追従
     skydomeT_->translation = ctx.camera->GetWorldPos();
-    // 高さオフセット
     skydomeT_->translation.y -= 10.0f;
-    // 自転処理
     skydomeT_->rotation.y += 0.0005f;
   }
 

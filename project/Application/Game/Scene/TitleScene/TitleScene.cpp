@@ -51,16 +51,6 @@ void TitleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
     frameCount++;
 
-  // ======= カメラ更新 =======
-  // 固定デルタタイム
-  const float dt = 1.0f / 60.0f;
-  ctx.camera->Update(dt);
-
-  // ======= ビュー・プロジェクション更新 =======
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
-
   // タイトルモデルをふわふわ動かす
   if (titleT_) {
     const float t = frameCount * 0.02f;
@@ -82,6 +72,7 @@ void TitleScene::Update(SceneManager &sm, SceneContext &ctx) {
     const float alpha = 0.35f + (std::sin(t) * 0.5f + 0.5f) * 0.55f;
     RC::SetSpriteColor(guideSprite, {1.0f, 1.0f, 1.0f, alpha});
   }
+
 
   if (ctx.input->IsKeyTrigger(DIK_SPACE)) {
     sm.RequestChange("Select");

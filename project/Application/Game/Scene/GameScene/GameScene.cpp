@@ -181,13 +181,11 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
     isPaused_ = !isPaused_;
 
     if (isPaused_) {
-      // 黒い半透明を貼る
       pauseOverlay_.Start(Fade::Status::kOverlay, 0.0f, pauseOverlayAlpha_);
       if (ctx.postProcess) {
         ctx.postProcess->AddEffect(PostEffectType::BoxFilter);
       }
     } else {
-      // 解除（描画しないので Stop は必須じゃないけど、気持ちよく）
       pauseOverlay_.Stop();
       if (ctx.postProcess) {
         ctx.postProcess->RemoveEffect(PostEffectType::BoxFilter);
@@ -199,14 +197,7 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
   // ポーズ中：ゲーム更新を止める
   // =========================================================
   if (isPaused_) {
-    // overlayは固定表示だけど、呼んでもOK
     pauseOverlay_.Update();
-
-    // カメラは止める（Updateしない）
-    // ただし描画用に SetCamera は毎フレーム流しておくと安心
-    view_ = ctx.camera->GetView();
-    proj_ = ctx.camera->GetProjection();
-    RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
     return;
   }
 
@@ -216,23 +207,17 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   // ======= スカイドーム更新 =======
   if (skydomeT_) {
-    // カメラ座標に追従
     skydomeT_->translation = ctx.camera->GetWorldPos();
-    // 高さオフセット
     skydomeT_->translation.y -= skydomeTranslateY_;
-    // 自転処理
     skydomeT_->rotation.y += skydomeRotateSpeed_;
   }
 
   // ======= エンティティ更新 =======
-  // プレイヤー更新
   player_->Update();
-  // コイン更新
   for (auto &c : coins_) {
     if (c)
       c->Update();
   }
-  // ゴール更新
   for (auto &g : goals_) {
     if (g)
       g->Update();
@@ -254,7 +239,6 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   // ======= コイン取得判定 =======
   {
-    // プレイヤー座標
     const RC::Vector3 p = player_->GetWorldPos();
 
     for (auto &c : coins_) {
@@ -263,20 +247,16 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
       if (!c->IsAlive() || c->IsCollected())
         continue;
 
-      // コイン座標
       const RC::Vector3 cp = c->GetWorldPos();
-      // 2D距離
       const float dx = std::abs(p.x - cp.x);
       const float dy = std::abs(p.y - cp.y);
 
-      // 当たり判定
       if (dx < 0.6f && dy < 0.6f) {
         player_->GetCoin(1);
         c->GetCoin();
       }
     }
 
-    // 消失コイン整理
     for (auto it = coins_.begin(); it != coins_.end();) {
       if (*it && !(*it)->IsAlive()) {
         RC::UnloadModel((*it)->ModelHandle());
@@ -312,23 +292,9 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
       }
     }
   }
-
-  // ======= カメラ更新 =======
-  // 固定デルタタイム
-  const float dt = 1.0f / 60.0f;
-  ctx.camera->Update(dt);
-
-  // ======= ビュー・プロジェクション更新 =======
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 }
 
 void GameScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
-  // ==============
-  // 描画処理
-  // ==============
-
   // ======= 3D描画 =======
   RC::PreDraw3D(ctx, cl);
   

@@ -8,7 +8,6 @@ GameOverScene::~GameOverScene() {
   SceneContext dummy{};
   OnExit(dummy);
 }
-#include "imgui/imgui.h"
 
 void GameOverScene::OnEnter(SceneContext &ctx) {
   // カメラは SceneManager が所有 (ctx.camera)
@@ -53,29 +52,16 @@ void GameOverScene::OnExit(SceneContext &ctx) {
 }
 
 void GameOverScene::Update(SceneManager &sm, SceneContext &ctx) {
-
-  // ======= カメラ更新 =======
-  // 固定デルタタイム
-  const float dt = 1.0f / 60.0f;
-  ctx.camera->Update(dt);
-
   // 徐々にノイズを強くする演出
-  noiseIntensity_ += dt * 0.2f; // 約5秒で強度が最大(1.0)になるペース
-  if (noiseIntensity_ > 0.85f) noiseIntensity_ = 0.85f; // 最大でも0.85に抑える（少し元絵を残す）
+  const float dt = 1.0f / 60.0f;
+  noiseIntensity_ += dt * 0.2f;
+  if (noiseIntensity_ > 0.85f) noiseIntensity_ = 0.85f;
   RC::SetRandomNoiseIntensity(noiseIntensity_);
-
-  // ======= ビュー・プロジェクション更新 =======
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
   // ======= スカイドーム更新 =======
   if (skydomeT_) {
-    // カメラ座標に追従
     skydomeT_->translation = ctx.camera->GetWorldPos();
-    // 高さオフセット
     skydomeT_->translation.y -= 10.0f;
-    // 自転処理
     skydomeT_->rotation.y += 0.0005f;
   }
 
@@ -88,7 +74,6 @@ void GameOverScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   RC::PreDraw3D(ctx, cl);
 
   RC::DrawSkydome(skydomeModel);
-  
   RC::DrawModel(gameOverModel, tx_white);
 
   RC::PreDraw2D(ctx, cl);
