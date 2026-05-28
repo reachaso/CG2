@@ -15,6 +15,9 @@
 #include "ECS/SkydomeComponent.h"
 #include "ECS/LightComponent.h"
 #include "ECS/CameraComponent.h"
+#include "ECS/AnimationComponent.h"
+#include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/SpriteRendererComponent.h"
 #include "Render/RenderCommon.h"
 #include "Math/Math.h"
 
@@ -418,7 +421,49 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
             if (ImGui::CollapsingHeader("Model Renderer", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Checkbox("Visible", &ren->visible);
+               ImGui::ColorEdit4("Color##Model", &ren->color.x);
+               ImGui::DragFloat("Env Reflection", &ren->environmentCoeff, 0.01f, 0.0f, 1.0f);
                ImGui::Text("Model Handle: %d", ren->modelHandle);
+            }
+        }
+
+        if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
+            if (ImGui::CollapsingHeader("Primitive Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##PM", &pm->visible);
+               static const char* typeNames[] = {
+                   "Sphere", "Box", "Plane", "Cylinder", "Cone", "Torus", "Capsule"
+               };
+               int typeIdx = static_cast<int>(pm->type);
+               ImGui::Text("Type: %s", (typeIdx >= 0 && typeIdx < 7) ? typeNames[typeIdx] : "Unknown");
+               ImGui::DragFloat("Env Reflection##PM", &pm->environmentCoeff, 0.01f, 0.0f, 1.0f);
+               ImGui::Text("Mesh Handle: %d", pm->meshHandle);
+            }
+        }
+
+        if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+            if (ImGui::CollapsingHeader("Sprite Renderer", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##Spr", &spr->visible);
+               ImGui::DragFloat2("Size", &spr->size.x, 1.0f, 0.0f, 4096.0f);
+               ImGui::ColorEdit4("Color##Spr", &spr->color.x);
+               ImGui::Text("Sprite Handle: %d", spr->spriteHandle);
+            }
+        }
+
+        if (auto* anim = e->GetComponent<AnimationComponent>()) {
+            if (ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Playing", &anim->playing);
+               ImGui::DragFloat("Speed", &anim->speed, 0.05f, 0.0f, 10.0f);
+               // スキンデータがあるモデルのみ Show Skeleton を表示
+               if (auto* ren2 = e->GetComponent<ModelRendererComponent>()) {
+                   if (ren2->HasModel() && RC::HasModelSkinData(ren2->modelHandle)) {
+                       ImGui::Checkbox("Show Skeleton", &anim->showSkeleton);
+                   }
+               }
+               if (!anim->animationPath.empty()) {
+                   ImGui::Text("Anim File: %s", anim->animationPath.c_str());
+               } else {
+                   ImGui::TextDisabled("Anim: Embedded");
+               }
             }
         }
 

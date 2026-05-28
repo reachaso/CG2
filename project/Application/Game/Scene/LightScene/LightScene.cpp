@@ -6,13 +6,7 @@
 #include "imgui/imgui.h"
 
 void LightScene::OnEnter(SceneContext &ctx) {
-  // =============================
-  // Camera
-  // =============================
-
-  camera_.Initialize(ctx.input, RC::Vector3{0.0f, 0.35f, -15.0f},
-                     RC::Vector3{0.0f, -0.0f, 0.0f}, 0.45f,
-                     float(ctx.app->width) / ctx.app->height, 0.1f, 100.0f);
+  // カメラは SceneManager が所有 (ctx.camera)
 
   terrain_ = RC::LoadModel("Resources/model/terrain");
   terrainT_ = RC::GetModelTransformPtr(terrain_);
@@ -101,18 +95,19 @@ void LightScene::OnExit(SceneContext &ctx) {
 void LightScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   DrawImGui();
+  ctx.camera->DrawImGui();
 
   // ===========================================
   // 更新処理
   // ===========================================
 
-  camera_.Update();
+  ctx.camera->Update();
 
   // viewとprojを渡す
-  view_ = camera_.GetView();
-  proj_ = camera_.GetProjection();
+  view_ = ctx.camera->GetView();
+  proj_ = ctx.camera->GetProjection();
 
-  RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
   if (ctx.isPlaying()) {
     // ==============================
@@ -215,7 +210,7 @@ void LightScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
 void LightScene::DrawImGui() {
 #if RC_ENABLE_IMGUI
 
-  camera_.DrawImGui();
+
 
   ImGui::Begin("Debug");
 

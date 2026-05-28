@@ -18,50 +18,17 @@ public:
 private:
   RC::Matrix4x4 view_, proj_;
 
-  // カメラ
-  RC::CameraController camera_;
-
-
   // ===============
   // 3Dモデル
   // ===============
 
   int tx_model = -1;
-
-  // ===== AnimatedCube =====
-  int animatedCube_ = -1;
-
-  // ===== Skeletonテストモデル =====
-  int walkModel_ = -1;
-  int simpleSkinModel_ = -1;
-
-  // ===== プリミティブメッシュ (PrimitiveMesh) =====
-  int primitiveSphere = -1;
   int tx_ball = -1;
-  Transform *primitiveSphereT_ = nullptr;
-
-  int testBox = -1;
-  int testPlane = -1;
-  int testCylinder = -1;
-  int testCone = -1;
-  int testTorus = -1;
-  int testCapsule = -1;
-
-  int multiMesh = -1;
-
-  // ===============
-  // スプライト
-  // ===============
-
-  int sprite = -1;
 
   float t = 0.0f;
 
   RC::Vector4 fogColor_ = {0.1f, 0.45f, 0.9f, 0.35f};
   bool isFogEnabled_ = false;
-
-  Transform spriteTransform_;
-  RC::Vector2 spriteSize_ = {100.0f, 100.0f};
 
   // ===============
   // GPU Particle

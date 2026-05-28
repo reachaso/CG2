@@ -10,16 +10,7 @@ GameScene::~GameScene() {
 }
 
 void GameScene::OnEnter(SceneContext &ctx) {
-  // ==============
-  // シーン初期化
-  // ==============
-
-  // ======= カメラ初期化 =======
-  // 視錐台パラメータ
-  const float kNearZ = 0.1f;
-  const float kFarZ = 1000.0f;
-  camera_.Initialize(ctx.input, {5, 5, -30}, {0, 0, 0}, 0.45f,
-                     float(ctx.app->width) / ctx.app->height, kNearZ, kFarZ);
+  // カメラは SceneManager が所有 (ctx.camera)
 
   // ======= ブロックモデル =======
   blockModel = RC::LoadModel("Resources/model/block");
@@ -56,9 +47,7 @@ void GameScene::OnEnter(SceneContext &ctx) {
 
   // ======= コイン生成 =======
   {
-    // コインモデルパス
     const char *kCoinModelPath = "Resources/model/coin/coin.obj";
-    // 出現セル一覧
     const auto &spawns = map_.CoinSpawns();
     coins_.reserve(spawns.size());
 
@@ -68,9 +57,7 @@ void GameScene::OnEnter(SceneContext &ctx) {
       auto coin = std::make_unique<Coin>();
       coin->Init(coinModel, ctx);
 
-      // コイン中心座標
       RC::Vector3 pos = map_.IndexToCenter(idx);
-      // 浮かせたい場合は pos.y += 0.3f のように調整
       coin->SetWorldPos(pos);
 
       coins_.push_back(std::move(coin));
@@ -104,33 +91,27 @@ void GameScene::OnEnter(SceneContext &ctx) {
   skydomeModel = RC::GenerateSkydomeEx(txSphere_, 100.0f);
   skydomeT_ = RC::GetSkydomeTransformPtr(skydomeModel);
   RC::SetSkydomeColor(skydomeModel, {0.6f, 1.0f, 1.0f, 1.0f});
-  // カメラ座標に追従
-  skydomeT_->translation = camera_.GetWorldPos();
-  // 高さオフセット
+  skydomeT_->translation = ctx.camera->GetWorldPos();
   skydomeT_->translation.y -= skydomeTranslateY_;
-  // 自転処理
   skydomeT_->rotation.y += skydomeRotateSpeed_;
 
   // ======= 追従カメラ設定 =======
   if (Transform *pt = RC::GetModelTransformPtr(playerModel)) {
-    // プレイヤーモデルをターゲットに設定
-    camera_.SetTarget(pt);
+    ctx.camera->SetTarget(pt);
   }
 
   // ======= マップ境界設定 =======
   {
-    // ブロック寸法
     const float s = map_.BlockSize();
     const float half = s * 0.5f;
 
-    // 視界制限境界
     const float left = -half;
     const float right = (map_.Width() - 1) * s + half;
     const float bottom = -half;
     const float top = (map_.Height() - 1) * s + half;
 
     const bool enable = (map_.Width() > 0 && map_.Height() > 0);
-    camera_.SetFollowBounds(left, right, bottom, top, enable);
+    ctx.camera->SetFollowBounds(left, right, bottom, top, enable);
   }
 
   // ======= ポーズ用オーバーレイ初期化 =======
@@ -189,7 +170,7 @@ void GameScene::OnExit(SceneContext &ctx) {
 
 void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
-  camera_.DrawImGui();
+  ctx.camera->DrawImGui();
   RC::DrawImGui3D(blockModel, "block");
 #endif
 
@@ -223,9 +204,9 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
 
     // カメラは止める（Updateしない）
     // ただし描画用に SetCamera は毎フレーム流しておくと安心
-    view_ = camera_.GetView();
-    proj_ = camera_.GetProjection();
-    RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+    view_ = ctx.camera->GetView();
+    proj_ = ctx.camera->GetProjection();
+    RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
     return;
   }
 
@@ -236,7 +217,7 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
   // ======= スカイドーム更新 =======
   if (skydomeT_) {
     // カメラ座標に追従
-    skydomeT_->translation = camera_.GetWorldPos();
+    skydomeT_->translation = ctx.camera->GetWorldPos();
     // 高さオフセット
     skydomeT_->translation.y -= skydomeTranslateY_;
     // 自転処理
@@ -335,12 +316,12 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
   // ======= カメラ更新 =======
   // 固定デルタタイム
   const float dt = 1.0f / 60.0f;
-  camera_.Update(dt);
+  ctx.camera->Update(dt);
 
   // ======= ビュー・プロジェクション更新 =======
-  view_ = camera_.GetView();
-  proj_ = camera_.GetProjection();
-  RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+  view_ = ctx.camera->GetView();
+  proj_ = ctx.camera->GetProjection();
+  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 }
 
 void GameScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {

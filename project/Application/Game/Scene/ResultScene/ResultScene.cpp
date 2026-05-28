@@ -11,15 +11,11 @@ ResultScene::~ResultScene() {
 #include "imgui/imgui.h"
 
 void ResultScene::OnEnter(SceneContext &ctx) {
-  // ======= カメラ初期化 =======
-  // 視錐台パラメータ
-  const float kNearZ = 0.1f;
-  const float kFarZ = 1000.0f;
-  camera_.Initialize(ctx.input, {0, 5, -20}, {0, 0, 0}, 0.45f,
-                     float(ctx.app->width) / ctx.app->height, kNearZ, kFarZ);
+  // カメラは SceneManager が所有 (ctx.camera)
 
   // ======= スカイドーム生成 =======
   txSphere_ = RC::LoadTex("Resources/skydome.jpg");
+  const float kFarZ = 1000.0f;
   const float kSkyRadius = kFarZ * 0.95f;
   skydomeModel = RC::GenerateSkydomeEx(txSphere_, kSkyRadius);
   skydomeT_ = RC::GetSkydomeTransformPtr(skydomeModel);
@@ -57,17 +53,17 @@ void ResultScene::Update(SceneManager &sm, SceneContext &ctx) {
   // ======= カメラ更新 =======
   // 固定デルタタイム
   const float dt = 1.0f / 60.0f;
-  camera_.Update(dt);
+  ctx.camera->Update(dt);
 
   // ======= ビュー・プロジェクション更新 =======
-  view_ = camera_.GetView();
-  proj_ = camera_.GetProjection();
-  RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+  view_ = ctx.camera->GetView();
+  proj_ = ctx.camera->GetProjection();
+  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
   // ======= スカイドーム更新 =======
   if (skydomeT_) {
     // カメラ座標に追従
-    skydomeT_->translation = camera_.GetWorldPos();
+    skydomeT_->translation = ctx.camera->GetWorldPos();
     // 高さオフセット
     skydomeT_->translation.y -= 10.0f;
     // 自転処理

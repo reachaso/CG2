@@ -12,6 +12,9 @@
 #include "ECS/SkydomeComponent.h"
 #include "ECS/LightComponent.h"
 #include "ECS/CameraComponent.h"
+#include "ECS/AnimationComponent.h"
+#include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/SpriteRendererComponent.h"
 #include <future>
 #include <vector>
 
@@ -23,14 +26,8 @@ SampleScene::~SampleScene() {
 void SampleScene::OnEnter(SceneContext &ctx) {
 
   // =============================
-  // Camera
+  // Camera (エディタカメラは SceneManager が所有 - ctx.camera)
   // =============================
-
-  camera_.Initialize(ctx.input, RC::Vector3{0.0f, 0.35f, -15.0f},
-                     RC::Vector3{0.0f, -0.0f, 0.0f}, 0.45f,
-                     float(ctx.app->width) / ctx.app->height, 0.1f, 100.0f);
-  // 非再生時はデバッグカメラ（Editorカメラ）をデフォルトで有効に
-  camera_.SetUseDebug(true);
 
   // メインカメラのEntity化
   auto camEntity = CreateEntity("MainCamera");
@@ -113,14 +110,14 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   blockEntity->AddComponent<TransformComponent>();
   auto& blockRen = blockEntity->AddComponent<ModelRendererComponent>();
   blockRen.modelHandle = RC::LoadModel("Resources/model/block");
-  RC::SetModelColor(blockRen.modelHandle, {0.8f, 0.9f, 1.0f, 0.12f}); // ちょい青で透明
+  blockRen.color = {0.8f, 0.9f, 1.0f, 0.12f}; // ちょい青で透明
 
   auto teapotEntity = CreateEntity("Teapot");
   teapotEntity->AddComponent<TransformComponent>();
   auto& teapotRen = teapotEntity->AddComponent<ModelRendererComponent>();
   teapotRen.modelHandle = RC::LoadModel("Resources/model/teapot");
   teapotRen.texOverride = tx_model;
-  RC::SetModelEnvironmentCoefficient(teapotRen.modelHandle, 0.5f);
+  teapotRen.environmentCoeff = 0.5f;
 
   auto terrainEntity = CreateEntity("Terrain");
   auto& terrainTr = terrainEntity->AddComponent<TransformComponent>();
@@ -128,10 +125,14 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   auto& terrainRen = terrainEntity->AddComponent<ModelRendererComponent>();
   terrainRen.modelHandle = RC::LoadModel("Resources/model/terrain");
 
-  // それ以外のハードコードモデル
+  // テクスチャロード
   tx_ball = RC::LoadTex("Resources/monsterBall.png");
-  sprite = RC::LoadSprite("Resources/uvChecker.png", ctx);
-  multiMesh = RC::LoadModel("Resources/model/multiMesh");
+
+  // MultiMesh の Entity化
+  auto multiMeshEntity = CreateEntity("MultiMesh");
+  multiMeshEntity->AddComponent<TransformComponent>();
+  auto& multiMeshRen = multiMeshEntity->AddComponent<ModelRendererComponent>();
+  multiMeshRen.modelHandle = RC::LoadModel("Resources/model/multiMesh");
 
   // Skybox の Entity化
   auto skyboxEntity = CreateEntity("Skybox");
@@ -152,47 +153,106 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   RC::SetSkydomeColor(skydomeComp.skydomeHandle, skydomeComp.color);
 
   // =============================
-  // 各オブジェクトへの流し込み
+  // プリミティブメッシュの Entity化
   // =============================
+  {
+    auto e = CreateEntity("Sphere");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.rotation.y = -1.6f;
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Sphere;
+    pm.meshHandle = RC::GenerateSphere(1.0f, tx_ball);
+    pm.texOverride = tx_ball;
+  }
+  {
+    auto e = CreateEntity("Box");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.position = {5, 1, 0};
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Box;
+    pm.meshHandle = RC::GenerateBox(2.0f, 2.0f, 2.0f, tx_model);
+    pm.texOverride = tx_model;
+  }
+  {
+    auto e = CreateEntity("GroundPlane");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.position = {0, -0.5f, 0};
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Plane;
+    pm.meshHandle = RC::GeneratePlane(10.0f, 10.0f, tx_model);
+    pm.texOverride = tx_model;
+  }
+  {
+    auto e = CreateEntity("Cylinder");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.position = {-4, 1.25f, 0};
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Cylinder;
+    pm.meshHandle = RC::GenerateCylinder(0.8f, 2.5f, tx_model);
+    pm.texOverride = tx_model;
+  }
+  {
+    auto e = CreateEntity("Cone");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.position = {-8, 1.0f, 0};
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Cone;
+    pm.meshHandle = RC::GenerateCone(0.8f, 2.0f, tx_model);
+    pm.texOverride = tx_model;
+  }
+  {
+    auto e = CreateEntity("Torus");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.position = {-12, 1.0f, 0};
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Torus;
+    pm.meshHandle = RC::GenerateTorus(1.0f, 0.3f, tx_model);
+    pm.texOverride = tx_model;
+  }
+  {
+    auto e = CreateEntity("Capsule");
+    auto& tr = e->AddComponent<TransformComponent>();
+    tr.position = {9, 1.25f, 0};
+    auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+    pm.type = PrimitiveType::Capsule;
+    pm.meshHandle = RC::GenerateCapsule(0.6f, 2.5f, tx_model);
+    pm.texOverride = tx_model;
+  }
 
-  primitiveSphere = RC::GenerateSphere(1.0f, tx_ball);
-  primitiveSphereT_ = RC::GetPrimitiveMeshTransformPtr(primitiveSphere);
-  primitiveSphereT_->rotation.y = -1.6f;
+  // ===== スプライトの Entity化 =====
+  {
+    auto spriteEntity = CreateEntity("Sprite");
+    spriteEntity->AddComponent<TransformComponent>();
+    auto& sprComp = spriteEntity->AddComponent<SpriteRendererComponent>();
+    sprComp.spriteHandle = RC::LoadSprite("Resources/uvChecker.png", ctx);
+    sprComp.size = {100.0f, 100.0f};
+    RC::SetSpriteScreenSize(sprComp.spriteHandle, sprComp.size.x, sprComp.size.y);
+  }
 
-  testBox = RC::GenerateBox(2.0f, 2.0f, 2.0f, tx_model);
-  RC::GetPrimitiveMeshTransformPtr(testBox)->translation = {5, 1, 0};
-
-  testPlane = RC::GeneratePlane(10.0f, 10.0f, tx_model);
-  RC::GetPrimitiveMeshTransformPtr(testPlane)->translation = {0, -0.5f, 0};
-
-  testCylinder = RC::GenerateCylinder(0.8f, 2.5f, tx_model);
-  RC::GetPrimitiveMeshTransformPtr(testCylinder)->translation = {-4, 1.25f, 0};
-
-  testCone = RC::GenerateCone(0.8f, 2.0f, tx_model);
-  RC::GetPrimitiveMeshTransformPtr(testCone)->translation = {-8, 1.0f, 0};
-
-  testTorus = RC::GenerateTorus(1.0f, 0.3f, tx_model);
-  RC::GetPrimitiveMeshTransformPtr(testTorus)->translation = {-12, 1.0f, 0};
-
-  testCapsule = RC::GenerateCapsule(0.6f, 2.5f, tx_model);
-  RC::GetPrimitiveMeshTransformPtr(testCapsule)->translation = {9, 1.25f, 0};
-
-  RC::SetSpriteTransform(sprite, spriteTransform_);
-  RC::SetSpriteScreenSize(sprite, spriteSize_.x, spriteSize_.y);
-
-  // ===== AnimatedCube =====
-  animatedCube_ = RC::LoadModel("Resources/model/AnimatedCube/AnimatedCube.gltf");
-  RC::AttachModelAnimation(animatedCube_);
-
-  // ===== Skeletonテストモデル =====
-  walkModel_ = RC::LoadModel("Resources/model/human/walk.gltf");
-  RC::AttachModelAnimation(walkModel_);
-
-  simpleSkinModel_ = RC::LoadModel("Resources/model/simpleSkin");
-  RC::AttachModelAnimation(simpleSkinModel_);
-  // simpleSkinはwalkの右側に配置
-  if (auto* t = RC::GetModelTransformPtr(simpleSkinModel_)) {
-    t->translation = {3.0f, 0.0f, 0.0f};
+  // ===== アニメーションモデルのEntity化 =====
+  {
+    auto cubeEntity = CreateEntity("AnimatedCube");
+    cubeEntity->AddComponent<TransformComponent>();
+    auto& cubeRen = cubeEntity->AddComponent<ModelRendererComponent>();
+    cubeRen.modelHandle = RC::LoadModel("Resources/model/AnimatedCube/AnimatedCube.gltf");
+    cubeEntity->AddComponent<AnimationComponent>();
+  }
+  {
+    auto walkEntity = CreateEntity("Walk");
+    walkEntity->AddComponent<TransformComponent>();
+    auto& walkRen = walkEntity->AddComponent<ModelRendererComponent>();
+    walkRen.modelHandle = RC::LoadModel("Resources/model/human/walk.gltf");
+    auto& walkAnim = walkEntity->AddComponent<AnimationComponent>();
+    walkAnim.showSkeleton = true;
+  }
+  {
+    auto skinEntity = CreateEntity("SimpleSkin");
+    auto& skinTr = skinEntity->AddComponent<TransformComponent>();
+    skinTr.position = {3.0f, 0.0f, 0.0f};
+    auto& skinRen = skinEntity->AddComponent<ModelRendererComponent>();
+    skinRen.modelHandle = RC::LoadModel("Resources/model/simpleSkin");
+    auto& skinAnim = skinEntity->AddComponent<AnimationComponent>();
+    skinAnim.showSkeleton = true;
   }
 
   // =============================
@@ -208,6 +268,9 @@ void SampleScene::OnExit(SceneContext &) {
   for (auto& e : entities_) {
       if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
           if (ren->HasModel()) RC::UnloadModel(ren->modelHandle);
+      }
+      if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
+          if (pm->HasMesh()) RC::UnloadPrimitiveMesh(pm->meshHandle);
       }
       if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
           if (skybox->HasSkybox()) RC::UnloadSkyBox(skybox->skyboxHandle);
@@ -227,47 +290,12 @@ void SampleScene::OnExit(SceneContext &) {
       if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
           RC::DestroyAreaLight(arLight->lightHandle);
       }
+      if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+          if (spr->HasSprite()) RC::UnloadSprite(spr->spriteHandle);
+      }
   }
   entities_.clear();
 
-  RC::UnloadSprite(sprite);
-  sprite = -1;
-
-  RC::UnloadPrimitiveMesh(primitiveSphere);
-  primitiveSphere = -1;
-
-  RC::UnloadPrimitiveMesh(testBox);
-  testBox = -1;
-
-  RC::UnloadPrimitiveMesh(testPlane);
-  testPlane = -1;
-
-  RC::UnloadPrimitiveMesh(testCylinder);
-  testCylinder = -1;
-
-  RC::UnloadPrimitiveMesh(testCone);
-  testCone = -1;
-
-  RC::UnloadPrimitiveMesh(testTorus);
-  testTorus = -1;
-
-  RC::UnloadPrimitiveMesh(testCapsule);
-  testCapsule = -1;
-
-
-  if (animatedCube_ != -1) {
-    RC::UnloadModel(animatedCube_);
-    animatedCube_ = -1;
-  }
-
-  if (walkModel_ != -1) {
-    RC::UnloadModel(walkModel_);
-    walkModel_ = -1;
-  }
-  if (simpleSkinModel_ != -1) {
-    RC::UnloadModel(simpleSkinModel_);
-    simpleSkinModel_ = -1;
-  }
 
   // GPU Particle 解放
   gpuParticle_.reset();
@@ -283,7 +311,7 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   DrawImGui();
 
-  camera_.DrawImGui();
+  ctx.camera->DrawImGui();
 
 #endif // _DEBUG
 
@@ -293,7 +321,7 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   t += 1.0f / 60.0f;
 
-  camera_.Update();
+  ctx.camera->Update();
 
   if (ctx.isPlaying()) {
       for (auto& e : entities_) {
@@ -310,6 +338,27 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
       }
   }
 
+  // === AnimationComponent の更新（Transform同期より前に実行）===
+  for (auto& e : entities_) {
+    if (!e->IsVisible()) continue;
+    auto* ren = e->GetComponent<ModelRendererComponent>();
+    auto* anim = e->GetComponent<AnimationComponent>();
+    if (ren && anim && ren->HasModel()) {
+      // 初回のみアタッチ
+      if (!anim->attached_) {
+        if (anim->animationPath.empty())
+          RC::AttachModelAnimation(ren->modelHandle);
+        else
+          RC::AttachModelAnimation(ren->modelHandle, anim->animationPath);
+        anim->attached_ = true;
+      }
+      // 再生中のみ更新（deltaTime * speed で速度制御）
+      float dt = (ctx.isPlaying() && anim->playing)
+          ? ctx.deltaTime * anim->speed : 0.0f;
+      RC::UpdateModelAnimation(ren->modelHandle, dt);
+    }
+  }
+
   // TransformComponent の内容を各種対象に同期
   for (auto& e : entities_) {
       if (auto* tr = e->GetComponent<TransformComponent>()) {
@@ -318,6 +367,8 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
                   if (auto* modelTr = RC::GetModelTransformPtr(ren->modelHandle)) {
                       *modelTr = tr->ToTransform();
                   }
+                  RC::SetModelColor(ren->modelHandle, ren->color);
+                  RC::SetModelEnvironmentCoefficient(ren->modelHandle, ren->environmentCoeff);
               }
           }
           if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
@@ -379,6 +430,21 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
                   }
               }
           }
+          if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
+              if (pm->HasMesh()) {
+                  if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm->meshHandle)) {
+                      *pmTr = tr->ToTransform();
+                  }
+                  RC::SetPrimitiveMeshEnvironmentCoefficient(pm->meshHandle, pm->environmentCoeff);
+              }
+          }
+          if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+              if (spr->HasSprite()) {
+                  RC::SetSpriteTransform(spr->spriteHandle, tr->ToTransform());
+                  RC::SetSpriteScreenSize(spr->spriteHandle, spr->size.x, spr->size.y);
+                  RC::SetSpriteColor(spr->spriteHandle, spr->color);
+              }
+          }
       }
       e->UpdateAll(ctx.deltaTime);
   }
@@ -392,30 +458,25 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
       float aspect = float(ctx.app->width) / ctx.app->height;
       if (ctx.isPlaying()) {
           // 再生中: CameraComponentのカメラを使用
-          camera_.SetUseDebug(false);
-          camera_.SetMainPosition(camTr->position);
-          camera_.SetMainRotation(camTr->rotation);
-          camera_.SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
+          ctx.camera->SetUseDebug(false);
+          ctx.camera->SetMainPosition(camTr->position);
+          ctx.camera->SetMainRotation(camTr->rotation);
+          ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
       } else {
           // 非再生中: Editorカメラ（デバッグカメラ）を使用
-          camera_.SetUseDebug(true);
+          ctx.camera->SetUseDebug(true);
       }
       break; // メインカメラは1つだけ
   }
 
   // viewとprojを渡す
-  view_ = camera_.GetView();
-  proj_ = camera_.GetProjection();
+  view_ = ctx.camera->GetView();
+  proj_ = ctx.camera->GetProjection();
 
-  RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
 
-  // === AnimatedCube ===
-  RC::UpdateModelAnimation(animatedCube_, ctx.isPlaying() ? -1.0f : 0.0f);
 
-  // === Skeletonテストモデル ===
-  RC::UpdateModelAnimation(walkModel_, ctx.isPlaying() ? -1.0f : 0.0f);
-  RC::UpdateModelAnimation(simpleSkinModel_, ctx.isPlaying() ? -1.0f : 0.0f);
 
   if (ctx.isPlaying()) {
     // === GPU Particle 更新 ===
@@ -452,22 +513,22 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
               } else {
                   RC::DrawModel(ren->modelHandle, ren->texOverride);
               }
+              // スケルトンのデバッグ表示
+              if (auto* anim = e->GetComponent<AnimationComponent>()) {
+                  if (anim->showSkeleton) {
+                      RC::DrawModelSkeleton(ren->modelHandle);
+                  }
+              }
+          }
+      }
+      if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
+          if (pm->HasMesh() && pm->visible) {
+              RC::DrawPrimitiveMesh(pm->meshHandle, pm->texOverride);
           }
       }
   }
 
-  if (animatedCube_ != -1) {
-      RC::DrawModel(animatedCube_);
-  }
 
-  // === Skeletonテストモデル ===
-  RC::DrawModel(walkModel_);
-  RC::DrawModelSkeleton(walkModel_);
-
-  RC::DrawModel(simpleSkinModel_);
-  RC::DrawModelSkeleton(simpleSkinModel_);
-
-  RC::DrawModel(multiMesh);
 
   // === GPU Particle 描画 ===
   if (gpuParticle_) {
@@ -485,7 +546,15 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   // ===========================================
   RC::PreDraw2D(ctx, cl);
 
-  RC::DrawSprite(sprite);
+  // Entityコンポーネントのスプライト描画
+  for (auto& e : entities_) {
+      if (!e->IsVisible()) continue;
+      if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+          if (spr->HasSprite() && spr->visible) {
+              RC::DrawSprite(spr->spriteHandle);
+          }
+      }
+  }
 
   // RC::SetFogOverlayColor(fogColor_); // ちょい青
   // if (isFogEnabled_) {
@@ -512,19 +581,6 @@ void SampleScene::DrawImGui() {
     // ModelTab
     // -------------------
     if (ImGui::BeginTabItem("ModelTab")) {
-
-      camera_.DrawImGui();
-
-      if (animatedCube_ != -1) {
-          RC::DrawImGui3D(animatedCube_, "AnimatedCube");
-      }
-
-      RC::DrawImGui3D(walkModel_, "walkModel");
-
-      RC::DrawImGui3D(simpleSkinModel_, "simpleSkinModel");
-
-      RC::DrawImGui3D(multiMesh, "multiMesh");
-
       ImGui::EndTabItem();
     }
 
@@ -533,20 +589,6 @@ void SampleScene::DrawImGui() {
     // -------------------
     if (ImGui::BeginTabItem("PrimitiveTab")) {
 
-      RC::DrawPrimitiveMeshImGui(primitiveSphere, "primitiveSphere");
-
-      RC::DrawPrimitiveMeshImGui(testBox, "testBox");
-
-      RC::DrawPrimitiveMeshImGui(testPlane, "testPlane");
-
-      RC::DrawPrimitiveMeshImGui(testCylinder, "testCylinder");
-
-      RC::DrawPrimitiveMeshImGui(testCone, "testCone");
-
-      RC::DrawPrimitiveMeshImGui(testTorus, "testTorus");
-
-      RC::DrawPrimitiveMeshImGui(testCapsule, "testCapsule");
-
       ImGui::EndTabItem();
     }
 
@@ -554,8 +596,6 @@ void SampleScene::DrawImGui() {
     // SpriteTab
     // -------------------
     if (ImGui::BeginTabItem("SpriteTab")) {
-
-      RC::DrawImGui2D(sprite, "sprite");
 
       ImGui::EndTabItem();
     }

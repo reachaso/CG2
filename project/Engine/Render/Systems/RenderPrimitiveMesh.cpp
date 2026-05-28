@@ -129,4 +129,12 @@ void DrawPrimitiveMeshImGui(int meshHandle, const char *name) {
   GetRenderContext().PrimitiveMeshes().DrawImGui(meshHandle, name);
 }
 
+void SetPrimitiveMeshEnvironmentCoefficient(int meshHandle, float coeff) {
+  auto *m = GetRenderContext().PrimitiveMeshes().Get(meshHandle);
+  if (!m) return;
+  if (auto* mat = m->Mat()) {
+    mat->environmentCoefficient = coeff;
+  }
+}
+
 } // namespace RC

@@ -390,6 +390,10 @@ void UpdateModelAnimation(int modelHandle, float dt = -1.0f);
 /// @param modelHandle モデルハンドル
 void DrawModelSkeleton(int modelHandle);
 
+/// @brief モデルにスキンデータ（ボーン/スケルトン）が含まれているかを返す
+/// @param modelHandle モデルハンドル
+/// @return スキンデータが存在すれば true
+bool HasModelSkinData(int modelHandle);
 /// @brief モデルのライティングモードを設定する
 /// @param modelHandle モデルハンドル
 /// @param m ライティングモード
@@ -674,6 +678,10 @@ Transform *GetPrimitiveMeshTransformPtr(int meshHandle);
 /// @param name 表示名
 void DrawPrimitiveMeshImGui(int meshHandle, const char *name = nullptr);
 
+/// @brief プリミティブメッシュの環境マップ映り込み係数を設定する
+/// @param meshHandle メッシュハンドル
+/// @param coeff 映り込み係数（0=映り込みなし、1=完全鏡面）
+void SetPrimitiveMeshEnvironmentCoefficient(int meshHandle, float coeff);
 
 // ── Primitive2D（即時描画） ──────────────────────────
 
