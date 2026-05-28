@@ -321,8 +321,6 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   t += 1.0f / 60.0f;
 
-  ctx.camera->Update();
-
   if (ctx.isPlaying()) {
       for (auto& e : entities_) {
           if (e->Name() == "Plane") {
@@ -469,11 +467,9 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
       break; // メインカメラは1つだけ
   }
 
-  // viewとprojを渡す
+  // GPU Particle 用にview/proj取得
   view_ = ctx.camera->GetView();
   proj_ = ctx.camera->GetProjection();
-
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
 
 

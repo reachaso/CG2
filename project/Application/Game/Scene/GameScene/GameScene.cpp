@@ -18,16 +18,6 @@ void GameScene::Update(SceneManager &sm, SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
   ctx.camera->DrawImGui();
 #endif
-
-  // ======= カメラ更新 =======
-  // 固定デルタタイム
-  const float dt = 1.0f / 60.0f;
-  ctx.camera->Update(dt);
-
-  // ======= ビュー・プロジェクション更新 =======
-  view_ = ctx.camera->GetView();
-  proj_ = ctx.camera->GetProjection();
-  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 }
 
 void GameScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
