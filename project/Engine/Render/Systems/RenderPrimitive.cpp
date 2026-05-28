@@ -6,11 +6,15 @@
 
 #include "RenderCommon.h"
 #include "RenderContext.h"
+#include "RenderQueue.h"
 
 #include "PipelineManager.h"
 #include "Primitive/Primitive2D.h"
 #include "Primitive/Primitive3D.h"
 #include "Scene.h"
+#include "Common/Log/Log.h"
+#include <format>
+#include <cmath>
 
 namespace RC {
 
@@ -107,11 +111,12 @@ namespace {
 /// 頂点が追加された後の範囲をコマンドキューに登録するヘルパー
 /// </summary>
 static void AddPrimitiveCommand_(RenderContext &ctx, Primitive3D *prim,
-                                 bool depth, uint32_t prevCount) {
+                                 bool depth, uint32_t prevCount,
+                                 uint64_t sortKey = 0) {
   uint32_t currentCount = prim->GetVertexCount(depth);
   uint32_t added = currentCount - prevCount;
   if (added > 0) {
-    ctx.PushPrimitive3DCommand(depth, prevCount, added);
+    ctx.PushPrimitive3DCommand(depth, prevCount, added, sortKey);
   }
 }
 } // namespace
@@ -130,9 +135,13 @@ void DrawLine3D(const Vector3 &a, const Vector3 &b, const Vector4 &color,
   if (!prim) {
     return;
   }
-  uint32_t prev = prim->GetVertexCount(depth);
-  prim->AddLine(a, b, color, depth);
-  AddPrimitiveCommand_(ctx, prim, depth, prev);
+  // オーバーレイモード中は depth=false + オーバーレイ sortKey
+  bool useDepth = ctx.IsOverlayMode() ? false : depth;
+  uint64_t sortKey = ctx.IsOverlayMode()
+      ? SortKey::Make(SortKey::kLayerOverlay, 0, 0) : 0;
+  uint32_t prev = prim->GetVertexCount(useDepth);
+  prim->AddLine(a, b, color, useDepth);
+  AddPrimitiveCommand_(ctx, prim, useDepth, prev, sortKey);
 }
 
 void DrawAABB3D(const Vector3 &mn, const Vector3 &mx, const Vector4 &color,
@@ -145,9 +154,92 @@ void DrawAABB3D(const Vector3 &mn, const Vector3 &mx, const Vector4 &color,
   if (!prim) {
     return;
   }
-  uint32_t prev = prim->GetVertexCount(depth);
-  prim->AddAABB(mn, mx, color, depth);
-  AddPrimitiveCommand_(ctx, prim, depth, prev);
+  bool useDepth = ctx.IsOverlayMode() ? false : depth;
+  uint64_t sortKey = ctx.IsOverlayMode()
+      ? SortKey::Make(SortKey::kLayerOverlay, 0, 0) : 0;
+  uint32_t prev = prim->GetVertexCount(useDepth);
+  prim->AddAABB(mn, mx, color, useDepth);
+  AddPrimitiveCommand_(ctx, prim, useDepth, prev, sortKey);
+}
+
+void DrawFrustum3D(const Vector3 &position, const Vector3 &rotation,
+                   float fovY, float aspect, float nearZ, float farZ,
+                   const Vector4 &color, bool depth) {
+  auto &ctx = GetRenderContext();
+  if (!ctx.IsInitialized()) return;
+  auto *prim = ctx.EnsurePrimitive3D();
+  if (!prim) return;
+
+  // Near/Far面の半分のサイズを計算
+  float tanHalfFov = std::tan(fovY * 0.5f);
+  float nearH = nearZ * tanHalfFov;
+  float nearW = nearH * aspect;
+  float farH = farZ * tanHalfFov;
+  float farW = farH * aspect;
+
+  // ローカル空間での8頂点（左手座標系: カメラは +Z を向いている）
+  Vector3 localVerts[8] = {
+    // Near face (z = +nearZ)
+    {-nearW,  nearH, nearZ},   // 0: near top-left
+    { nearW,  nearH, nearZ},   // 1: near top-right
+    { nearW, -nearH, nearZ},   // 2: near bottom-right
+    {-nearW, -nearH, nearZ},   // 3: near bottom-left
+    // Far face (z = +farZ)
+    {-farW,  farH, farZ},      // 4: far top-left
+    { farW,  farH, farZ},      // 5: far top-right
+    { farW, -farH, farZ},      // 6: far bottom-right
+    {-farW, -farH, farZ},      // 7: far bottom-left
+  };
+
+  // カメラのワールド行列を作成
+  Matrix4x4 world = MakeAffineMatrix({1,1,1}, rotation, position);
+
+  // ローカル → ワールド変換
+  Vector3 w[8];
+  for (int i = 0; i < 8; ++i) {
+    Vector4 v4 = {localVerts[i].x, localVerts[i].y, localVerts[i].z, 1.0f};
+    Vector4 r;
+    r.x = v4.x * world.m[0][0] + v4.y * world.m[1][0] + v4.z * world.m[2][0] + v4.w * world.m[3][0];
+    r.y = v4.x * world.m[0][1] + v4.y * world.m[1][1] + v4.z * world.m[2][1] + v4.w * world.m[3][1];
+    r.z = v4.x * world.m[0][2] + v4.y * world.m[1][2] + v4.z * world.m[2][2] + v4.w * world.m[3][2];
+    w[i] = {r.x, r.y, r.z};
+  }
+
+  // depth=false で描画（深度テストなし = 常にモデルの上に表示）
+  const bool useDepth = false;
+  uint32_t prev = prim->GetVertexCount(useDepth);
+
+  // Near面 (4辺)
+  prim->AddLine(w[0], w[1], color, useDepth);
+  prim->AddLine(w[1], w[2], color, useDepth);
+  prim->AddLine(w[2], w[3], color, useDepth);
+  prim->AddLine(w[3], w[0], color, useDepth);
+
+  // Far面 (4辺)
+  prim->AddLine(w[4], w[5], color, useDepth);
+  prim->AddLine(w[5], w[6], color, useDepth);
+  prim->AddLine(w[6], w[7], color, useDepth);
+  prim->AddLine(w[7], w[4], color, useDepth);
+
+  // Near-Far接続 (4辺)
+  prim->AddLine(w[0], w[4], color, useDepth);
+  prim->AddLine(w[1], w[5], color, useDepth);
+  prim->AddLine(w[2], w[6], color, useDepth);
+  prim->AddLine(w[3], w[7], color, useDepth);
+
+  // オーバーレイレイヤーの sortKey で描画（モデルの後に実行される）
+  uint64_t overlaySortKey = SortKey::Make(SortKey::kLayerOverlay, 0, 0);
+  AddPrimitiveCommand_(ctx, prim, useDepth, prev, overlaySortKey);
+}
+
+void BeginOverlay3D() {
+  auto &ctx = GetRenderContext();
+  ctx.SetOverlayMode(true);
+}
+
+void EndOverlay3D() {
+  auto &ctx = GetRenderContext();
+  ctx.SetOverlayMode(false);
 }
 
 void DrawGridXZ3D(int halfSize, float step, const Vector4 &color, bool depth) {
@@ -196,7 +288,7 @@ void DrawWireSphere3D(const Vector3 &center, float radius,
                       const Vector4 &color, int slices, int stacks,
                       bool depth) {
   auto &ctx = GetRenderContext();
-  if (!ctx.IsInitialized()) {
+  if (!ctx.IsInitialized() || !ctx.CL() || !ctx.Ctx()) {
     return;
   }
   auto *prim = ctx.EnsurePrimitive3D();
@@ -218,9 +310,12 @@ void DrawSphereRings3D(const Vector3 &center, float radius,
   if (!prim) {
     return;
   }
-  uint32_t prev = prim->GetVertexCount(depth);
-  prim->AddSphereRings(center, radius, color, segments, depth);
-  AddPrimitiveCommand_(ctx, prim, depth, prev);
+  bool useDepth = ctx.IsOverlayMode() ? false : depth;
+  uint64_t sortKey = ctx.IsOverlayMode()
+      ? SortKey::Make(SortKey::kLayerOverlay, 0, 0) : 0;
+  uint32_t prev = prim->GetVertexCount(useDepth);
+  prim->AddSphereRings(center, radius, color, segments, useDepth);
+  AddPrimitiveCommand_(ctx, prim, useDepth, prev, sortKey);
 }
 
 void DrawArc3D(const Vector3 &center, const Vector3 &normal,

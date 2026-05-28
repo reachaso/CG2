@@ -3,7 +3,9 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "AppConfig.h"
+#include "ECS/Entity.h"
 
 // 前方宣言（App 側の実体を参照するため）
 class Dx12Core;
@@ -77,4 +79,34 @@ public:
   /// @param ctx シーンコンテキスト
   /// @param cl グラフィックスコマンドリスト
   virtual void Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) = 0;
+
+  /// @brief シーンに属するエンティティのリストを取得
+  const std::vector<std::shared_ptr<Entity>>& GetEntities() const { return entities_; }
+
+  /// @brief 新しいエンティティを生成してシーンに追加する
+  /// @param name エンティティの名前
+  std::shared_ptr<Entity> CreateEntity(const std::string& name) {
+      auto e = std::make_shared<Entity>(name);
+      entities_.push_back(e);
+      return e;
+  }
+
+  /// @brief 選択中のライトエンティティのギズモ（ワイヤフレーム）を描画する
+  /// @param selectedEntityId 選択中のエンティティID（0なら描画しない）
+  /// @details PreDraw3D ～ PreDraw2D の間で呼ぶ必要がある
+  void DrawLightGizmos(uint32_t selectedEntityId = 0);
+
+  /// @brief 選択中のカメラエンティティのFrustumギズモを描画する
+  /// @param selectedEntityId 選択中のエンティティID（0なら描画しない）
+  /// @param aspect アスペクト比
+  void DrawCameraGizmos(uint32_t selectedEntityId = 0, float aspect = 16.0f / 9.0f);
+
+  /// @brief 選択中のエンティティIDを設定する
+  void SetSelectedEntityId(uint32_t id) { selectedEntityId_ = id; }
+  /// @brief 選択中のエンティティIDを取得する
+  uint32_t GetSelectedEntityId() const { return selectedEntityId_; }
+
+protected:
+  std::vector<std::shared_ptr<Entity>> entities_; ///< シーン内のエンティティ一覧
+  uint32_t selectedEntityId_ = 0; ///< 選択中のエンティティID
 };

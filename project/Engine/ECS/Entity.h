@@ -96,10 +96,22 @@ public:
   /// @param name 設定する名前
   void SetName(const std::string &name) { name_ = name; }
 
+  /// @brief エンティティが可視か取得
+  bool IsVisible() const { return visible_; }
+  /// @brief エンティティの可視状態を設定
+  void SetVisible(bool v) { visible_ = v; }
+
+  /// @brief エンティティがロックされているか取得
+  bool IsLocked() const { return locked_; }
+  /// @brief エンティティのロック状態を設定
+  void SetLocked(bool l) { locked_ = l; }
+
 private:
   uint32_t id_; ///< エンティティ固有のID
   std::string name_; ///< 識別用の名前
   bool active_ = true; ///< アクティブフラグ
+  bool visible_ = true; ///< 可視フラグ（Hierarchy制御用）
+  bool locked_ = false; ///< ロックフラグ（Hierarchy制御用）
 
   /// 型インデックスをキーとしたコンポーネントのマップ
   std::unordered_map<std::type_index, std::unique_ptr<IComponent>> components_;

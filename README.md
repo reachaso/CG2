@@ -36,11 +36,16 @@ DirectX 12ベースの自作ゲームエンジンです。
   - 高精細なマルチレイヤーエフェクト（CenterGlow, Flash, Ring, Debris, Shockwave等）を組み合わせたリッチなHitEffectなどの表現。
 - **ライティング**:
   - 平行光源 (Directional Light)、点光源 (Point Light)、スポットライト (Spot Light)、面光源 (Area Light) の制御。
+  - 選択中のライトエンティティに対するワイヤフレームギズモの描画（DirectionalLight: 平行矢印、PointLight: 球リング、SpotLight: コーン、AreaLight: AABB）。
 - **ポストプロセッシング (Post-Processing)**:
-  - グレースケール、セピア調などの画面エフェクト。
+  - グレースケール、セピア調、ガウシアンブラーなどの画面エフェクト。
   - ピンポンバッファを用いたマルチパス処理によるエフェクトのスタック（重ねがけ）に対応。
 
 ### システム (System)
+- **ECS (Entity-Component-System)**:
+  - `Entity` + `IComponent` ベースの軽量ECSアーキテクチャ。
+  - `TransformComponent`, `ModelRendererComponent`, `SkyboxComponent`, `SkydomeComponent`, 各種 `LightComponent` 等を提供。
+  - エンティティ単位の可視性 (`IsVisible`) / ロック (`IsLocked`) 制御。
 - **アーキテクチャとデザインパターン**:
   - Factory Pattern による直感的なリソース生成 (Model, Sprite等)。
   - State Pattern による柔軟なシーン遷移。
@@ -54,8 +59,12 @@ DirectX 12ベースの自作ゲームエンジンです。
 - **サウンド再生**: `Media Foundation` を利用したBGMおよび効果音 (SE) の再生管理。
 - **管理クラス**: `BgmManager`, `SeManager` による複数音源の同時再生・ループ制御。
 
-### ツール (Tools)
+### エディタ (Editor)
 - **デバッグGUI**: [ImGui](https://github.com/ocornut/imgui) を統合し、実行時にリアルタイムでパラメータ調整が可能（ドッキング機能対応）。
+- **Hierarchyパネル**: エンティティ一覧をアイコン付きで表示。目アイコン（可視性）と鍵アイコン（ロック）でエンティティの状態を切り替え可能。
+- **Inspectorパネル**: 選択中のエンティティの Transform、Model Renderer、各種 Light パラメータをリアルタイム編集。
+- **Viewportパネル**: シェーディングモード切り替え（Solid / Wireframe / Lambert / Face Normal 等）のオーバーレイUI。
+- **ライトギズモ**: 選択中のライトエンティティに対してワイヤフレームでライトの形状・範囲を可視化。
 
 ## 動作環境 (Requirements)
 
@@ -82,8 +91,9 @@ DirectX 12ベースの自作ゲームエンジンです。
 | **[Dx12/](project/Engine/Dx12/)** | デバイス、スワップチェーン、パイプライン、汎用 ComputeShader 等のコアラッパー |
 | **[Graphics/](project/Engine/Graphics/)** | モデル、スプライト、ライト、エフェクト等の描画オブジェクトの実装 |
 | **[Render/](project/Engine/Render/)** | モジュール化された描画クラス（Model/Sprite/Light等）とコンテキスト管理 |
+| **[ECS/](project/Engine/ECS/)** | Entity-Component-System（Entity, IComponent, Transform, Light, Renderer等） |
 | **[Audio/](project/Engine/Audio/)** | サウンド再生（Sound/BGM/SE）の制御と管理 |
-| **[Particle/](project/Engine/Particle/)** | パーティクル生成・更新・計算ロジック |
+| **[Particle/](project/Engine/Particle/)** | パーティクル生成・更新・計算ロジック（GPU Particle対応） |
 | **[Camera/](project/Engine/Camera/)** | カメラの管理と変換行列の計算 |
 | **[Window/](project/Engine/Window/)** | Win32ウィンドウ管理、メッセージループ処理 |
 | **[Input/](project/Engine/Input/)** | キーボード、マウス、コントローラー別の入力管理 |
@@ -95,6 +105,7 @@ DirectX 12ベースの自作ゲームエンジンです。
 | ディレクトリ | 役割 |
 | :--- | :--- |
 | **[Framework/](project/Application/Framework/)** | アプリケーション基盤 (`App`) とコンフィグ管理 |
+| **[Editor/](project/Application/Editor/)** | エディタUI管理（Hierarchy / Inspector / Viewport パネル） |
 | **[Game/](project/Application/Game/)** | ゲームロジック（Player・Scene・MapChip・Goal・Coin 等） |
 
 ### その他

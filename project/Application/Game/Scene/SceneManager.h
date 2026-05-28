@@ -62,6 +62,10 @@ public:
   /// @return シーン名
   const std::string &CurrentName() const { return currentName_; }
 
+  /// @brief 現在アクティブなシーンのポインタを取得する
+  /// @return シーンへのポインタ
+  Scene* GetCurrentScene() const { return current_; }
+
 private:
   /// @brief 登録済みシーンを名前で検索する内部ヘルパー
   /// @param name シーン名

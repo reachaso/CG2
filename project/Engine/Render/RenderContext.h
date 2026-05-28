@@ -241,13 +241,19 @@ public:
   }
 
   /// @brief 3Dプリミティブ描画コマンドを追加する
-  void PushPrimitive3DCommand(bool depth, uint32_t start, uint32_t count);
+  void PushPrimitive3DCommand(bool depth, uint32_t start, uint32_t count,
+                              uint64_t sortKey = 0);
   
   /// @brief キューに積まれた全3D描画コマンドを実行する
   void Execute3DCommands();
   
   /// @brief 3D描画コマンドキューをクリアする
   void Clear3DCommands() { commandQueue3D_.clear(); }
+
+  /// @brief オーバーレイモードを設定する
+  void SetOverlayMode(bool enabled) { overlayMode_ = enabled; }
+  /// @brief オーバーレイモードかどうか
+  bool IsOverlayMode() const { return overlayMode_; }
 
   /// @brief 現在のフレーム用リソースアロケータを取得する
   FrameResource &CurrentFrame() { return frameResources_[frameIndex_]; }
@@ -270,6 +276,7 @@ public:
 
 private:
   bool initialized_ = false; ///< 初期化フラグ
+  bool overlayMode_ = false; ///< オーバーレイモード（ギズモ用）
 
   Microsoft::WRL::ComPtr<ID3D12Device> device_;    ///< デバイス
   DescriptorHeap *srvHeap_ = nullptr;              ///< SRVヒープ

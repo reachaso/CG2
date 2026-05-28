@@ -67,6 +67,10 @@ const std::string &Game::CurrentSceneName() const {
   return sceneMgr_.CurrentName();
 }
 
+Scene* Game::GetCurrentScene() {
+  return sceneMgr_.GetCurrentScene();
+}
+
 void Game::ReloadCurrentScene(SceneContext &ctx) {
   sceneMgr_.ReloadCurrentScene(ctx);
 }

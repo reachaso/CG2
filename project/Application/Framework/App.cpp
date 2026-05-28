@@ -215,7 +215,7 @@ int App::Run() {
       core_.ResetViewportScissorToBackbuffer(appConfig_.width, appConfig_.height);
 
       // エディタの各パネル描画（Viewport含む）
-      editorManager_.DrawUI(viewportTexture_.GetSRVGPU(), &core_, sceneCtx_.deltaTime);
+      editorManager_.DrawUI(viewportTexture_.GetSRVGPU(), &core_, sceneCtx_.deltaTime, game_.GetCurrentScene());
       
       // ImGui 描画
       imgui_.Render(cl_);
@@ -252,6 +252,10 @@ void App::Render() {
   // ====================
   // Game Render
   // ====================
+  // 選択中のエンティティIDをシーンに伝達（ギズモ描画用）
+  if (auto* scene = game_.GetCurrentScene()) {
+    scene->SetSelectedEntityId(editorManager_.GetSelectedEntityId());
+  }
   // ゲーム描画
   game_.Render(sceneCtx_, cl_);
 }

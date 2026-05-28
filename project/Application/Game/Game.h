@@ -44,6 +44,10 @@ public:
   /// @param ctx シーンコンテキスト
   void ReloadCurrentScene(SceneContext &ctx);
 
+  /// @brief 現在実行中のシーンのポインタを取得する
+  /// @return シーンのポインタ（なければnullptr）
+  Scene* GetCurrentScene();
+
 private:
   /// @brief 使用する全てのシーンを SceneManager に登録する
   void registerScenes_();

@@ -733,6 +733,27 @@ void DrawLine3D(const Vector3 &a, const Vector3 &b, const Vector4 &color,
 void DrawAABB3D(const Vector3 &mn, const Vector3 &mx, const Vector4 &color,
                 bool depth = true);
 
+/// @brief カメラの視錐台（Frustum）をワイヤフレーム描画する
+/// @param position カメラのワールド座標
+/// @param rotation カメラの回転角 (ラジアン)
+/// @param fovY 垂直画角 (ラジアン)
+/// @param aspect アスペクト比
+/// @param nearZ ニアクリップ距離
+/// @param farZ ファークリップ距離
+/// @param color 色（RGBA）
+/// @param depth 深度テストを行うか
+void DrawFrustum3D(const Vector3 &position, const Vector3 &rotation,
+                   float fovY, float aspect, float nearZ, float farZ,
+                   const Vector4 &color, bool depth = true);
+
+/// @brief オーバーレイ3D描画を開始する
+/// @details この呼び出しから EndOverlay3D() までの間に描画されたプリミティブは
+/// オーバーレイレイヤー（モデルの後）に描画される。深度テストなし。
+void BeginOverlay3D();
+
+/// @brief オーバーレイ3D描画を終了する
+void EndOverlay3D();
+
 /// @brief 3Dグリッド - XZ描画
 /// @param halfSize グリッドの半分のサイズ
 /// @param step グリッドの間隔

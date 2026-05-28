@@ -39,6 +39,7 @@ enum Layer : uint8_t {
   kLayerOpaque = 0,      ///< 不透明
   kLayerTranslucent = 1, ///< 半透明
   kLayerGlass = 2,       ///< ガラス・加算等
+  kLayerOverlay = 3,     ///< オーバーレイ（ギズモなど常に最後に描画）
 };
 
 /// @brief PSOプレフィックス文字列から16bitハッシュを生成する
