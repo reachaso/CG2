@@ -16,7 +16,7 @@ private:
   RC::Matrix4x4 view_, proj_;
 
   // カメラ
-  RC::CameraController camera_;
+
 
 
   int terrain_ = -1;

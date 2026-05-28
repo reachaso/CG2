@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 
+namespace RC { class CameraController; }
+
 // 前方宣言
 class ISceneState;
 
@@ -79,6 +81,7 @@ private:
   std::string requested_;          ///< 遷移リクエストされたシーン名
 
   std::unique_ptr<ISceneState> state_; ///< 現在のマネージャー状態（Normal, FadeOut, etc.）
+  std::unique_ptr<RC::CameraController> camera_; ///< エディタカメラ（全シーン共有）
 
   // 状態クラスからのアクセスを許可
   friend class NormalState;

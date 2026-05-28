@@ -19,5 +19,5 @@ private:
   // ======= ビュー/プロジェクション行列 =======
   RC::Matrix4x4 view_, proj_;
   // ======= カメラコントローラ =======
-  RC::CameraController camera_;
+
 };

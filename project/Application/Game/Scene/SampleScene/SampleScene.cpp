@@ -26,14 +26,8 @@ SampleScene::~SampleScene() {
 void SampleScene::OnEnter(SceneContext &ctx) {
 
   // =============================
-  // Camera
+  // Camera (エディタカメラは SceneManager が所有 - ctx.camera)
   // =============================
-
-  camera_.Initialize(ctx.input, RC::Vector3{0.0f, 0.35f, -15.0f},
-                     RC::Vector3{0.0f, -0.0f, 0.0f}, 0.45f,
-                     float(ctx.app->width) / ctx.app->height, 0.1f, 100.0f);
-  // 非再生時はデバッグカメラ（Editorカメラ）をデフォルトで有効に
-  camera_.SetUseDebug(true);
 
   // メインカメラのEntity化
   auto camEntity = CreateEntity("MainCamera");
@@ -317,7 +311,7 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   DrawImGui();
 
-  camera_.DrawImGui();
+  ctx.camera->DrawImGui();
 
 #endif // _DEBUG
 
@@ -327,7 +321,7 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 
   t += 1.0f / 60.0f;
 
-  camera_.Update();
+  ctx.camera->Update();
 
   if (ctx.isPlaying()) {
       for (auto& e : entities_) {
@@ -464,22 +458,22 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
       float aspect = float(ctx.app->width) / ctx.app->height;
       if (ctx.isPlaying()) {
           // 再生中: CameraComponentのカメラを使用
-          camera_.SetUseDebug(false);
-          camera_.SetMainPosition(camTr->position);
-          camera_.SetMainRotation(camTr->rotation);
-          camera_.SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
+          ctx.camera->SetUseDebug(false);
+          ctx.camera->SetMainPosition(camTr->position);
+          ctx.camera->SetMainRotation(camTr->rotation);
+          ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
       } else {
           // 非再生中: Editorカメラ（デバッグカメラ）を使用
-          camera_.SetUseDebug(true);
+          ctx.camera->SetUseDebug(true);
       }
       break; // メインカメラは1つだけ
   }
 
   // viewとprojを渡す
-  view_ = camera_.GetView();
-  proj_ = camera_.GetProjection();
+  view_ = ctx.camera->GetView();
+  proj_ = ctx.camera->GetProjection();
 
-  RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
 
 
@@ -587,9 +581,6 @@ void SampleScene::DrawImGui() {
     // ModelTab
     // -------------------
     if (ImGui::BeginTabItem("ModelTab")) {
-
-      camera_.DrawImGui();
-
       ImGui::EndTabItem();
     }
 

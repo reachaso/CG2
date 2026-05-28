@@ -5,13 +5,7 @@
 #include "imgui/imgui.h"
 
 void TitleScene::OnEnter(SceneContext &ctx) {
-
-  // ======= カメラ初期化 =======
-  // 視錐台パラメータ
-  const float kNearZ = 0.1f;
-  const float kFarZ = 100.0f;
-  camera_.Initialize(ctx.input, {5, 5, -30}, {0, 0, 0}, 0.45f,
-                     float(ctx.app->width) / ctx.app->height, kNearZ, kFarZ);
+  // カメラは SceneManager が所有 (ctx.camera)
 }
 
 void TitleScene::OnExit(SceneContext &) {
@@ -27,12 +21,12 @@ void TitleScene::Update(SceneManager &sm, SceneContext &ctx) {
   // ======= カメラ更新 =======
   // 固定デルタタイム
   const float dt = 1.0f / 60.0f;
-  camera_.Update(dt);
+  ctx.camera->Update(dt);
 
   // ======= ビュー・プロジェクション更新 =======
-  view_ = camera_.GetView();
-  proj_ = camera_.GetProjection();
-  RC::SetCamera(view_, proj_, camera_.GetWorldPos());
+  view_ = ctx.camera->GetView();
+  proj_ = ctx.camera->GetProjection();
+  RC::SetCamera(view_, proj_, ctx.camera->GetWorldPos());
 
   if (ctx.input->IsKeyTrigger(DIK_SPACE)) {
     sm.RequestChange("Select");

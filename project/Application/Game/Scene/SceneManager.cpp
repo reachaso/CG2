@@ -3,6 +3,7 @@
 #include "Common/Log/Log.h"
 #include "RenderCommon.h"
 #include "Fade/Fade.h"
+#include "Camera/CameraController.h"
 #include <chrono>
 #include <format>
 #include <cstdlib>
@@ -197,6 +198,13 @@ Scene::SceneManager::~SceneManager() = default;
 void Scene::SceneManager::Init(SceneContext &ctx) {
   float width = float(ctx.app->width);
   float height = float(ctx.app->height);
+
+  // エディタカメラの初期化（全シーンで共有）
+  camera_ = std::make_unique<RC::CameraController>();
+  camera_->Initialize(ctx.input, RC::Vector3{0.0f, 0.35f, -15.0f},
+                      RC::Vector3{0, 0, 0}, 0.45f, width / height, 0.1f, 100.0f);
+  camera_->SetUseDebug(true);
+  ctx.camera = camera_.get();
 
   // Fadeコンポーネントを初期化
   fade_ = std::make_unique<Fade>();

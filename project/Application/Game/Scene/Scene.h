@@ -17,6 +17,7 @@ class PipelineManager;
 class BgmManager;
 class SeManager;
 class PostProcess;
+namespace RC { class CameraController; }
 
 /// @enum PlayState
 /// @brief ゲームの再生状態を表す列挙型
@@ -38,6 +39,7 @@ struct SceneContext {
   PostProcess *postProcess = nullptr;     ///< ポストプロセス管理
   BgmManager *bgmManager = nullptr;      ///< BGM 管理
   SeManager *seManager = nullptr;        ///< SE 管理
+  RC::CameraController *camera = nullptr; ///< エディタカメラ（SceneManager が所有）
   float deltaTime = 1.0f / 60.0f;        ///< 前フレームからの経過時間 (秒)
   
   PlayState playState = PlayState::Playing; ///< 現在の再生状態
