@@ -29,21 +29,10 @@ private:
   int tx_model = -1;
   int tx_ball = -1;
 
-
-
-  // ===============
-  // スプライト
-  // ===============
-
-  int sprite = -1;
-
   float t = 0.0f;
 
   RC::Vector4 fogColor_ = {0.1f, 0.45f, 0.9f, 0.35f};
   bool isFogEnabled_ = false;
-
-  Transform spriteTransform_;
-  RC::Vector2 spriteSize_ = {100.0f, 100.0f};
 
   // ===============
   // GPU Particle

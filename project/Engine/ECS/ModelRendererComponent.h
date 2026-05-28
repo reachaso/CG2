@@ -22,6 +22,12 @@ public:
   /// 描画時のブレンディング設定を指定します。
   int blendMode = 0;
 
+  /// @brief モデルの色（乗算カラー）
+  RC::Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
+
+  /// @brief 環境マップ映り込み係数（0=映り込みなし、1=完全鏡面）
+  float environmentCoeff = 0.0f;
+
   /// @brief 有効なモデルが設定されているか確認
   /// @return 有効なハンドルを保持していれば true
   bool HasModel() const { return modelHandle >= 0; }

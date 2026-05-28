@@ -30,6 +30,9 @@ public:
   /// @brief 形状タイプ（Inspector 表示用）
   PrimitiveType type = PrimitiveType::Sphere;
 
+  /// @brief 環境マップ映り込み係数（0=映り込みなし、1=完全鏡面）
+  float environmentCoeff = 0.0f;
+
   /// @brief 有効なメッシュが設定されているかを確認
   bool HasMesh() const { return meshHandle >= 0; }
 };

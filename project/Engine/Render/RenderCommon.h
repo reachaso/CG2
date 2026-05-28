@@ -678,6 +678,10 @@ Transform *GetPrimitiveMeshTransformPtr(int meshHandle);
 /// @param name 表示名
 void DrawPrimitiveMeshImGui(int meshHandle, const char *name = nullptr);
 
+/// @brief プリミティブメッシュの環境マップ映り込み係数を設定する
+/// @param meshHandle メッシュハンドル
+/// @param coeff 映り込み係数（0=映り込みなし、1=完全鏡面）
+void SetPrimitiveMeshEnvironmentCoefficient(int meshHandle, float coeff);
 
 // ── Primitive2D（即時描画） ──────────────────────────
 

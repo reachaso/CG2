@@ -17,6 +17,7 @@
 #include "ECS/CameraComponent.h"
 #include "ECS/AnimationComponent.h"
 #include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/SpriteRendererComponent.h"
 #include "Render/RenderCommon.h"
 #include "Math/Math.h"
 
@@ -420,6 +421,8 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
             if (ImGui::CollapsingHeader("Model Renderer", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Checkbox("Visible", &ren->visible);
+               ImGui::ColorEdit4("Color##Model", &ren->color.x);
+               ImGui::DragFloat("Env Reflection", &ren->environmentCoeff, 0.01f, 0.0f, 1.0f);
                ImGui::Text("Model Handle: %d", ren->modelHandle);
             }
         }
@@ -432,7 +435,17 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                };
                int typeIdx = static_cast<int>(pm->type);
                ImGui::Text("Type: %s", (typeIdx >= 0 && typeIdx < 7) ? typeNames[typeIdx] : "Unknown");
+               ImGui::DragFloat("Env Reflection##PM", &pm->environmentCoeff, 0.01f, 0.0f, 1.0f);
                ImGui::Text("Mesh Handle: %d", pm->meshHandle);
+            }
+        }
+
+        if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+            if (ImGui::CollapsingHeader("Sprite Renderer", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##Spr", &spr->visible);
+               ImGui::DragFloat2("Size", &spr->size.x, 1.0f, 0.0f, 4096.0f);
+               ImGui::ColorEdit4("Color##Spr", &spr->color.x);
+               ImGui::Text("Sprite Handle: %d", spr->spriteHandle);
             }
         }
 

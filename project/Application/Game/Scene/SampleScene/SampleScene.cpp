@@ -14,6 +14,7 @@
 #include "ECS/CameraComponent.h"
 #include "ECS/AnimationComponent.h"
 #include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/SpriteRendererComponent.h"
 #include <future>
 #include <vector>
 
@@ -115,14 +116,14 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   blockEntity->AddComponent<TransformComponent>();
   auto& blockRen = blockEntity->AddComponent<ModelRendererComponent>();
   blockRen.modelHandle = RC::LoadModel("Resources/model/block");
-  RC::SetModelColor(blockRen.modelHandle, {0.8f, 0.9f, 1.0f, 0.12f}); // ちょい青で透明
+  blockRen.color = {0.8f, 0.9f, 1.0f, 0.12f}; // ちょい青で透明
 
   auto teapotEntity = CreateEntity("Teapot");
   teapotEntity->AddComponent<TransformComponent>();
   auto& teapotRen = teapotEntity->AddComponent<ModelRendererComponent>();
   teapotRen.modelHandle = RC::LoadModel("Resources/model/teapot");
   teapotRen.texOverride = tx_model;
-  RC::SetModelEnvironmentCoefficient(teapotRen.modelHandle, 0.5f);
+  teapotRen.environmentCoeff = 0.5f;
 
   auto terrainEntity = CreateEntity("Terrain");
   auto& terrainTr = terrainEntity->AddComponent<TransformComponent>();
@@ -130,9 +131,8 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   auto& terrainRen = terrainEntity->AddComponent<ModelRendererComponent>();
   terrainRen.modelHandle = RC::LoadModel("Resources/model/terrain");
 
-  // それ以外のハードコードモデル
+  // テクスチャロード
   tx_ball = RC::LoadTex("Resources/monsterBall.png");
-  sprite = RC::LoadSprite("Resources/uvChecker.png", ctx);
 
   // MultiMesh の Entity化
   auto multiMeshEntity = CreateEntity("MultiMesh");
@@ -225,8 +225,15 @@ void SampleScene::OnEnter(SceneContext &ctx) {
     pm.texOverride = tx_model;
   }
 
-  RC::SetSpriteTransform(sprite, spriteTransform_);
-  RC::SetSpriteScreenSize(sprite, spriteSize_.x, spriteSize_.y);
+  // ===== スプライトの Entity化 =====
+  {
+    auto spriteEntity = CreateEntity("Sprite");
+    spriteEntity->AddComponent<TransformComponent>();
+    auto& sprComp = spriteEntity->AddComponent<SpriteRendererComponent>();
+    sprComp.spriteHandle = RC::LoadSprite("Resources/uvChecker.png", ctx);
+    sprComp.size = {100.0f, 100.0f};
+    RC::SetSpriteScreenSize(sprComp.spriteHandle, sprComp.size.x, sprComp.size.y);
+  }
 
   // ===== アニメーションモデルのEntity化 =====
   {
@@ -289,11 +296,11 @@ void SampleScene::OnExit(SceneContext &) {
       if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
           RC::DestroyAreaLight(arLight->lightHandle);
       }
+      if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+          if (spr->HasSprite()) RC::UnloadSprite(spr->spriteHandle);
+      }
   }
   entities_.clear();
-
-  RC::UnloadSprite(sprite);
-  sprite = -1;
 
 
   // GPU Particle 解放
@@ -366,6 +373,8 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
                   if (auto* modelTr = RC::GetModelTransformPtr(ren->modelHandle)) {
                       *modelTr = tr->ToTransform();
                   }
+                  RC::SetModelColor(ren->modelHandle, ren->color);
+                  RC::SetModelEnvironmentCoefficient(ren->modelHandle, ren->environmentCoeff);
               }
           }
           if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
@@ -432,6 +441,14 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
                   if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm->meshHandle)) {
                       *pmTr = tr->ToTransform();
                   }
+                  RC::SetPrimitiveMeshEnvironmentCoefficient(pm->meshHandle, pm->environmentCoeff);
+              }
+          }
+          if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+              if (spr->HasSprite()) {
+                  RC::SetSpriteTransform(spr->spriteHandle, tr->ToTransform());
+                  RC::SetSpriteScreenSize(spr->spriteHandle, spr->size.x, spr->size.y);
+                  RC::SetSpriteColor(spr->spriteHandle, spr->color);
               }
           }
       }
@@ -535,7 +552,15 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   // ===========================================
   RC::PreDraw2D(ctx, cl);
 
-  RC::DrawSprite(sprite);
+  // Entityコンポーネントのスプライト描画
+  for (auto& e : entities_) {
+      if (!e->IsVisible()) continue;
+      if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
+          if (spr->HasSprite() && spr->visible) {
+              RC::DrawSprite(spr->spriteHandle);
+          }
+      }
+  }
 
   // RC::SetFogOverlayColor(fogColor_); // ちょい青
   // if (isFogEnabled_) {
@@ -580,8 +605,6 @@ void SampleScene::DrawImGui() {
     // SpriteTab
     // -------------------
     if (ImGui::BeginTabItem("SpriteTab")) {
-
-      RC::DrawImGui2D(sprite, "sprite");
 
       ImGui::EndTabItem();
     }
