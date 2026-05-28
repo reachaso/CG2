@@ -5,6 +5,13 @@
 #include "RenderCommon.h"
 #include "SceneManager.h"
 #include "imgui/imgui.h"
+#include "ECS/Entity.h"
+#include "ECS/TransformComponent.h"
+#include "ECS/ModelRendererComponent.h"
+#include "ECS/SkyboxComponent.h"
+#include "ECS/SkydomeComponent.h"
+#include "ECS/LightComponent.h"
+#include "ECS/CameraComponent.h"
 #include <future>
 #include <vector>
 
@@ -22,60 +29,131 @@ void SampleScene::OnEnter(SceneContext &ctx) {
   camera_.Initialize(ctx.input, RC::Vector3{0.0f, 0.35f, -15.0f},
                      RC::Vector3{0.0f, -0.0f, 0.0f}, 0.45f,
                      float(ctx.app->width) / ctx.app->height, 0.1f, 100.0f);
+  // 非再生時はデバッグカメラ（Editorカメラ）をデフォルトで有効に
+  camera_.SetUseDebug(true);
+
+  // メインカメラのEntity化
+  auto camEntity = CreateEntity("MainCamera");
+  auto& camTr = camEntity->AddComponent<TransformComponent>();
+  camTr.position = {0.0f, 0.35f, -15.0f};
+  auto& camComp = camEntity->AddComponent<CameraComponent>();
+  camComp.fovY = 0.45f;
+  camComp.nearZ = 0.1f;
+  camComp.farZ = 100.0f;
 
   // =============================
   // Light初期化
   // =============================
 
-  directionalLight = RC::CreateDirectionalLight();
+  // Directional Light Entity
+  auto dirLightEntity = CreateEntity("DirectionalLight");
+  dirLightEntity->AddComponent<TransformComponent>();
+  auto& dirLightComp = dirLightEntity->AddComponent<DirectionalLightComponent>();
+  dirLightComp.lightHandle = RC::CreateDirectionalLight();
+  dirLightComp.direction = {0.0f, -1.0f, 0.2f};
+  dirLightComp.color = {1.0f, 0.95f, 0.9f, 1.0f};
+  dirLightComp.intensity = 1.5f;
 
-  if (RC::DirectionalLightSource *sun =
-          RC::GetDirectionalLightPtr(directionalLight)) {
-    sun->SetDirection({0.0f, -1.0f, 0.2f});   // ちょいナナメ上
-    sun->SetColor({1.0f, 0.95f, 0.9f, 1.0f}); // ほんのり暖色
-    sun->SetIntensity(1.5f);
-  }
+  // Point Light Entity 1
+  auto ptLightEntity = CreateEntity("PointLight");
+  auto& ptTr = ptLightEntity->AddComponent<TransformComponent>();
+  ptTr.position = {0.0f, 2.0f, 0.0f};
+  auto& ptLightComp = ptLightEntity->AddComponent<PointLightComponent>();
+  ptLightComp.lightHandle = RC::CreatePointLight();
+  ptLightComp.color = {1.0f, 0.2f, 0.2f, 1.0f};
+  ptLightComp.radius = 5.0f;
 
-  pointLight = RC::CreatePointLight();
-  pointLight2 = RC::CreatePointLight();
-  spotLight = RC::CreateSpotLight();
-  spotLight2 = RC::CreateSpotLight();
+  // Point Light Entity 2
+  auto ptLightEntity2 = CreateEntity("PointLight2");
+  auto& ptTr2 = ptLightEntity2->AddComponent<TransformComponent>();
+  ptTr2.position = {5.0f, 2.0f, 0.0f};
+  auto& ptLightComp2 = ptLightEntity2->AddComponent<PointLightComponent>();
+  ptLightComp2.lightHandle = RC::CreatePointLight();
+  ptLightComp2.color = {0.2f, 1.0f, 0.2f, 1.0f};
+  ptLightComp2.radius = 5.0f;
+
+  // Spot Light Entity 1
+  auto spLightEntity = CreateEntity("SpotLight");
+  auto& spTr = spLightEntity->AddComponent<TransformComponent>();
+  spTr.position = {0.0f, 5.0f, 0.0f};
+  auto& spLightComp = spLightEntity->AddComponent<SpotLightComponent>();
+  spLightComp.lightHandle = RC::CreateSpotLight();
+  spLightComp.color = {0.2f, 0.2f, 1.0f, 1.0f};
+
+  // Spot Light Entity 2
+  auto spLightEntity2 = CreateEntity("SpotLight2");
+  auto& spTr2 = spLightEntity2->AddComponent<TransformComponent>();
+  spTr2.position = {5.0f, 5.0f, 0.0f};
+  auto& spLightComp2 = spLightEntity2->AddComponent<SpotLightComponent>();
+  spLightComp2.lightHandle = RC::CreateSpotLight();
+  spLightComp2.color = {1.0f, 1.0f, 0.2f, 1.0f};
+
+  // Area Light Entity
+  auto arLightEntity = CreateEntity("AreaLight");
+  auto& arTr = arLightEntity->AddComponent<TransformComponent>();
+  arTr.position = {0.0f, 3.0f, 5.0f};
+  auto& arLightComp = arLightEntity->AddComponent<AreaLightComponent>();
+  arLightComp.lightHandle = RC::CreateAreaLight();
+  arLightComp.color = {1.0f, 0.5f, 0.0f, 1.0f};
+  arLightComp.halfWidth = 2.0f;
+  arLightComp.halfHeight = 1.0f;
 
   // =============================
   // リソースの非同期ロード開始
   // =============================
-
-  // モデルとテクスチャのロードを直列で記述（内部で自動的に並列ロードされる）
-  plane = RC::LoadModel("Resources/model/plane");
-  blockModel = RC::LoadModel("Resources/model/block");
-  model = RC::LoadModel("Resources/model/teapot");
   tx_model = RC::LoadTex("Resources/white1x1.png");
-  RC::SetModelEnvironmentCoefficient(model,0.5f);
-  terrain = RC::LoadModel("Resources/model/terrain");
-  tx_Skydome_ = RC::LoadTex("Resources/sky_sphere.png");
+
+  // Entity化して管理するモデルたち
+  auto planeEntity = CreateEntity("Plane");
+  planeEntity->AddComponent<TransformComponent>();
+  auto& planeRen = planeEntity->AddComponent<ModelRendererComponent>();
+  planeRen.modelHandle = RC::LoadModel("Resources/model/plane");
+
+  auto blockEntity = CreateEntity("Block");
+  blockEntity->AddComponent<TransformComponent>();
+  auto& blockRen = blockEntity->AddComponent<ModelRendererComponent>();
+  blockRen.modelHandle = RC::LoadModel("Resources/model/block");
+  RC::SetModelColor(blockRen.modelHandle, {0.8f, 0.9f, 1.0f, 0.12f}); // ちょい青で透明
+
+  auto teapotEntity = CreateEntity("Teapot");
+  teapotEntity->AddComponent<TransformComponent>();
+  auto& teapotRen = teapotEntity->AddComponent<ModelRendererComponent>();
+  teapotRen.modelHandle = RC::LoadModel("Resources/model/teapot");
+  teapotRen.texOverride = tx_model;
+  RC::SetModelEnvironmentCoefficient(teapotRen.modelHandle, 0.5f);
+
+  auto terrainEntity = CreateEntity("Terrain");
+  auto& terrainTr = terrainEntity->AddComponent<TransformComponent>();
+  terrainTr.position.y = -1.0f;
+  auto& terrainRen = terrainEntity->AddComponent<ModelRendererComponent>();
+  terrainRen.modelHandle = RC::LoadModel("Resources/model/terrain");
+
+  // それ以外のハードコードモデル
   tx_ball = RC::LoadTex("Resources/monsterBall.png");
   sprite = RC::LoadSprite("Resources/uvChecker.png", ctx);
-
   multiMesh = RC::LoadModel("Resources/model/multiMesh");
 
-  skybox = RC::CreateSkyBox("Resources/Skybox/skybox.dds");
-  skyboxT_ = RC::GetSkyBoxTransformPtr(skybox);
+  // Skybox の Entity化
+  auto skyboxEntity = CreateEntity("Skybox");
+  auto& skyboxTr = skyboxEntity->AddComponent<TransformComponent>();
+  skyboxTr.scale = {100.0f, 100.0f, 100.0f}; // nearZでクリップされないよう大きくする
+  auto& skyboxComp = skyboxEntity->AddComponent<SkyboxComponent>();
+  skyboxComp.skyboxHandle = RC::CreateSkyBox("Resources/Skybox/skybox.dds");
+  skyboxComp.color = {1.0f, 1.0f, 1.0f, 1.0f};
+
+  // Skydome の Entity化
+  auto skydomeEntity = CreateEntity("Skydome");
+  skydomeEntity->AddComponent<TransformComponent>();
+  auto& skydomeComp = skydomeEntity->AddComponent<SkydomeComponent>();
+  skydomeComp.texOverride = RC::LoadTex("Resources/sky_sphere.png");
+  skydomeComp.skydomeHandle = RC::GenerateSkydomeEx(skydomeComp.texOverride, 40.0f);
+  skydomeComp.color = {0.6f, 1.0f, 1.0f, 1.0f};
+  skydomeComp.visible = false; // Skybox を見せるためデフォルトは非表示
+  RC::SetSkydomeColor(skydomeComp.skydomeHandle, skydomeComp.color);
 
   // =============================
   // 各オブジェクトへの流し込み
   // =============================
-
-  planeTransform_ = RC::GetModelTransformPtr(plane);
-
-  RC::SetModelColor(blockModel, blockColor_); // ちょい青で透明
-
-  terrainT_ = RC::GetModelTransformPtr(terrain);
-  terrainT_->translation.y = -1.0f;
-
-  // 天球
-  skydome = RC::GenerateSkydomeEx(tx_Skydome_, 40.0f);
-  skydomeT_ = RC::GetSkydomeTransformPtr(skydome);
-  RC::SetSkydomeColor(skydome, {0.6f, 1.0f, 1.0f, 1.0f});
 
   primitiveSphere = RC::GenerateSphere(1.0f, tx_ball);
   primitiveSphereT_ = RC::GetPrimitiveMeshTransformPtr(primitiveSphere);
@@ -125,19 +203,32 @@ void SampleScene::OnEnter(SceneContext &ctx) {
 }
 
 void SampleScene::OnExit(SceneContext &) {
-
-  RC::UnloadModel(plane);
-  plane = -1;
-  RC::UnloadModel(model);
-  model = -1;
-  RC::UnloadModel(blockModel);
-  blockModel = -1;
-
-  RC::UnloadModel(terrain);
-  terrain = -1;
-
-  RC::UnloadSkydome(skydome);
-  skydome = -1;
+  
+  // Entityに紐づいたコンポーネントの解放
+  for (auto& e : entities_) {
+      if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
+          if (ren->HasModel()) RC::UnloadModel(ren->modelHandle);
+      }
+      if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
+          if (skybox->HasSkybox()) RC::UnloadSkyBox(skybox->skyboxHandle);
+      }
+      if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
+          if (skydome->HasSkydome()) RC::UnloadSkydome(skydome->skydomeHandle);
+      }
+      if (auto* dirLight = e->GetComponent<DirectionalLightComponent>()) {
+          RC::DestroyDirectionalLight(dirLight->lightHandle);
+      }
+      if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
+          RC::DestroyPointLight(ptLight->lightHandle);
+      }
+      if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
+          RC::DestroySpotLight(spLight->lightHandle);
+      }
+      if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
+          RC::DestroyAreaLight(arLight->lightHandle);
+      }
+  }
+  entities_.clear();
 
   RC::UnloadSprite(sprite);
   sprite = -1;
@@ -163,16 +254,6 @@ void SampleScene::OnExit(SceneContext &) {
   RC::UnloadPrimitiveMesh(testCapsule);
   testCapsule = -1;
 
-  RC::DestroyDirectionalLight(directionalLight);
-  directionalLight = -1;
-  RC::DestroyPointLight(pointLight);
-  pointLight = -1;
-  RC::DestroyPointLight(pointLight2);
-  pointLight2 = -1;
-  RC::DestroySpotLight(spotLight);
-  spotLight = -1;
-  RC::DestroySpotLight(spotLight2);
-  spotLight2 = -1;
 
   if (animatedCube_ != -1) {
     RC::UnloadModel(animatedCube_);
@@ -201,7 +282,6 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
 
   DrawImGui();
-  RC::SetModelColor(blockModel, blockColor_);
 
   camera_.DrawImGui();
 
@@ -216,7 +296,111 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
   camera_.Update();
 
   if (ctx.isPlaying()) {
-    planeTransform_->rotation.y += 0.01f;
+      for (auto& e : entities_) {
+          if (e->Name() == "Plane") {
+              if (auto* tr = e->GetComponent<TransformComponent>()) {
+                  tr->rotation.y += 0.01f;
+              }
+          }
+          if (e->Name() == "Skydome") {
+              if (auto* tr = e->GetComponent<TransformComponent>()) {
+                  tr->rotation.y += 0.001f;
+              }
+          }
+      }
+  }
+
+  // TransformComponent の内容を各種対象に同期
+  for (auto& e : entities_) {
+      if (auto* tr = e->GetComponent<TransformComponent>()) {
+          if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
+              if (ren->HasModel()) {
+                  if (auto* modelTr = RC::GetModelTransformPtr(ren->modelHandle)) {
+                      *modelTr = tr->ToTransform();
+                  }
+              }
+          }
+          if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
+              if (skybox->HasSkybox()) {
+                  if (auto* sTr = RC::GetSkyBoxTransformPtr(skybox->skyboxHandle)) {
+                      *sTr = tr->ToTransform();
+                  }
+                  RC::SetSkyBoxColor(skybox->skyboxHandle, skybox->color);
+              }
+          }
+          if (auto* dirLight = e->GetComponent<DirectionalLightComponent>()) {
+              if (auto* l = RC::GetDirectionalLightPtr(dirLight->lightHandle)) {
+                  l->SetColor(dirLight->color);
+                  l->SetDirection(dirLight->direction);
+                  l->SetIntensity(dirLight->intensity);
+                  RC::SetDirectionalLightEnabled(dirLight->lightHandle, dirLight->visible);
+              }
+          }
+          if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
+              if (auto* l = RC::GetPointLightPtr(ptLight->lightHandle)) {
+                  l->SetColor(ptLight->color);
+                  l->SetPosition(tr->position);
+                  l->SetIntensity(ptLight->intensity);
+                  l->SetRadius(ptLight->radius);
+                  l->SetDecay(ptLight->decay);
+                  RC::SetPointLightEnabled(ptLight->lightHandle, ptLight->visible);
+              }
+          }
+          if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
+              if (auto* l = RC::GetSpotLightPtr(spLight->lightHandle)) {
+                  l->SetColor(spLight->color);
+                  l->SetPosition(tr->position);
+                  l->SetDirection(spLight->direction);
+                  l->SetIntensity(spLight->intensity);
+                  l->SetDistance(spLight->distance);
+                  l->SetDecay(spLight->decay);
+                  l->SetCosAngle(spLight->cosAngle);
+                  RC::SetSpotLightEnabled(spLight->lightHandle, spLight->visible);
+              }
+          }
+          if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
+              if (auto* l = RC::GetAreaLightPtr(arLight->lightHandle)) {
+                  l->SetColor(arLight->color);
+                  l->SetPosition(tr->position);
+                  l->SetIntensity(arLight->intensity);
+                  l->SetRange(arLight->range);
+                  l->SetDecay(arLight->decay);
+                  l->SetHalfSize(arLight->halfWidth, arLight->halfHeight);
+                  l->SetTwoSided(arLight->twoSided);
+                  // To rotate AreaLight, we can use Transform rotation (if we implement normal calculation).
+                  // Currently keeping it simple.
+                  RC::SetAreaLightEnabled(arLight->lightHandle, arLight->visible);
+              }
+          }
+          if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
+              if (skydome->HasSkydome()) {
+                  if (auto* sTr = RC::GetSkydomeTransformPtr(skydome->skydomeHandle)) {
+                      *sTr = tr->ToTransform();
+                  }
+              }
+          }
+      }
+      e->UpdateAll(ctx.deltaTime);
+  }
+
+  // === Play/Editor カメラ切り替え ===
+  for (auto& e : entities_) {
+      auto* camComp = e->GetComponent<CameraComponent>();
+      auto* camTr = e->GetComponent<TransformComponent>();
+      if (!camComp || !camTr || !camComp->isMain) continue;
+
+      float aspect = float(ctx.app->width) / ctx.app->height;
+      if (ctx.isPlaying()) {
+          // 再生中: CameraComponentのカメラを使用
+          camera_.SetUseDebug(false);
+          camera_.SetMainPosition(camTr->position);
+          camera_.SetMainRotation(camTr->rotation);
+          camera_.SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
+      } else {
+          // 非再生中: Editorカメラ（デバッグカメラ）を使用
+          camera_.SetUseDebug(true);
+      }
+      break; // メインカメラは1つだけ
   }
 
   // viewとprojを渡す
@@ -234,9 +418,6 @@ void SampleScene::Update(SceneManager &sm, SceneContext &ctx) {
   RC::UpdateModelAnimation(simpleSkinModel_, ctx.isPlaying() ? -1.0f : 0.0f);
 
   if (ctx.isPlaying()) {
-    // === 天球回転 ===
-    skydomeT_->rotation.y += 0.001f;
-
     // === GPU Particle 更新 ===
     if (gpuParticle_) {
       gpuParticle_->Update(view_, proj_, 1.0f / 60.0f);
@@ -250,24 +431,30 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   // ===========================================
   RC::PreDraw3D(ctx, cl);
 
-  // === 天球 ===
-  // RC::DrawSkydome(skydome);
-  RC::DrawSkyBox(skybox);
+  // Entityコンポーネントを持つモデル・スカイボックス・天球の描画
+  for (auto& e : entities_) {
+      if (!e->IsVisible()) continue; // Hierarchy の目アイコンで非表示
 
- /* RC::DrawPrimitiveMesh(primitiveSphere);
-  RC::DrawPrimitiveMesh(testBox);
-  RC::DrawPrimitiveMesh(testPlane);
-  RC::DrawPrimitiveMesh(testCylinder);
-  RC::DrawPrimitiveMesh(testCone);
-  RC::DrawPrimitiveMesh(testTorus);
-  RC::DrawPrimitiveMesh(testCapsule);*/
-
-  // モデルの描画
-  RC::DrawModel(plane);
-
-  RC::DrawModel(model, tx_model);
-
-  RC::DrawModel(terrain);
+      if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
+          if (skybox->HasSkybox() && skybox->visible) {
+              RC::DrawSkyBox(skybox->skyboxHandle);
+          }
+      }
+      if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
+          if (skydome->HasSkydome() && skydome->visible) {
+              RC::DrawSkydome(skydome->skydomeHandle, skydome->texOverride);
+          }
+      }
+      if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
+          if (ren->HasModel() && ren->visible) {
+              if (e->Name() == "Block") {
+                  RC::DrawModelGlassTwoPass(ren->modelHandle, ren->texOverride);
+              } else {
+                  RC::DrawModel(ren->modelHandle, ren->texOverride);
+              }
+          }
+      }
+  }
 
   if (animatedCube_ != -1) {
       RC::DrawModel(animatedCube_);
@@ -280,14 +467,18 @@ void SampleScene::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   RC::DrawModel(simpleSkinModel_);
   RC::DrawModelSkeleton(simpleSkinModel_);
 
-  RC::DrawModelGlassTwoPass(blockModel);
-
   RC::DrawModel(multiMesh);
 
   // === GPU Particle 描画 ===
   if (gpuParticle_) {
     gpuParticle_->Render(ctx, cl);
   }
+
+  // === ギズモ描画（オーバーレイ: モデルの上に常に描画） ===
+  RC::BeginOverlay3D();
+  DrawLightGizmos(selectedEntityId_);
+  DrawCameraGizmos(selectedEntityId_, float(ctx.app->width) / ctx.app->height);
+  RC::EndOverlay3D();
 
   // ===========================================
   // 2D描画
@@ -322,15 +513,7 @@ void SampleScene::DrawImGui() {
     // -------------------
     if (ImGui::BeginTabItem("ModelTab")) {
 
-      RC::DrawSkyBoxImGui(skybox, "skybox");
-
-      RC::DrawImGui3D(terrain, "terrain");
-
-      RC::DrawImGui3D(plane, "plane");
-
-      RC::DrawImGui3D(model, "model");
-
-      RC::DrawSkydomeImGui(skydome, "skyDome");
+      camera_.DrawImGui();
 
       if (animatedCube_ != -1) {
           RC::DrawImGui3D(animatedCube_, "AnimatedCube");
@@ -339,10 +522,6 @@ void SampleScene::DrawImGui() {
       RC::DrawImGui3D(walkModel_, "walkModel");
 
       RC::DrawImGui3D(simpleSkinModel_, "simpleSkinModel");
-
-      RC::DrawImGui3D(blockModel, "blockModel");
-      // 色変更用
-      ImGui::ColorEdit4("blockColor", &blockColor_.x);
 
       RC::DrawImGui3D(multiMesh, "multiMesh");
 
@@ -406,17 +585,7 @@ void SampleScene::DrawImGui() {
       ImGui::EndTabItem();
     }
 
-    // -------------------
-    // LightTab
-    // -------------------
-    if (ImGui::BeginTabItem("LightTab")) {
-      RC::DrawImGuiDirectionalLight(directionalLight, "DirectionalLight");
-      RC::DrawImGuiPointLight(pointLight, "PointLight");
-      RC::DrawImGuiPointLight(pointLight2, "PointLight2");
-      RC::DrawImGuiSpotLight(spotLight, "SpotLight");
-      RC::DrawImGuiSpotLight(spotLight2, "SpotLight2");
-      ImGui::EndTabItem();
-    }
+
 
     // -------------------
     // ParticleTab

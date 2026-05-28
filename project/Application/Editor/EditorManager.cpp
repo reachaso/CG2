@@ -8,17 +8,36 @@
 #include "../Game/Scene/Scene.h"
 #include "Render/RenderContext.h"
 #include "Graphics/Texture/TextureManager/TextureManager.h"
+#include "ECS/Entity.h"
+#include "ECS/TransformComponent.h"
+#include "ECS/ModelRendererComponent.h"
+#include "ECS/SkyboxComponent.h"
+#include "ECS/SkydomeComponent.h"
+#include "ECS/LightComponent.h"
+#include "ECS/CameraComponent.h"
+#include "Render/RenderCommon.h"
+#include "Math/Math.h"
 
 void EditorManager::Initialize() {
 #if RC_ENABLE_IMGUI
   playState_ = PlayState::Stopped;
   
-  playIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icon/play.png");
-  pauseIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icon/pause.png");
-  stopIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icon/stop.png");
+  playIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/play.png");
+  pauseIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/pause.png");
+  stopIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/stop.png");
+
+  eyeVisibleTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/eye_visible.png");
+  eyeHiddenTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/eye_hidden.png");
+  lockLockedTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/lock_locked.png");
+  lockUnlockedTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/lock_unlocked.png");
 
   ApplyDarkTheme();
 #endif
+}
+
+uint32_t EditorManager::GetSelectedEntityId() const {
+  if (auto e = selectedEntity_.lock()) return e->Id();
+  return 0;
 }
 
 void EditorManager::ApplyDarkTheme() {
@@ -247,7 +266,7 @@ void EditorManager::SetupDockingLayout() {
 #endif
 }
 
-void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, float deltaTime) {
+void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, float deltaTime, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
   if (showDemoWindow_) {
     ImGui::ShowDemoWindow(&showDemoWindow_);
@@ -311,23 +330,189 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
 
   // Hierarchy パネル
   if (ImGui::Begin("Hierarchy")) {
-    ImGui::Text("Scene Root");
-    if (ImGui::TreeNode("Directional Light")) { ImGui::TreePop(); }
-    if (ImGui::TreeNode("Main Camera")) { ImGui::TreePop(); }
-    if (ImGui::TreeNode("Player")) { ImGui::TreePop(); }
+    if (currentScene) {
+      for (const auto& e : currentScene->GetEntities()) {
+        ImGui::PushID(e->Id());
+
+        // --- 目アイコン（可視切り替え） ---
+        {
+          int texId = e->IsVisible() ? eyeVisibleTex_ : eyeHiddenTex_;
+          auto srv = RC::GetRenderContext().Textures().GetSrv(texId);
+          ImVec4 tint = e->IsVisible() ? ImVec4(1,1,1,1) : ImVec4(0.7f,0.7f,0.7f,0.9f);
+          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
+          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f,0.3f,0.3f,0.5f));
+          ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
+          if (srv.ptr) {
+            if (ImGui::ImageButton("##vis", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
+              e->SetVisible(!e->IsVisible());
+            }
+          } else {
+            if (ImGui::SmallButton(e->IsVisible() ? "V" : "-")) {
+              e->SetVisible(!e->IsVisible());
+            }
+          }
+          ImGui::PopStyleColor(3);
+        }
+        ImGui::SameLine(0, 2);
+
+        // --- 鍵アイコン（ロック切り替え） ---
+        {
+          int texId = e->IsLocked() ? lockLockedTex_ : lockUnlockedTex_;
+          auto srv = RC::GetRenderContext().Textures().GetSrv(texId);
+          ImVec4 tint = e->IsLocked() ? ImVec4(1,0.8f,0.2f,1) : ImVec4(0.7f,0.7f,0.7f,0.9f);
+          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
+          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f,0.3f,0.3f,0.5f));
+          ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
+          if (srv.ptr) {
+            if (ImGui::ImageButton("##lock", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
+              e->SetLocked(!e->IsLocked());
+            }
+          } else {
+            if (ImGui::SmallButton(e->IsLocked() ? "L" : "U")) {
+              e->SetLocked(!e->IsLocked());
+            }
+          }
+          ImGui::PopStyleColor(3);
+        }
+        ImGui::SameLine(0, 4);
+
+        // --- エンティティ名（垂直中央揃え） ---
+        ImGui::AlignTextToFramePadding();
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
+        if (selectedEntity_.lock() == e) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        if (ImGui::TreeNodeEx("##node", flags, "%s", e->Name().c_str())) {
+            if (ImGui::IsItemClicked() && !e->IsLocked()) {
+                selectedEntity_ = e;
+            }
+            ImGui::TreePop();
+        }
+
+        ImGui::PopID();
+        ImGui::Separator();
+      }
+    }
   }
   ImGui::End();
 
   // Inspector パネル
   if (ImGui::Begin("Inspector")) {
-    ImGui::Text("Properties");
-    ImGui::Separator();
-    float pos[3] = {0.0f, 0.0f, 0.0f};
-    ImGui::DragFloat3("Position", pos);
-    float rot[3] = {0.0f, 0.0f, 0.0f};
-    ImGui::DragFloat3("Rotation", rot);
-    float scl[3] = {1.0f, 1.0f, 1.0f};
-    ImGui::DragFloat3("Scale", scl);
+    if (auto e = selectedEntity_.lock()) {
+        ImGui::Text("Entity: %s", e->Name().c_str());
+        ImGui::Separator();
+
+        if (auto* tr = e->GetComponent<TransformComponent>()) {
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::DragFloat3("Position", &tr->position.x, 0.1f);
+               
+               // Euler 変換 (deg <-> rad)
+               RC::Vector3 eulerDegrees = { tr->rotation.x * 180.0f / 3.14159265f, tr->rotation.y * 180.0f / 3.14159265f, tr->rotation.z * 180.0f / 3.14159265f };
+               if (ImGui::DragFloat3("Rotation", &eulerDegrees.x, 1.0f)) {
+                   tr->rotation = { eulerDegrees.x * 3.14159265f / 180.0f, eulerDegrees.y * 3.14159265f / 180.0f, eulerDegrees.z * 3.14159265f / 180.0f };
+               }
+               ImGui::DragFloat3("Scale", &tr->scale.x, 0.1f);
+            }
+        }
+
+        if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
+            if (ImGui::CollapsingHeader("Model Renderer", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible", &ren->visible);
+               ImGui::Text("Model Handle: %d", ren->modelHandle);
+            }
+        }
+
+        if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
+            if (ImGui::CollapsingHeader("Skybox", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##Skybox", &skybox->visible);
+               ImGui::ColorEdit4("Color##Skybox", &skybox->color.x);
+               ImGui::Text("Skybox Handle: %d", skybox->skyboxHandle);
+            }
+        }
+
+        if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
+            if (ImGui::CollapsingHeader("Skydome", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##Skydome", &skydome->visible);
+               ImGui::Text("Skydome Handle: %d", skydome->skydomeHandle);
+               if (ImGui::ColorEdit4("Color##Skydome", &skydome->color.x)) {
+                   RC::SetSkydomeColor(skydome->skydomeHandle, skydome->color);
+               }
+            }
+        }
+
+        // ============================================
+        // Lights
+        // ============================================
+        auto* tr = e->GetComponent<TransformComponent>();
+        RC::Vector3 pos = tr ? tr->position : RC::Vector3{0, 0, 0};
+
+        if (auto* dirLight = e->GetComponent<DirectionalLightComponent>()) {
+            if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##DirLight", &dirLight->visible);
+               ImGui::ColorEdit4("Color##DirLight", &dirLight->color.x);
+               ImGui::DragFloat3("Direction##DirLight", &dirLight->direction.x, 0.05f);
+               ImGui::DragFloat("Intensity##DirLight", &dirLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::Text("Handle: %d", dirLight->lightHandle);
+            }
+        }
+
+        if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
+            if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##PtLight", &ptLight->visible);
+               ImGui::ColorEdit4("Color##PtLight", &ptLight->color.x);
+               ImGui::DragFloat("Intensity##PtLight", &ptLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Radius##PtLight", &ptLight->radius, 0.5f, 0.0f, 1000.0f);
+               ImGui::DragFloat("Decay##PtLight", &ptLight->decay, 0.1f, 0.0f, 10.0f);
+               ImGui::Text("Handle: %d", ptLight->lightHandle);
+            }
+        }
+
+        if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
+            if (ImGui::CollapsingHeader("Spot Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##SpLight", &spLight->visible);
+               ImGui::ColorEdit4("Color##SpLight", &spLight->color.x);
+               ImGui::DragFloat3("Direction##SpLight", &spLight->direction.x, 0.05f);
+               ImGui::DragFloat("Intensity##SpLight", &spLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Distance##SpLight", &spLight->distance, 0.5f, 0.0f, 1000.0f);
+               ImGui::DragFloat("Decay##SpLight", &spLight->decay, 0.1f, 0.0f, 10.0f);
+               ImGui::DragFloat("CosAngle##SpLight", &spLight->cosAngle, 0.01f, 0.0f, 1.0f);
+               ImGui::Text("Handle: %d", spLight->lightHandle);
+            }
+        }
+
+        if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
+            if (ImGui::CollapsingHeader("Area Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Visible##ArLight", &arLight->visible);
+               ImGui::ColorEdit4("Color##ArLight", &arLight->color.x);
+               ImGui::DragFloat("Intensity##ArLight", &arLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Range##ArLight", &arLight->range, 0.5f, 0.0f, 1000.0f);
+               ImGui::DragFloat("Decay##ArLight", &arLight->decay, 0.1f, 0.0f, 10.0f);
+               ImGui::DragFloat("Half Width##ArLight", &arLight->halfWidth, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Half Height##ArLight", &arLight->halfHeight, 0.1f, 0.0f, 100.0f);
+               bool twoSided = arLight->twoSided;
+               if (ImGui::Checkbox("Two Sided##ArLight", &twoSided)) arLight->twoSided = twoSided;
+               ImGui::Text("Handle: %d", arLight->lightHandle);
+            }
+        }
+
+        // ============================================
+        // Camera
+        // ============================================
+        if (auto* cam = e->GetComponent<CameraComponent>()) {
+            if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+               ImGui::Checkbox("Main Camera", &cam->isMain);
+               // FOV を度数で表示・編集
+               float fovDeg = cam->fovY * 180.0f / 3.14159265f;
+               if (ImGui::SliderFloat("FOV (deg)", &fovDeg, 1.0f, 179.0f)) {
+                   cam->fovY = fovDeg * 3.14159265f / 180.0f;
+               }
+               ImGui::DragFloat("Near Clip", &cam->nearZ, 0.01f, 0.001f, 100.0f);
+               ImGui::DragFloat("Far Clip", &cam->farZ, 1.0f, 0.1f, 10000.0f);
+            }
+        }
+    } else {
+        ImGui::Text("No entity selected");
+    }
   }
   ImGui::End();
 

@@ -385,13 +385,14 @@ void RenderContext::SetFogColor(const Vector4 &color) {
 }
 
 void RenderContext::PushPrimitive3DCommand(bool depth, uint32_t start,
-                                           uint32_t count) {
+                                           uint32_t count, uint64_t sortKey) {
   if (count == 0)
     return;
 
   if (!commandQueue3D_.empty()) {
     auto &last = commandQueue3D_.back();
-    if (last.type == RenderCommand3D::Primitive && last.primDepth == depth) {
+    if (last.type == RenderCommand3D::Primitive && last.primDepth == depth &&
+        last.sortKey == sortKey) {
       last.primCount += count;
       return;
     }
@@ -399,6 +400,7 @@ void RenderContext::PushPrimitive3DCommand(bool depth, uint32_t start,
 
   RenderCommand3D cmd;
   cmd.type = RenderCommand3D::Primitive;
+  cmd.sortKey = sortKey;
   cmd.primDepth = depth;
   cmd.primStart = start;
   cmd.primCount = count;
@@ -425,7 +427,8 @@ void RenderContext::Execute3DCommands() {
   for (auto &cmd : commandQueue3D_) {
     if (cmd.type == RenderCommand3D::Primitive) {
       if (prim3D_) {
-        if (BindPipeline(cmd.primDepth ? "primitive3d" : "primitive3d_nodepth")) {
+        std::string psoName = cmd.primDepth ? "primitive3d" : "primitive3d_nodepth";
+        if (BindPipeline(psoName)) {
           prim3D_->DrawRange(cl_, cmd.primDepth, cmd.primStart, cmd.primCount);
         }
       }

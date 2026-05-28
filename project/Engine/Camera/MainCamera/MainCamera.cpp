@@ -7,6 +7,9 @@ void MainCamera::Initialize(const Vector3 &pos, const Vector3 &rot, float fovY,
   transform_.translation = pos;
   transform_.rotation = rot;
   transform_.scale = {1, 1, 1};
+  fovY_ = fovY;
+  nearZ_ = nearZ;
+  farZ_ = farZ;
 
   // 射影行列は初期化時に一度だけ作成
   proj_ = MakePerspectiveFovMatrix(fovY, aspect, nearZ, farZ);
@@ -19,4 +22,11 @@ void MainCamera::Update() {
                                      transform_.translation);
   // ----- ビュー行列はワールド行列の逆行列 -----
   view_ = Inverse(world);
+}
+
+void MainCamera::SetProjection(float fovY, float aspect, float nearZ, float farZ) {
+  fovY_ = fovY;
+  nearZ_ = nearZ;
+  farZ_ = farZ;
+  proj_ = MakePerspectiveFovMatrix(fovY, aspect, nearZ, farZ);
 }

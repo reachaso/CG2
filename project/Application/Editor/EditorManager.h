@@ -2,8 +2,11 @@
 #include <d3d12.h>
 #include <string>
 #include <functional>
+#include <memory>
 
 class Dx12Core;
+class Scene;
+class Entity;
 enum class PlayState;
 
 /// @class EditorManager
@@ -24,7 +27,8 @@ public:
   /// @param viewportSrv ゲーム画面（Viewport）に表示するテクスチャのSRVハンドル
   /// @param core Dx12Core インスタンスへのポインタ
   /// @param deltaTime 前のフレームからの経過時間
-  void DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core = nullptr, float deltaTime = 0.0f);
+  /// @param currentScene 現在のシーン
+  void DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core = nullptr, float deltaTime = 0.0f, Scene* currentScene = nullptr);
 
   /// @brief Viewportウィンドウがホバーされているか取得する
   bool IsViewportHovered() const { return isViewportHovered_; }
@@ -34,6 +38,9 @@ public:
   
   /// @brief 再生状態を設定する（外部からのリセット用）
   void SetPlayState(PlayState state);
+
+  /// @brief 選択中のエンティティIDを取得する（未選択なら0）
+  uint32_t GetSelectedEntityId() const;
 
 private:
   /// @brief ダークテーマを適用する
@@ -54,4 +61,11 @@ private:
   int playIconTex_ = -1;
   int pauseIconTex_ = -1;
   int stopIconTex_ = -1;
+
+  int eyeVisibleTex_ = -1;
+  int eyeHiddenTex_ = -1;
+  int lockLockedTex_ = -1;
+  int lockUnlockedTex_ = -1;
+
+  std::weak_ptr<Entity> selectedEntity_; ///< Inspector表示用の選択エンティティ
 };

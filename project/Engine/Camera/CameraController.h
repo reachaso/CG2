@@ -140,6 +140,28 @@ public:
   /// @brief 現在有効なカメラの位置と回転を設定する
   void SetTransform(const Vector3 &pos, const Vector3 &rot);
 
+  /// @brief メインカメラの位置を取得する
+  Vector3 GetMainPosition() const { return main_.GetPosition(); }
+
+  /// @brief メインカメラの回転を取得する
+  Vector3 GetMainRotation() const { return main_.GetRotation(); }
+
+  /// @brief メインカメラの射影パラメータを実行時に変更する
+  void SetProjection(float fovY, float aspect, float nearZ, float farZ) {
+    main_.SetProjection(fovY, aspect, nearZ, farZ);
+    fovY_ = fovY;
+    aspect_ = aspect;
+  }
+
+  /// @brief 垂直画角を取得
+  float GetFovY() const { return fovY_; }
+  /// @brief ニアクリップ距離を取得
+  float GetNearZ() const { return main_.GetNearZ(); }
+  /// @brief ファークリップ距離を取得
+  float GetFarZ() const { return main_.GetFarZ(); }
+  /// @brief アスペクト比を取得
+  float GetAspect() const { return aspect_; }
+
 private:
   /// @brief 追従ロジックの内部更新
   void UpdateFollow_(float dt);

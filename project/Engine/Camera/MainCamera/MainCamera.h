@@ -39,8 +39,29 @@ public:
   /// @param rot 設定する回転角 (ラジアン)
   void SetRotation(const RC::Vector3 &rot) { transform_.rotation = rot; }
 
+  /// @brief カメラの回転角を取得する
+  /// @return 回転角 (ラジアン)
+  RC::Vector3 GetRotation() const { return transform_.rotation; }
+
+  /// @brief 射影パラメータを実行時に変更する
+  /// @param fovY 垂直画角 (ラジアン)
+  /// @param aspect アスペクト比
+  /// @param nearZ ニアクリップ距離
+  /// @param farZ ファークリップ距離
+  void SetProjection(float fovY, float aspect, float nearZ, float farZ);
+
+  /// @brief 垂直画角を取得
+  float GetFovY() const { return fovY_; }
+  /// @brief ニアクリップ距離を取得
+  float GetNearZ() const { return nearZ_; }
+  /// @brief ファークリップ距離を取得
+  float GetFarZ() const { return farZ_; }
+
 private:
   Transform transform_; ///< カメラのトランスフォーム情報 (座標、回転、スケール)
   RC::Matrix4x4 view_;   ///< ビュー行列
   RC::Matrix4x4 proj_;   ///< 射影行列
+  float fovY_ = 0.45f;   ///< 垂直画角
+  float nearZ_ = 0.1f;   ///< ニアクリップ
+  float farZ_ = 100.0f;  ///< ファークリップ
 };

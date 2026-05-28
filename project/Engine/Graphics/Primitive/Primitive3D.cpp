@@ -1,6 +1,8 @@
 #include "Primitive3D.h"
 #include <cassert>
 #include <cmath>
+#include <format>
+#include "Common/Log/Log.h"
 
 namespace {
 
@@ -119,7 +121,9 @@ void Primitive3D::BeginFrame(const RC::Matrix4x4 &view,
   blendAt3D_ = blendAt3D;
 
   cbCursor_ = 0;
-  Clear();
+  // Note: Clear() is intentionally not called here because primitive vertices 
+  // added during ImGui rendering in the previous frame must survive until Execute3DCommands.
+  // Execute3DCommands() will clear them after drawing.
 }
 
 void Primitive3D::Clear() {
@@ -493,16 +497,15 @@ void Primitive3D::TransferVertices() {
 
 void Primitive3D::DrawRange(ID3D12GraphicsCommandList *cl, bool depth,
                             uint32_t start, uint32_t count) {
-  if (count == 0 || !cl || !device_)
+  if (count == 0 || !cl || !vbView_.BufferLocation)
     return;
 
-  // CB ring（Drawごとに別スロット）
+  // GPUに送るフレームごとの定数バッファを更新
   const uint32_t idx =
       (cbCursor_ < kMaxDrawPerFrame) ? cbCursor_++ : (cbCursor_ = 1, 0);
 
   std::memcpy(cbMap_ + idx * cbStride_, &perFrame_, sizeof(PerFrameCB));
-  const D3D12_GPU_VIRTUAL_ADDRESS cbAddr =
-      cbRes_->GetGPUVirtualAddress() + idx * cbStride_;
+  D3D12_GPU_VIRTUAL_ADDRESS cbAddr = cbRes_->GetGPUVirtualAddress() + idx * cbStride_;
 
   cl->IASetVertexBuffers(0, 1, &vbView_);
   cl->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
@@ -510,7 +513,6 @@ void Primitive3D::DrawRange(ID3D12GraphicsCommandList *cl, bool depth,
   // RootParam[0] = b0(VS)
   cl->SetGraphicsRootConstantBufferView(0, cbAddr);
 
-  // depth が false の場合は vtxDepth_ の後ろから始まる
   uint32_t offset = depth ? start : (uint32_t)vtxDepth_.size() + start;
   cl->DrawInstanced(count, 1, offset, 0);
 }
