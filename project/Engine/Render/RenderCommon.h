@@ -390,6 +390,10 @@ void UpdateModelAnimation(int modelHandle, float dt = -1.0f);
 /// @param modelHandle モデルハンドル
 void DrawModelSkeleton(int modelHandle);
 
+/// @brief モデルにスキンデータ（ボーン/スケルトン）が含まれているかを返す
+/// @param modelHandle モデルハンドル
+/// @return スキンデータが存在すれば true
+bool HasModelSkinData(int modelHandle);
 /// @brief モデルのライティングモードを設定する
 /// @param modelHandle モデルハンドル
 /// @param m ライティングモード

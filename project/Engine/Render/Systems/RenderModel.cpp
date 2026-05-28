@@ -791,4 +791,11 @@ void DrawModelSkeleton(int modelHandle) {
   m->DrawSkeleton();
 }
 
+bool HasModelSkinData(int modelHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return false;
+  return m->HasSkinData();
+}
+
 } // namespace RC
