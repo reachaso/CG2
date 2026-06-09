@@ -37,6 +37,18 @@ public:
     textureSrv_ = srvGPUHandle;
   }
 
+  /// @brief 使用する法線マップのSRVを設定
+  /// @param srvGPUHandle テクスチャのGPUディスクリプタハンドル
+  void SetNormalMap(D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle) {
+    normalMapSrv_ = srvGPUHandle;
+  }
+
+  /// @brief 使用する粗さマップのSRVを設定
+  /// @param srvGPUHandle テクスチャのGPUディスクリプタハンドル
+  void SetRoughnessMap(D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle) {
+    roughnessMapSrv_ = srvGPUHandle;
+  }
+
   /// @brief ImGuiによるパラメータ編集UIを表示
   /// @param name UIに表示するラベル
   void DrawImGui(const char *name);
@@ -98,6 +110,8 @@ private:
   CB_WVP cbWvp_{};   ///< 行列用定数バッファ
   CB_Material cbMat_{}; ///< マテリアル用定数バッファ
   D3D12_GPU_DESCRIPTOR_HANDLE textureSrv_{}; ///< 使用テクスチャのGPUハンドル
+  D3D12_GPU_DESCRIPTOR_HANDLE normalMapSrv_{}; ///< 使用法線マップのGPUハンドル
+  D3D12_GPU_DESCRIPTOR_HANDLE roughnessMapSrv_{}; ///< 使用粗さマップのGPUハンドル
 
   Transform transform_{{1, 1, 1}, {0, 0, 0}, {0, 0, 0}}; ///< ローカルトランスフォーム
   bool visible_ = true; ///< 可視フラグ

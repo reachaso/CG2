@@ -137,4 +137,32 @@ void SetPrimitiveMeshEnvironmentCoefficient(int meshHandle, float coeff) {
   }
 }
 
+Material *GetPrimitiveMeshMaterialPtr(int meshHandle) {
+  auto *m = GetRenderContext().PrimitiveMeshes().Get(meshHandle);
+  if (!m) return nullptr;
+  return m->Mat();
+}
+
+void SetPrimitiveMeshNormalMap(int meshHandle, int texHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.PrimitiveMeshes().Get(meshHandle);
+  if (!m) return;
+  if (texHandle >= 0) {
+    m->SetNormalMap(ctx.Textures().GetSrv(texHandle));
+  } else {
+    m->SetNormalMap(D3D12_GPU_DESCRIPTOR_HANDLE{0});
+  }
+}
+
+void SetPrimitiveMeshRoughnessMap(int meshHandle, int texHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.PrimitiveMeshes().Get(meshHandle);
+  if (!m) return;
+  if (texHandle >= 0) {
+    m->SetRoughnessMap(ctx.Textures().GetSrv(texHandle));
+  } else {
+    m->SetRoughnessMap(D3D12_GPU_DESCRIPTOR_HANDLE{0});
+  }
+}
+
 } // namespace RC

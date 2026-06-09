@@ -31,6 +31,12 @@ public:
   /// @param enabled State to set
   void SetEnabled(bool enabled) { enabled_ = enabled; }
 
+  /// @brief Get the entity this component is attached to
+  /// @return Pointer to the parent Entity
+  class Entity* GetEntity() const { return entity_; }
+
 protected:
   bool enabled_ = true; ///< Enabled flag (Update skipped if false)
+  class Entity* entity_ = nullptr; ///< Pointer to parent Entity
+  friend class Entity;
 };

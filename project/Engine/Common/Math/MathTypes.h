@@ -59,4 +59,10 @@ struct Quaternion {
   float x, y, z, w; ///< x, y, z, w 成分
 };
 
+/// @brief 3次元空間のレイ（半直線）
+struct Ray {
+  Vector3 origin;    ///< レイの起点
+  Vector3 direction; ///< レイの方向（正規化されていること）
+};
+
 } // namespace RC

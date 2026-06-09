@@ -83,6 +83,18 @@ public:
   /// @brief テクスチャのオーバーライドを解除し、モデル本来のマテリアル設定に戻す
   void ResetTextureToMtl() { resource_.ResetTextureToMtl(); }
 
+  /// @brief 法線マップのオーバーライドを設定する
+  /// @param srvGPUHandle GPU ハンドル
+  void SetNormalMap(D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle) {
+    resource_.SetNormalMap(srvGPUHandle);
+  }
+
+  /// @brief ラフネスマップのオーバーライドを設定する
+  /// @param srvGPUHandle GPU ハンドル
+  void SetRoughnessMap(D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle) {
+    resource_.SetRoughnessMap(srvGPUHandle);
+  }
+
   /// @brief ライティング設定を一括で適用する
   /// @param cfg ライティング設定構造体
   /// @return 自身への参照（メソッドチェーン用）

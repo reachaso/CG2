@@ -29,7 +29,9 @@ void ModelResource::Initialize(ID3D12Device *device) {
 
   // padding 初期化（ガラスでは environmentCoefficient=IOR, padding=roughness として使う）
   cbMat_.mapped->environmentCoefficient = 0.0f; // 通常モデル: 映り込みなし / Glass: IOR（0ならPS側で1.5扱い）
-  cbMat_.mapped->padding = 0.0f;                // Glass: roughness
+  cbMat_.mapped->useNormalMap = 0;
+  cbMat_.mapped->useRoughnessMap = 0;
+  cbMat_.mapped->padding[0] = 0.0f;                // Glass: roughness
 
   // Light CB（各Objectが自前で持つ）
   cbLight_.resource = CreateBufferResource(device_.Get(),
@@ -143,6 +145,9 @@ void ModelResource::Draw(ID3D12GraphicsCommandList *cmdList,
   cmdList->IASetVertexBuffers(0, 1, &vbv);
   cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
+
   cmdList->SetGraphicsRootConstantBufferView(
       0, cbMat_.resource->GetGPUVirtualAddress());
 
@@ -167,8 +172,11 @@ void ModelResource::Draw(ID3D12GraphicsCommandList *cmdList,
     cmdList->SetGraphicsRootConstantBufferView(1, addr);
 
     // texture
-    cmdList->SetGraphicsRootDescriptorTable(
-        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
+        (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer()) {
       cmdList->IASetIndexBuffer(&mesh_->IBV());
@@ -203,10 +211,12 @@ void ModelResource::Draw(ID3D12GraphicsCommandList *cmdList,
     cmdList->SetGraphicsRootConstantBufferView(1, addr);
 
     // テクスチャ（override優先）
-    const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
         (textureSrv_.ptr != 0) ? textureSrv_
                                : GetSrvForMaterial_(it.materialIndex);
-    cmdList->SetGraphicsRootDescriptorTable(2, srv);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     // 描画
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
@@ -234,6 +244,9 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
   const auto &vbv = mesh_->VBV();
   cmdList->IASetVertexBuffers(0, 1, &vbv);
   cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
 
   cmdList->SetGraphicsRootConstantBufferView(
       0, cbMat_.resource->GetGPUVirtualAddress());
@@ -268,8 +281,11 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
   cmdList->SetGraphicsRootShaderResourceView(1, instAddr);
 
   if (items.empty()) {
-    cmdList->SetGraphicsRootDescriptorTable(
-        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
+        (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
     if (mesh_->HasIndexBuffer()) {
       cmdList->IASetIndexBuffer(&mesh_->IBV());
       cmdList->DrawIndexedInstanced(mesh_->IndexCount(), count, 0, 0, 0);
@@ -281,10 +297,12 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
       cmdList->IASetIndexBuffer(&mesh_->IBV());
     }
     for (const auto &it : items) {
-      const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+      const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
           (textureSrv_.ptr != 0) ? textureSrv_
                                  : GetSrvForMaterial_(it.materialIndex);
-      cmdList->SetGraphicsRootDescriptorTable(2, srv);
+      cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+      cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+      cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
       if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
         cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, 0, 0);
       } else {
@@ -312,6 +330,9 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
   const auto &vbv = mesh_->VBV();
   cmdList->IASetVertexBuffers(0, 1, &vbv);
   cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
 
   cmdList->SetGraphicsRootConstantBufferView(
       0, cbMat_.resource->GetGPUVirtualAddress());
@@ -346,8 +367,11 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
   cmdList->SetGraphicsRootShaderResourceView(1, instAddr);
 
   if (items.empty()) {
-    cmdList->SetGraphicsRootDescriptorTable(
-        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
+        (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
     if (mesh_->HasIndexBuffer()) {
       cmdList->IASetIndexBuffer(&mesh_->IBV());
       cmdList->DrawIndexedInstanced(mesh_->IndexCount(), count, 0, 0, 0);
@@ -359,10 +383,12 @@ void ModelResource::DrawBatch(ID3D12GraphicsCommandList *cmdList,
       cmdList->IASetIndexBuffer(&mesh_->IBV());
     }
     for (const auto &it : items) {
-      const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+      const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
           (textureSrv_.ptr != 0) ? textureSrv_
                                  : GetSrvForMaterial_(it.materialIndex);
-      cmdList->SetGraphicsRootDescriptorTable(2, srv);
+      cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+      cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+      cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
       if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
         cmdList->DrawIndexedInstanced(it.indexCount, count, it.indexStart, 0, 0);
       } else {
@@ -400,6 +426,8 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
   }
 
   // Material CB (slot 0, PS)
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
   cmdList->SetGraphicsRootConstantBufferView(
       0, cbMat_.resource->GetGPUVirtualAddress());
 
@@ -432,8 +460,11 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
     tm->worldInverseTranspose = Transpose(Inverse(world));
     cmdList->SetGraphicsRootConstantBufferView(1, addr);
 
-    cmdList->SetGraphicsRootDescriptorTable(
-        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
+        (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(11, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer()) {
       cmdList->DrawIndexedInstanced(mesh_->IndexCount(), 1, 0, 0, 0);
@@ -456,10 +487,12 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
     tm->worldInverseTranspose = Transpose(Inverse(world));
     cmdList->SetGraphicsRootConstantBufferView(1, addr);
 
-    const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
         (textureSrv_.ptr != 0) ? textureSrv_
                                : GetSrvForMaterial_(it.materialIndex);
-    cmdList->SetGraphicsRootDescriptorTable(2, srv);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(11, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
       cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, 0, 0);
@@ -598,6 +631,8 @@ void ModelResource::DrawSkinnedCS(ID3D12GraphicsCommandList *cmdList,
   }
 
   // Material CB (slot 0, PS)
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
   cmdList->SetGraphicsRootConstantBufferView(
       0, cbMat_.resource->GetGPUVirtualAddress());
 
@@ -619,8 +654,11 @@ void ModelResource::DrawSkinnedCS(ID3D12GraphicsCommandList *cmdList,
   cmdList->SetGraphicsRootConstantBufferView(3, lightAddr);
 
   if (items.empty()) {
-    cmdList->SetGraphicsRootDescriptorTable(
-        2, (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0));
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
+        (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer()) {
       cmdList->DrawIndexedInstanced(mesh_->IndexCount(), 1, 0, 0, 0);
@@ -633,10 +671,12 @@ void ModelResource::DrawSkinnedCS(ID3D12GraphicsCommandList *cmdList,
   for (uint32_t i = 0; i < items.size(); ++i) {
     const auto &it = items[i];
 
-    const D3D12_GPU_DESCRIPTOR_HANDLE srv =
+    const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
         (textureSrv_.ptr != 0) ? textureSrv_
                                : GetSrvForMaterial_(it.materialIndex);
-    cmdList->SetGraphicsRootDescriptorTable(2, srv);
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
       cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, 0, 0);

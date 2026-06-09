@@ -7,6 +7,7 @@
 #include "Primitive/Primitive3D.h"
 #include "Scene.h"
 #include "Graphics/PostProcess/PostProcess.h"
+#include "RenderCommon.h"
 #include <algorithm>
 #include <format>
 
@@ -129,6 +130,7 @@ void RenderContext::Term() {
   }
 
   texMan_.Term();
+  TermWaterResources();
 
   ctxRef_ = nullptr;
   device_.Reset();

@@ -844,6 +844,29 @@ void PipelineManager::RegisterDefaultPipelines() {
                       objVsSkin, solidShadingPs, InputLayoutType::Object3DSkin, opt);
     }
   }
+
+  // ============================================================
+  // 水面 (Water) パイプライン
+  // ============================================================
+  {
+    const std::wstring waterVs =
+        L"Resources/Shader/Water/Water.VS.hlsl";
+    const std::wstring waterPs =
+        L"Resources/Shader/Water/Water.PS.hlsl";
+
+    // αブレンド ON / 深度テスト ON / 深度書き込み OFF / カリング無し
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::Water;
+    opt.enableDepth = true;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = true;
+    opt.blendMode = kBlendModeNormal;
+    opt.cull = D3D12_CULL_MODE_NONE;
+
+    CreateFromFiles(MakeKey("water", kBlendModeNormal), waterVs, waterPs,
+                    InputLayoutType::Object3D, opt);
+  }
+
   // ====================
   // PostProcess
   // ====================

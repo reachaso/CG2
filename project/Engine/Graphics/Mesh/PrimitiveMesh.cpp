@@ -44,11 +44,27 @@ void PrimitiveMesh::Draw(ID3D12GraphicsCommandList *cmdList) {
   }
   cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
+
   // RootParam: 0:Material, 1:WVP, 2:SRV, 3:Light
   cmdList->SetGraphicsRootConstantBufferView(0, cbMat_.resource->GetGPUVirtualAddress());
   cmdList->SetGraphicsRootConstantBufferView(1, cbWvp_.resource->GetGPUVirtualAddress());
-  if (textureSrv_.ptr != 0) {
-    cmdList->SetGraphicsRootDescriptorTable(2, textureSrv_);
+  const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv = textureSrv_.ptr != 0 ? textureSrv_ : D3D12_GPU_DESCRIPTOR_HANDLE{};
+  if (mainSrv.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
+  }
+  // Slot 9 is NormalMap
+  if (normalMapSrv_.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(9, normalMapSrv_);
+  } else if (mainSrv.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(9, mainSrv);
+  }
+  // Slot 10 is RoughnessMap
+  if (roughnessMapSrv_.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(10, roughnessMapSrv_);
+  } else if (mainSrv.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(10, mainSrv);
   }
 
   // PrimitiveMesh ではライト管理がまだ簡易。
@@ -72,11 +88,25 @@ void PrimitiveMesh::Draw(ID3D12GraphicsCommandList *cmdList, const RC::Matrix4x4
   }
   cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+  cbMat_.mapped->useNormalMap = (normalMapSrv_.ptr != 0) ? 1 : 0;
+  cbMat_.mapped->useRoughnessMap = (roughnessMapSrv_.ptr != 0) ? 1 : 0;
+
   // RootParam: 0:Material, 1:WVP, 2:SRV, 3:Light
   cmdList->SetGraphicsRootConstantBufferView(0, cbMat_.resource->GetGPUVirtualAddress());
   cmdList->SetGraphicsRootConstantBufferView(1, cbWvp_.resource->GetGPUVirtualAddress());
-  if (textureSrv_.ptr != 0) {
-    cmdList->SetGraphicsRootDescriptorTable(2, textureSrv_);
+  const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv2 = textureSrv_.ptr != 0 ? textureSrv_ : D3D12_GPU_DESCRIPTOR_HANDLE{};
+  if (mainSrv2.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(2, mainSrv2);
+  }
+  if (normalMapSrv_.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(9, normalMapSrv_);
+  } else if (mainSrv2.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(9, mainSrv2);
+  }
+  if (roughnessMapSrv_.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(10, roughnessMapSrv_);
+  } else if (mainSrv2.ptr != 0) {
+    cmdList->SetGraphicsRootDescriptorTable(10, mainSrv2);
   }
 
   if (ib_.resource) {

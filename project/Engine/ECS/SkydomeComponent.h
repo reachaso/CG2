@@ -18,6 +18,7 @@ public:
   bool HasSkydome() const { return skydomeHandle >= 0; }
 
   std::string skydomePath; ///< Asset path for serialization
+  std::string texturePath; ///< Texture asset path for serialization
 
   const char* TypeName() const override { return "SkydomeComponent"; }
 
@@ -26,7 +27,7 @@ public:
       {"skydomePath", skydomePath},
       {"visible", visible},
       {"color", {color.x, color.y, color.z, color.w}},
-      {"texOverride", texOverride}
+      {"texturePath", texturePath}
     };
   }
 
@@ -37,6 +38,6 @@ public:
       auto& c = j["color"];
       color = {c[0].get<float>(), c[1].get<float>(), c[2].get<float>(), c[3].get<float>()};
     }
-    if (j.contains("texOverride")) texOverride = j["texOverride"].get<int>();
+    if (j.contains("texturePath")) texturePath = j["texturePath"].get<std::string>();
   }
 };

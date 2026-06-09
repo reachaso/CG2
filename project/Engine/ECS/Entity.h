@@ -28,6 +28,7 @@ public:
     static_assert(std::is_base_of_v<IComponent, T>,
                   "T must derive from IComponent");
     auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
+    ptr->entity_ = this;
     T &ref = *ptr;
     components_[std::type_index(typeid(T))] = std::move(ptr);
     return ref;
@@ -149,6 +150,7 @@ public:
         std::string typeName = cj["type"].get<std::string>();
         auto comp = ComponentFactory::Create(typeName);
         if (comp) {
+          comp->entity_ = this;
           comp->Deserialize(cj["data"]);
           if (cj.contains("enabled")) comp->SetEnabled(cj["enabled"].get<bool>());
           components_[std::type_index(typeid(*comp))] = std::move(comp);

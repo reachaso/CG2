@@ -18,6 +18,7 @@ public:
   Shape shape = Shape::AABB; ///< Current collider shape
 
   AABB aabb; ///< AABB parameters
+  RC::Vector3 size = {1.0f, 1.0f, 1.0f}; ///< Size for box
 
   RC::Vector3 center = {0.0f, 0.0f, 0.0f}; ///< Center position (local)
   float radius = 1.0f;                      ///< Radius
@@ -33,6 +34,7 @@ public:
     return {
       {"shape", static_cast<int>(shape)},
       {"center", {center.x, center.y, center.z}},
+      {"size", {size.x, size.y, size.z}},
       {"radius", radius},
       {"layer", layer},
       {"isTrigger", isTrigger}
@@ -44,6 +46,10 @@ public:
     if (j.contains("center")) {
       auto& c = j["center"];
       center = {c[0].get<float>(), c[1].get<float>(), c[2].get<float>()};
+    }
+    if (j.contains("size")) {
+      auto& s = j["size"];
+      size = {s[0].get<float>(), s[1].get<float>(), s[2].get<float>()};
     }
     if (j.contains("radius")) radius = j["radius"].get<float>();
     if (j.contains("layer")) layer = j["layer"].get<uint32_t>();

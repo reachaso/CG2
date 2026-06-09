@@ -52,12 +52,11 @@ public:
 
   /// @brief 全サブメッシュ共通で適用するオーバーライドテクスチャを設定する
   /// @param srvGPUHandle テクスチャの GPU ハンドル
-  void SetTexture(D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle) {
-    textureSrv_ = srvGPUHandle;
-  }
-
-  /// @brief テクスチャのオーバーライドを解除し、マテリアル固有のテクスチャに戻す
+  void SetTexture(const D3D12_GPU_DESCRIPTOR_HANDLE &srv) { textureSrv_ = srv; }
   void ResetTextureToMtl();
+
+  void SetNormalMap(const D3D12_GPU_DESCRIPTOR_HANDLE &srv) { normalMapSrv_ = srv; }
+  void SetRoughnessMap(const D3D12_GPU_DESCRIPTOR_HANDLE &srv) { roughnessMapSrv_ = srv; }
 
   /// @brief テクスチャマネージャを設定する
   /// @param tm テクスチャマネージャへのポインタ
@@ -228,6 +227,8 @@ private:
   CB_Light cbLight_{};
 
   D3D12_GPU_DESCRIPTOR_HANDLE textureSrv_{}; ///< オーバーライド用 SRV（共通テクスチャ）
+  D3D12_GPU_DESCRIPTOR_HANDLE normalMapSrv_{};
+  D3D12_GPU_DESCRIPTOR_HANDLE roughnessMapSrv_{};
 
   std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> materialSrvs_; ///< マテリアルごとの SRV リスト
 

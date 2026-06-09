@@ -6,7 +6,9 @@ struct Material
     int lightingMode; // 0:なし, 1:Lambert, 2:Half Lambert（※3/4が来てもLambert扱い）
     float shininess; // Blinn-Phongの指数（0以下なら鏡面なし）
     float environmentCoefficient; // 環境マップ映り込み係数 (0〜1)
-    float padding; // アラインメント調整
+    int useNormalMap;
+    int useRoughnessMap;
+    float2 padding; // 8 bytes padding to keep 16 bytes alignment (total size changed, but Wait, we need 12 bytes? No, lightingMode(4)+shininess(4)+env(4)+useN(4)+useR(4) = 20. + 12 = 32 bytes.)
     float4x4 uvTransform; // UV変換
 };
 
@@ -98,6 +100,8 @@ cbuffer AreaLightsCB : register(b5)
 
 Texture2D<float4> gTexture : register(t0);
 TextureCube<float4> gEnvironmentTexture : register(t1);
+Texture2D<float4> gNormalMap : register(t2);
+Texture2D<float4> gRoughnessMap : register(t3);
 SamplerState gSampler : register(s0);
 
 struct PixelShaderOutput
@@ -136,6 +140,34 @@ PixelShaderOutput main(VertexShaderOutput input)
     // =========================
 
     float3 N = normalize(input.normal);
+    
+    if (gMaterial.useNormalMap)
+    {
+        float4 normalMapCol = gNormalMap.Sample(gSampler, transformedUV);
+        float3 normalTangentSpace = normalMapCol.xyz * 2.0f - 1.0f;
+        
+        // TBN 行列を計算
+        float3 dp1 = ddx(input.worldPosition);
+        float3 dp2 = ddy(input.worldPosition);
+        float2 duv1 = ddx(transformedUV);
+        float2 duv2 = ddy(transformedUV);
+
+        float r = 1.0f / (duv1.x * duv2.y - duv1.y * duv2.x);
+        float3 T = normalize((dp1 * duv2.y - dp2 * duv1.y) * r);
+        float3 B = normalize((dp2 * duv1.x - dp1 * duv2.x) * r);
+        
+        float3x3 TBN = float3x3(T, B, N);
+        N = normalize(mul(normalTangentSpace, TBN));
+    }
+
+    float currentShininess = gMaterial.shininess;
+    if (gMaterial.useRoughnessMap && currentShininess > 0.0f)
+    {
+        float4 roughnessCol = gRoughnessMap.Sample(gSampler, transformedUV);
+        float roughness = roughnessCol.r;
+        currentShininess = max(0.1f, currentShininess * (1.0f - roughness));
+        if (roughness > 0.99f) currentShininess = 0.0f;
+    }
 
     // L は「面 → 光」方向に統一（Directionalは -direction でOK）
     float3 L = normalize(-gDirectionalLight.direction);
@@ -166,10 +198,10 @@ PixelShaderOutput main(VertexShaderOutput input)
     float3 diffuseDir = base.rgb * dirLightCol * diffuseTerm;
 
     float3 specularDir = 0.0f;
-    if (gMaterial.shininess > 0.0f && NdotL > 0.0f) // 裏面にハイライト出さない
+    if (currentShininess > 0.0f && NdotL > 0.0f) // 裏面にハイライト出さない
     {
         float3 H = normalize(L + V);
-        float specPow = pow(saturate(dot(N, H)), gMaterial.shininess);
+        float specPow = pow(saturate(dot(N, H)), currentShininess);
         specularDir = dirLightCol * specPow; // 白ハイライト
     }
 
@@ -216,10 +248,10 @@ for (uint i = 0; i < MAX_POINT_LIGHTS; ++i)
 
     diffusePoint += base.rgb * pointLightCol * diffuseTermP;
 
-    if (gMaterial.shininess > 0.0f && NdotLp > 0.0f)
+    if (currentShininess > 0.0f && NdotLp > 0.0f)
     {
         float3 H = normalize(Lp + V);
-        float specPow = pow(saturate(dot(N, H)), gMaterial.shininess);
+        float specPow = pow(saturate(dot(N, H)), currentShininess);
         specularPoint += pointLightCol * specPow;
     }
 }
@@ -272,10 +304,10 @@ for (uint i = 0; i < MAX_SPOT_LIGHTS; ++i)
 
     diffuseSpot += base.rgb * spotLightCol * diffuseTermS;
 
-    if (gMaterial.shininess > 0.0f && NdotLs > 0.0f)
+    if (currentShininess > 0.0f && NdotLs > 0.0f)
     {
         float3 Hs = normalize(Ls + V);
-        float specPowS = pow(saturate(dot(N, Hs)), gMaterial.shininess);
+        float specPowS = pow(saturate(dot(N, Hs)), currentShininess);
         specularSpot += spotLightCol * specPowS;
     }
 }
@@ -366,10 +398,10 @@ for (uint i = 0; i < MAX_SPOT_LIGHTS; ++i)
 
             diffuseArea += base.rgb * areaLightCol * diffuseTermA;
 
-            if (gMaterial.shininess > 0.0f && NdotLa > 0.0f)
+            if (currentShininess > 0.0f && NdotLa > 0.0f)
             {
                 float3 H = normalize(La + V);
-                float specPow = pow(saturate(dot(N, H)), gMaterial.shininess);
+                float specPow = pow(saturate(dot(N, H)), currentShininess);
                 specularArea += areaLightCol * specPow;
             }
         }

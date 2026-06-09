@@ -237,6 +237,7 @@ void SetActiveSpotLightEnabled(bool enabled);
 bool IsActiveSpotLightEnabled();
 
 
+
 // ============================================================================
 // AreaLight（Rect）
 // ============================================================================
@@ -608,6 +609,21 @@ void SetEnvironmentMap(int skyboxHandle);
 /// @param coeff 映り込み係数（0=映り込みなし、1=完全鏡面）
 void SetModelEnvironmentCoefficient(int modelHandle, float coeff);
 
+/// @brief モデルの法線マップを設定する
+/// @param modelHandle モデルハンドル
+/// @param texHandle 法線マップのテクスチャハンドル
+void SetModelNormalMap(int modelHandle, int texHandle);
+
+/// @brief モデルのラフネスマップを設定する
+/// @param modelHandle モデルハンドル
+/// @param texHandle ラフネスマップのテクスチャハンドル
+void SetModelRoughnessMap(int modelHandle, int texHandle);
+
+/// @brief モデルのマテリアルポインタを取得する（直接編集用）
+/// @param modelHandle モデルハンドル
+/// @return Material*（無効ハンドルなら nullptr）
+Material *GetModelMaterialPtr(int modelHandle);
+
 // ── 汎用プロシージャルメッシュ（PrimitiveMesh） ──────────
 
 /// @brief 平面メッシュを生成
@@ -682,6 +698,79 @@ void DrawPrimitiveMeshImGui(int meshHandle, const char *name = nullptr);
 /// @param meshHandle メッシュハンドル
 /// @param coeff 映り込み係数（0=映り込みなし、1=完全鏡面）
 void SetPrimitiveMeshEnvironmentCoefficient(int meshHandle, float coeff);
+
+/// @brief プリミティブメッシュの法線マップを設定する
+/// @param meshHandle メッシュハンドル
+/// @param texHandle 法線マップのテクスチャハンドル
+void SetPrimitiveMeshNormalMap(int meshHandle, int texHandle);
+
+/// @brief プリミティブメッシュのラフネスマップを設定する
+/// @param meshHandle メッシュハンドル
+/// @param texHandle ラフネスマップのテクスチャハンドル
+void SetPrimitiveMeshRoughnessMap(int meshHandle, int texHandle);
+
+/// @brief プリミティブメッシュのマテリアルポインタを取得する（直接編集用）
+/// @param meshHandle メッシュハンドル
+/// @return Material*（無効ハンドルなら nullptr）
+Material *GetPrimitiveMeshMaterialPtr(int meshHandle);
+
+// ── 水面描画 (Water) ──────────────────────────────
+
+/// @brief 水面用の高分割平面メッシュを生成
+/// @param width 幅
+/// @param height 奥行き
+/// @param segments 分割数（各軸）
+/// @param normalMapHandle 法線マップテクスチャハンドル（-1 ならテクスチャ無し）
+/// @return メッシュハンドル（失敗時は -1）
+int GenerateWaterPlane(float width, float height, uint32_t segments, int normalMapHandle = -1);
+
+/// @brief 水面を描画する
+/// @param meshHandle メッシュハンドル（GenerateWaterPlane で取得）
+/// @param normalMapHandle 法線マップテクスチャハンドル（-1 なら生成時のテクスチャ）
+void DrawWater(int meshHandle, int normalMapHandle = -1);
+
+/// @brief 水面メッシュを解放する
+/// @param meshHandle メッシュハンドル
+void UnloadWater(int meshHandle);
+
+/// @brief 水面メッシュの Transform ポインタを取得
+/// @param meshHandle メッシュハンドル
+/// @return Transform*（無効ハンドルなら nullptr）
+Transform *GetWaterTransformPtr(int meshHandle);
+
+/// @brief 水面パラメータを定数バッファに設定する
+/// @param waveHeight 主波の高さ
+/// @param waveSpeed 主波の速度
+/// @param waveFreq 主波の周波数
+/// @param waveHeight2 副波の高さ
+/// @param waveSpeed2 副波の速度
+/// @param waveFreq2 副波の周波数
+/// @param waveSteepness Gerstner波の鋭さ (0..1)
+/// @param shallowColor 浅瀬の色
+/// @param deepColor 深海の色
+/// @param fresnelPower フレネル指数
+/// @param specularPower スペキュラ指数
+/// @param normalScrollSpeed 法線マップスクロール速度
+/// @param normalStrength 法線マップ強度
+void SetWaterParams(float waveHeight, float waveSpeed, float waveFreq,
+                    float waveHeight2, float waveSpeed2, float waveFreq2,
+                    float waveSteepness,
+                    const Vector4 &shallowColor, const Vector4 &deepColor,
+                    float fresnelPower, float specularPower,
+                    float normalScrollSpeed, float normalStrength);
+
+/// @brief 水面の環境マップ映り込み係数を設定する
+/// @param meshHandle メッシュハンドル
+/// @param coeff 映り込み係数（0=映り込みなし、1=完全鏡面）
+void SetWaterEnvironmentCoefficient(int meshHandle, float coeff);
+
+/// @brief 水面用のフレーム時間を設定する
+/// @param timeSec 累積時間（秒）
+void SetWaterTime(float timeSec);
+
+/// @brief 水面の共有リソース（定数バッファなど）を解放する
+void TermWaterResources();
+
 
 // ── Primitive2D（即時描画） ──────────────────────────
 

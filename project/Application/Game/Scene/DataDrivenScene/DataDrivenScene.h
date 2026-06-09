@@ -18,6 +18,7 @@
 #include "ECS/PrimitiveMeshComponent.h"
 #include "ECS/SkyboxComponent.h"
 #include "ECS/SkydomeComponent.h"
+#include "ECS/WaterComponent.h"
 
 // Light sources for Dereferencing
 #include "Graphics/Light/Directional/DirectionalLightSource.h"
@@ -102,6 +103,8 @@ public:
                     }
                     RC::SetModelColor(ren->modelHandle, ren->color);
                     RC::SetModelEnvironmentCoefficient(ren->modelHandle, ren->environmentCoeff);
+                    RC::SetModelNormalMap(ren->modelHandle, ren->normalMapOverride);
+                    RC::SetModelRoughnessMap(ren->modelHandle, ren->roughnessMapOverride);
                 }
             }
             if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
@@ -117,7 +120,7 @@ public:
                     l->SetColor(dirLight->color);
                     l->SetDirection(dirLight->direction);
                     l->SetIntensity(dirLight->intensity);
-                    RC::SetDirectionalLightEnabled(dirLight->lightHandle, dirLight->visible);
+                    RC::SetDirectionalLightEnabled(dirLight->lightHandle, dirLight->visible && dirLight->IsEnabled());
                 }
             }
             if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
@@ -127,7 +130,7 @@ public:
                     l->SetIntensity(ptLight->intensity);
                     l->SetRadius(ptLight->radius);
                     l->SetDecay(ptLight->decay);
-                    RC::SetPointLightEnabled(ptLight->lightHandle, ptLight->visible);
+                    RC::SetPointLightEnabled(ptLight->lightHandle, ptLight->visible && ptLight->IsEnabled());
                 }
             }
             if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
@@ -139,7 +142,7 @@ public:
                     l->SetDistance(spLight->distance);
                     l->SetDecay(spLight->decay);
                     l->SetCosAngle(spLight->cosAngle);
-                    RC::SetSpotLightEnabled(spLight->lightHandle, spLight->visible);
+                    RC::SetSpotLightEnabled(spLight->lightHandle, spLight->visible && spLight->IsEnabled());
                 }
             }
             if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
@@ -151,7 +154,7 @@ public:
                     l->SetDecay(arLight->decay);
                     l->SetHalfSize(arLight->halfWidth, arLight->halfHeight);
                     l->SetTwoSided(arLight->twoSided);
-                    RC::SetAreaLightEnabled(arLight->lightHandle, arLight->visible);
+                    RC::SetAreaLightEnabled(arLight->lightHandle, arLight->visible && arLight->IsEnabled());
                 }
             }
             if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
@@ -167,6 +170,23 @@ public:
                         *pmTr = tr->ToTransform();
                     }
                     RC::SetPrimitiveMeshEnvironmentCoefficient(pm->meshHandle, pm->environmentCoeff);
+                    RC::SetPrimitiveMeshNormalMap(pm->meshHandle, pm->normalMapOverride);
+                    RC::SetPrimitiveMeshRoughnessMap(pm->meshHandle, pm->roughnessMapOverride);
+                }
+            }
+            if (auto* water = e->GetComponent<WaterComponent>()) {
+                if (water->HasMesh()) {
+                    if (auto* wTr = RC::GetWaterTransformPtr(water->meshHandle)) {
+                        *wTr = tr->ToTransform();
+                    }
+                    RC::SetWaterEnvironmentCoefficient(water->meshHandle, water->environmentCoeff);
+                    RC::SetWaterParams(
+                        water->waveHeight, water->waveSpeed, water->waveFreq,
+                        water->waveHeight2, water->waveSpeed2, water->waveFreq2,
+                        water->waveSteepness,
+                        water->shallowColor, water->deepColor,
+                        water->fresnelPower, water->specularPower,
+                        water->normalScrollSpeed, water->normalStrength);
                 }
             }
             if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
@@ -178,6 +198,10 @@ public:
             }
         }
     }
+
+    // 水面の累積時間を更新
+    waterTime_ += ctx.deltaTime;
+    RC::SetWaterTime(waterTime_);
 
     UpdateEntities(ctx.deltaTime);
     RemoveDeadEntities();
@@ -212,17 +236,17 @@ public:
         if (!e->IsVisible()) continue; // Hierarchy の目アイコンで非表示
 
         if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
-            if (skybox->HasSkybox() && skybox->visible) {
+            if (skybox->HasSkybox() && skybox->visible && skybox->IsEnabled()) {
                 RC::DrawSkyBox(skybox->skyboxHandle);
             }
         }
         if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
-            if (skydome->HasSkydome() && skydome->visible) {
+            if (skydome->HasSkydome() && skydome->visible && skydome->IsEnabled()) {
                 RC::DrawSkydome(skydome->skydomeHandle, skydome->texOverride);
             }
         }
         if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
-            if (ren->HasModel() && ren->visible) {
+            if (ren->HasModel() && ren->visible && ren->IsEnabled()) {
                 if (e->Name() == "Block") {
                     RC::DrawModelGlassTwoPass(ren->modelHandle, ren->texOverride);
                 } else {
@@ -230,15 +254,20 @@ public:
                 }
                 // スケルトンのデバッグ表示
                 if (auto* anim = e->GetComponent<AnimationComponent>()) {
-                    if (anim->showSkeleton) {
+                    if (anim->showSkeleton && anim->IsEnabled()) {
                         RC::DrawModelSkeleton(ren->modelHandle);
                     }
                 }
             }
         }
         if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
-            if (pm->HasMesh() && pm->visible) {
+            if (pm->HasMesh() && pm->visible && pm->IsEnabled()) {
                 RC::DrawPrimitiveMesh(pm->meshHandle, pm->texOverride);
+            }
+        }
+        if (auto* water = e->GetComponent<WaterComponent>()) {
+            if (water->HasMesh() && water->visible && water->IsEnabled()) {
+                RC::DrawWater(water->meshHandle, water->normalMapHandle);
             }
         }
     }
@@ -247,6 +276,7 @@ public:
     RC::BeginOverlay3D();
     DrawLightGizmos(selectedEntityId_);
     DrawCameraGizmos(selectedEntityId_, float(ctx.app->width) / ctx.app->height);
+    DrawColliderGizmos(selectedEntityId_);
     RC::EndOverlay3D();
 
     // ===========================================
@@ -258,7 +288,7 @@ public:
     for (auto& e : entities_) {
         if (!e->IsVisible()) continue;
         if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
-            if (spr->HasSprite() && spr->visible) {
+            if (spr->HasSprite() && spr->visible && spr->IsEnabled()) {
                 RC::DrawSprite(spr->spriteHandle);
             }
         }
@@ -343,6 +373,7 @@ public:
 private:
   std::string sceneName_;
   std::string filePath_;
+  float waterTime_ = 0.0f; ///< 水面アニメーション用累積時間
 
   /// @brief Register all components to ComponentFactory (called once)
   static void RegisterAllComponents() {
@@ -359,13 +390,20 @@ private:
     Entity::ComponentFactory::Register<PrimitiveMeshComponent>("PrimitiveMeshComponent");
     Entity::ComponentFactory::Register<SkyboxComponent>("SkyboxComponent");
     Entity::ComponentFactory::Register<SkydomeComponent>("SkydomeComponent");
+    Entity::ComponentFactory::Register<WaterComponent>("WaterComponent");
   }
 
   void InitializeRuntimeResources(Entity& e, SceneContext& ctx) {
       if (auto* ren = e.GetComponent<ModelRendererComponent>()) {
           if (!ren->modelPath.empty()) ren->modelHandle = RC::LoadModel(ren->modelPath);
+          if (!ren->texturePath.empty()) ren->texOverride = RC::LoadTex(ren->texturePath);
+          if (!ren->normalMapPath.empty()) ren->normalMapOverride = RC::LoadTex(ren->normalMapPath);
+          if (!ren->roughnessMapPath.empty()) ren->roughnessMapOverride = RC::LoadTex(ren->roughnessMapPath);
       }
       if (auto* pm = e.GetComponent<PrimitiveMeshComponent>()) {
+          if (!pm->texturePath.empty()) pm->texOverride = RC::LoadTex(pm->texturePath);
+          if (!pm->normalMapPath.empty()) pm->normalMapOverride = RC::LoadTex(pm->normalMapPath);
+          if (!pm->roughnessMapPath.empty()) pm->roughnessMapOverride = RC::LoadTex(pm->roughnessMapPath);
           switch (pm->type) {
               case PrimitiveType::Sphere: pm->meshHandle = RC::GenerateSphere(1.0f, pm->texOverride); break;
               case PrimitiveType::Box: pm->meshHandle = RC::GenerateBox(1.0f, 1.0f, 1.0f, pm->texOverride); break;
@@ -429,9 +467,19 @@ private:
       }
       if (auto* sd = e.GetComponent<SkydomeComponent>()) {
           if (!sd->skydomePath.empty()) sd->skydomeHandle = RC::GenerateSkydome(RC::LoadTex(sd->skydomePath));
+          if (!sd->texturePath.empty()) sd->texOverride = RC::LoadTex(sd->texturePath);
       }
       if (auto* spr = e.GetComponent<SpriteRendererComponent>()) {
           if (!spr->spritePath.empty()) spr->spriteHandle = RC::LoadSprite(spr->spritePath, ctx);
+      }
+      if (auto* water = e.GetComponent<WaterComponent>()) {
+          int normalMap = -1;
+          if (!water->normalMapPath.empty()) {
+              normalMap = RC::LoadTex(water->normalMapPath);
+              water->normalMapHandle = normalMap;
+          }
+          water->meshHandle = RC::GenerateWaterPlane(
+              water->planeWidth, water->planeHeight, water->segments, normalMap);
       }
   }
 
@@ -462,6 +510,9 @@ private:
       }
       if (auto* spr = e.GetComponent<SpriteRendererComponent>()) {
           if (spr->spriteHandle >= 0) { RC::UnloadSprite(spr->spriteHandle); spr->spriteHandle = -1; }
+      }
+      if (auto* water = e.GetComponent<WaterComponent>()) {
+          if (water->meshHandle >= 0) { RC::UnloadWater(water->meshHandle); water->meshHandle = -1; }
       }
   }
 };

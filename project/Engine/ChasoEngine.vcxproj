@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -126,7 +126,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- Camera -->
-    <ClCompile Include="..\Engine\Camera\CameraController.cpp" />
+    <ClCompile Include="..\\Engine\\Camera\\CameraController.cpp" />
+    <ClCompile Include="..\\Engine\\ECS\\ScriptRegistry.cpp" />
     <ClCompile Include="..\Engine\Camera\DebugCamera\DebugCamera.cpp" />
     <ClCompile Include="..\Engine\Camera\MainCamera\MainCamera.cpp" />
     <!-- Common -->
@@ -185,6 +186,7 @@
     <ClCompile Include="..\Engine\Render\Systems\RenderPrimitive.cpp" />
     <ClCompile Include="..\Engine\Render\Systems\RenderSkydome.cpp" />
     <ClCompile Include="..\Engine\Render\Systems\RenderPrimitiveMesh.cpp" />
+    <ClCompile Include="..\Engine\Render\Systems\RenderWater.cpp" />
     <ClCompile Include="..\Engine\Render\Systems\RenderSprite.cpp" />
     <ClCompile Include="..\Engine\Render\Skydome\SkydomeManager.cpp" />
     <ClCompile Include="..\Engine\Render\Skybox\SkyboxManager.cpp" />
@@ -292,6 +294,7 @@
     <ClInclude Include="..\Engine\ECS\TransformComponent.h" />
     <ClInclude Include="..\Engine\ECS\ModelRendererComponent.h" />
     <ClInclude Include="..\Engine\ECS\ColliderComponent.h" />
+    <ClInclude Include="..\Engine\ECS\WaterComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
@@ -306,6 +309,7 @@
     <None Include="..\Resources\Shader\Particle\Particle.hlsli" />
     <None Include="..\Resources\Shader\Particle\GPUParticle.hlsli" />
     <None Include="..\Resources\Shader\Skybox\Skybox.hlsli" />
+    <None Include="..\Resources\Shader\Water\Water.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

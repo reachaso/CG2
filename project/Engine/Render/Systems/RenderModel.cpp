@@ -765,6 +765,28 @@ void SetModelEnvironmentCoefficient(int modelHandle, float coeff) {
   m->SetEnvironmentCoefficient(coeff);
 }
 
+void SetModelNormalMap(int modelHandle, int texHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return;
+  if (texHandle >= 0) {
+    m->SetNormalMap(ctx.Textures().GetSrv(texHandle));
+  } else {
+    m->SetNormalMap(D3D12_GPU_DESCRIPTOR_HANDLE{0});
+  }
+}
+
+void SetModelRoughnessMap(int modelHandle, int texHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return;
+  if (texHandle >= 0) {
+    m->SetRoughnessMap(ctx.Textures().GetSrv(texHandle));
+  } else {
+    m->SetRoughnessMap(D3D12_GPU_DESCRIPTOR_HANDLE{0});
+  }
+}
+
 void AttachModelAnimation(int modelHandle) {
   GetRenderContext().Models().AttachAnimation(modelHandle);
 }
@@ -796,6 +818,13 @@ bool HasModelSkinData(int modelHandle) {
   auto *m = ctx.Models().Get(modelHandle);
   if (!m) return false;
   return m->HasSkinData();
+}
+
+Material *GetModelMaterialPtr(int modelHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return nullptr;
+  return m->Mat();
 }
 
 } // namespace RC

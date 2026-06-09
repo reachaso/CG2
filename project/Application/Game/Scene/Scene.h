@@ -103,6 +103,10 @@ public:
   /// @param aspect アスペクト比
   void DrawCameraGizmos(uint32_t selectedEntityId = 0, float aspect = 16.0f / 9.0f);
 
+  /// @brief 選択中のコライダーエンティティのギズモを描画する
+  /// @param selectedEntityId 選択中のエンティティID（0なら描画しない）
+  void DrawColliderGizmos(uint32_t selectedEntityId = 0);
+
   /// @brief 選択中のエンティティIDを設定する
   void SetSelectedEntityId(uint32_t id) { selectedEntityId_ = id; }
   /// @brief 選択中のエンティティIDを取得する

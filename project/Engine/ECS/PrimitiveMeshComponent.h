@@ -21,6 +21,8 @@ class PrimitiveMeshComponent : public IComponent {
 public:
   int meshHandle = -1;    ///< Mesh handle (from RC::Generate*)
   int texOverride = -1;   ///< Texture override (-1 for default)
+  int normalMapOverride = -1; ///< Normal Map texture override
+  int roughnessMapOverride = -1; ///< Roughness Map texture override
   bool visible = true;    ///< Visibility flag
   PrimitiveType type = PrimitiveType::Sphere; ///< Shape type (for Inspector)
   float environmentCoeff = 0.0f; ///< Environment map reflection coefficient
@@ -28,12 +30,18 @@ public:
   /// @brief Check if a valid mesh is assigned
   bool HasMesh() const { return meshHandle >= 0; }
 
+  std::string texturePath; ///< Texture asset path for serialization
+  std::string normalMapPath; ///< Normal Map asset path for serialization
+  std::string roughnessMapPath; ///< Roughness Map asset path for serialization
+
   const char* TypeName() const override { return "PrimitiveMeshComponent"; }
 
   nlohmann::json Serialize() const override {
     return {
       {"type", static_cast<int>(type)},
-      {"texOverride", texOverride},
+      {"texturePath", texturePath},
+      {"normalMapPath", normalMapPath},
+      {"roughnessMapPath", roughnessMapPath},
       {"visible", visible},
       {"environmentCoeff", environmentCoeff}
     };
@@ -41,7 +49,9 @@ public:
 
   void Deserialize(const nlohmann::json& j) override {
     if (j.contains("type")) type = static_cast<PrimitiveType>(j["type"].get<int>());
-    if (j.contains("texOverride")) texOverride = j["texOverride"].get<int>();
+    if (j.contains("texturePath")) texturePath = j["texturePath"].get<std::string>();
+    if (j.contains("normalMapPath")) normalMapPath = j["normalMapPath"].get<std::string>();
+    if (j.contains("roughnessMapPath")) roughnessMapPath = j["roughnessMapPath"].get<std::string>();
     if (j.contains("visible")) visible = j["visible"].get<bool>();
     if (j.contains("environmentCoeff")) environmentCoeff = j["environmentCoeff"].get<float>();
   }

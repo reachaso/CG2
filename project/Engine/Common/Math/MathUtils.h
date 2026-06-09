@@ -142,4 +142,66 @@ inline Vector3 Lerp(const Vector3 &a, const Vector3 &b, float t) {
                  a.z + (b.z - a.z) * t};
 }
 
+/// @brief レイとAABBの交差判定 (Slab method)
+/// @param ray 交差判定を行うレイ
+/// @param min AABBの最小座標
+/// @param max AABBの最大座標
+/// @param outDistance 交差した場合の距離
+/// @return 交差していればtrue
+inline bool IntersectRayAABB(const Ray& ray, const Vector3& min, const Vector3& max, float& outDistance) {
+  auto safe_inv = [](float d) { return d != 0.0f ? 1.0f / d : 1.0f / 1e-6f; };
+  float invDx = safe_inv(ray.direction.x);
+  float invDy = safe_inv(ray.direction.y);
+  float invDz = safe_inv(ray.direction.z);
+
+  float tmin = (min.x - ray.origin.x) * invDx;
+  float tmax = (max.x - ray.origin.x) * invDx;
+  if (tmin > tmax) std::swap(tmin, tmax);
+
+  float tymin = (min.y - ray.origin.y) * invDy;
+  float tymax = (max.y - ray.origin.y) * invDy;
+  if (tymin > tymax) std::swap(tymin, tymax);
+
+  if ((tmin > tymax) || (tymin > tmax)) return false;
+
+  if (tymin > tmin) tmin = tymin;
+  if (tymax < tmax) tmax = tymax;
+
+  float tzmin = (min.z - ray.origin.z) * invDz;
+  float tzmax = (max.z - ray.origin.z) * invDz;
+  if (tzmin > tzmax) std::swap(tzmin, tzmax);
+
+  if ((tmin > tzmax) || (tzmin > tmax)) return false;
+
+  if (tzmin > tmin) tmin = tzmin;
+  if (tzmax < tmax) tmax = tzmax;
+
+  if (tmax < 0.0f) return false;
+
+  outDistance = tmin >= 0.0f ? tmin : tmax;
+  return true;
+}
+
+/// @brief レイとスフィア(球)の交差判定
+/// @param ray 交差判定を行うレイ
+/// @param center スフィアの中心座標
+/// @param radius スフィアの半径
+/// @param outDistance 交差した場合の距離
+/// @return 交差していればtrue
+inline bool IntersectRaySphere(const Ray& ray, const Vector3& center, float radius, float& outDistance) {
+    Vector3 oc = Sub(ray.origin, center);
+    float b = Dot(oc, ray.direction);
+    float c = Dot(oc, oc) - radius * radius;
+    float discriminant = b * b - c;
+    if (discriminant < 0.0f) return false;
+
+    float sqrtD = std::sqrt(discriminant);
+    float t1 = -b - sqrtD;
+    float t2 = -b + sqrtD;
+
+    if (t2 < 0.0f) return false;
+    outDistance = t1 >= 0.0f ? t1 : t2;
+    return true;
+}
+
 } // namespace RC

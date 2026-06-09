@@ -248,8 +248,8 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // 既存ルートシグネチャ解放
   root_.Reset();
 
-  D3D12_ROOT_PARAMETER params[10] = {};
-  D3D12_DESCRIPTOR_RANGE ranges[5] = {}; // t0(Tex), t1(EnvMap), t1(Depth), t1(SkinMat)等
+  D3D12_ROOT_PARAMETER params[12] = {};
+  D3D12_DESCRIPTOR_RANGE ranges[6] = {}; // t0(Tex), t1(EnvMap), t1(Depth), t1(SkinMat)等
   UINT paramCount = 0;
 
   switch (type) {
@@ -313,7 +313,29 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[8].DescriptorTable.NumDescriptorRanges = 1;
     params[8].DescriptorTable.pDescriptorRanges = &ranges[1];
 
-    paramCount = 9;
+    // 9: SRV table t2 (PS) NormalMap
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[2].BaseShaderRegister = 2; // t2
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[9].DescriptorTable.NumDescriptorRanges = 1;
+    params[9].DescriptorTable.pDescriptorRanges = &ranges[2];
+
+    // 10: SRV table t3 (PS) RoughnessMap
+    ranges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[3].BaseShaderRegister = 3; // t3
+    ranges[3].NumDescriptors = 1;
+    ranges[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[10].DescriptorTable.NumDescriptorRanges = 1;
+    params[10].DescriptorTable.pDescriptorRanges = &ranges[3];
+
+    paramCount = 11;
     break;
 
   case RootSignatureType::Object3DInstancing:
@@ -377,7 +399,29 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[8].DescriptorTable.NumDescriptorRanges = 1;
     params[8].DescriptorTable.pDescriptorRanges = &ranges[2];
 
-    paramCount = 9;
+    // 9: SRV table t2 (PS) NormalMap
+    ranges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[3].BaseShaderRegister = 2; // t2
+    ranges[3].NumDescriptors = 1;
+    ranges[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[9].DescriptorTable.NumDescriptorRanges = 1;
+    params[9].DescriptorTable.pDescriptorRanges = &ranges[3];
+
+    // 10: SRV table t3 (PS) RoughnessMap
+    ranges[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[4].BaseShaderRegister = 3; // t3
+    ranges[4].NumDescriptors = 1;
+    ranges[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[10].DescriptorTable.NumDescriptorRanges = 1;
+    params[10].DescriptorTable.pDescriptorRanges = &ranges[4];
+
+    paramCount = 11;
     break;
 
   case RootSignatureType::Object3DSkin:
@@ -446,7 +490,29 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
     params[9].Descriptor.ShaderRegister = 1; // t1
 
-    paramCount = 10;
+    // 10: SRV table t2 (PS) NormalMap
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[2].BaseShaderRegister = 2; // t2
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[10].DescriptorTable.NumDescriptorRanges = 1;
+    params[10].DescriptorTable.pDescriptorRanges = &ranges[2];
+
+    // 11: SRV table t3 (PS) RoughnessMap
+    ranges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[3].BaseShaderRegister = 3; // t3
+    ranges[3].NumDescriptors = 1;
+    ranges[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[11].DescriptorTable.NumDescriptorRanges = 1;
+    params[11].DescriptorTable.pDescriptorRanges = &ranges[3];
+
+    paramCount = 12;
     break;
 
   case RootSignatureType::Sprite:
@@ -667,6 +733,75 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[1].Descriptor.ShaderRegister = 0; // b0
 
     paramCount = 2;
+    break;
+
+  case RootSignatureType::Water:
+    // Object3D と同じ 0..8 に加え、b6 (ALL) に WaterParams を追加
+    // 0: CBV b0 (PS)  Material
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[0].Descriptor.ShaderRegister = 0;
+
+    // 1: CBV b0 (VS)  Transform
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[1].Descriptor.ShaderRegister = 0;
+
+    // 2: SRV table t0 (PS)  Texture (Normal Map)
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[0].BaseShaderRegister = 0;
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 3: CBV b1 (PS)  DirectionalLight
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[3].Descriptor.ShaderRegister = 1;
+
+    // 4: CBV b2 (PS)  camera
+    params[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[4].Descriptor.ShaderRegister = 2;
+
+    // 5: CBV b3 (PS) PointLight
+    params[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[5].Descriptor.ShaderRegister = 3;
+
+    // 6: CBV b4 (PS) SpotLight
+    params[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[6].Descriptor.ShaderRegister = 4;
+
+    // 7: CBV b5 (PS) AreaLight
+    params[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[7].Descriptor.ShaderRegister = 5;
+
+    // 8: SRV table t1 (PS) EnvironmentMap (Cubemap)
+    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[1].BaseShaderRegister = 1; // t1
+    ranges[1].NumDescriptors = 1;
+    ranges[1].OffsetInDescriptorsFromTableStart =
+        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[8].DescriptorTable.NumDescriptorRanges = 1;
+    params[8].DescriptorTable.pDescriptorRanges = &ranges[1];
+
+    // 9: CBV b6 (ALL)  WaterParams (VS+PS で共有)
+    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[9].Descriptor.ShaderRegister = 6;
+
+    paramCount = 10;
     break;
   }
 

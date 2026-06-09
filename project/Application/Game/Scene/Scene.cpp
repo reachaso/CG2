@@ -3,6 +3,7 @@
 #include "ECS/TransformComponent.h"
 #include "ECS/LightComponent.h"
 #include "ECS/CameraComponent.h"
+#include "ECS/ColliderComponent.h"
 #include "RenderCommon.h"
 #include <cmath>
 
@@ -203,6 +204,35 @@ void Scene::DrawCameraGizmos(uint32_t selectedEntityId, float aspect) {
     RC::DrawFrustum3D(tr->position, tr->rotation,
                       cam->fovY, aspect, cam->nearZ, cam->farZ,
                       frustumColor, true);
+  }
+#endif
+}
+
+void Scene::DrawColliderGizmos(uint32_t selectedEntityId) {
+#if RC_ENABLE_IMGUI
+  if (selectedEntityId == 0) return;
+  for (auto& e : entities_) {
+    if (e->Id() != selectedEntityId) continue;
+    if (!e->IsVisible()) continue;
+    auto* tr = e->GetComponent<TransformComponent>();
+    auto* col = e->GetComponent<ColliderComponent>();
+    if (!tr || !col || !col->IsEnabled()) continue;
+
+    RC::Vector4 colColor = {0.2f, 1.0f, 0.2f, 1.0f}; // 黄緑色
+    RC::Vector3 worldCenter = {
+      tr->position.x + col->center.x,
+      tr->position.y + col->center.y,
+      tr->position.z + col->center.z
+    };
+
+    if (col->shape == ColliderComponent::Shape::Sphere) {
+        RC::DrawSphereRings3D(worldCenter, col->radius, colColor, 16, true);
+    } else if (col->shape == ColliderComponent::Shape::AABB) {
+        RC::Vector3 halfSize = { col->size.x * 0.5f, col->size.y * 0.5f, col->size.z * 0.5f };
+        RC::Vector3 minPos = { worldCenter.x - halfSize.x, worldCenter.y - halfSize.y, worldCenter.z - halfSize.z };
+        RC::Vector3 maxPos = { worldCenter.x + halfSize.x, worldCenter.y + halfSize.y, worldCenter.z + halfSize.z };
+        RC::DrawAABB3D(minPos, maxPos, colColor, true);
+    }
   }
 #endif
 }

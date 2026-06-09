@@ -147,8 +147,10 @@ struct Material {
   int lightingMode;                     ///< ライティングモード (0:なし, 1:Lambert, 2:Half Lambert)
   float shininess;                      ///< 光沢度
   float environmentCoefficient = 0.0f;  ///< 環境マップ映り込み係数 (0.0 ~ 1.0)
-  float padding;                        ///< パディング（16byteアラインメント用）
-  RC::Matrix4x4 uvTransform;            ///< UV変換行列
+  int useNormalMap = 0;                 ///< 1なら法線マップを使用
+  int useRoughnessMap = 0;              ///< 1ならラフネスマップを使用
+  float padding[3];                     ///< パディング（16byteアラインメント用）
+  RC::Matrix4x4 uvTransform;            ///< UV座標の変換行列
 };
 
 /// @brief スプライト用マテリアル設定

@@ -1,6 +1,7 @@
 #pragma once
 #include "Math/MathTypes.h"
 #include "Math/MathUtils.h" // SafeNormalize / Clamp など使う
+#include "Math/Math.h"      // Matrix Multiply/Inverse
 #include <algorithm>
 #include <cmath>
 
@@ -42,6 +43,31 @@ inline Vector3 ForwardFromYawPitch(float yaw, float pitch) {
 /// @return 前方ベクトル
 inline Vector3 ForwardFromRotation(const Vector3 &rot) {
   return ForwardFromYawPitch(rot.y, rot.x); // rot = {pitch, yaw, roll} の前提
+}
+
+/// @brief スクリーン座標からワールド空間のレイ(Ray)を生成する
+/// @param mousePos マウスのスクリーン座標 (左上が原点)
+/// @param screenSize 画面サイズ (幅, 高さ)
+/// @param viewMatrix カメラのビュー行列
+/// @param projMatrix カメラのプロジェクション行列
+/// @return スクリーン上をクリックした位置に向かうワールド空間のレイ
+inline Ray ScreenPointToRay(const Vector2& mousePos, const Vector2& screenSize, const Matrix4x4& viewMatrix, const Matrix4x4& projMatrix) {
+    float ndcX = (2.0f * mousePos.x) / screenSize.x - 1.0f;
+    float ndcY = 1.0f - (2.0f * mousePos.y) / screenSize.y;
+
+    Matrix4x4 viewProj = Multiply(viewMatrix, projMatrix);
+    Matrix4x4 invViewProj = Inverse(viewProj);
+
+    Vector3 nearPt = {ndcX, ndcY, 0.0f};
+    Vector3 farPt  = {ndcX, ndcY, 1.0f};
+
+    Vector3 worldNear = Vector3Transform(nearPt, invViewProj);
+    Vector3 worldFar  = Vector3Transform(farPt, invViewProj);
+
+    Ray ray;
+    ray.origin = worldNear;
+    ray.direction = SafeNormalize(Sub(worldFar, worldNear));
+    return ray;
 }
 
 } // namespace RC::CameraMath
