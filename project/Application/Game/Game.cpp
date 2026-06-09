@@ -6,20 +6,14 @@
 #include <shellapi.h>
 #include <filesystem>
 
-// === 各シーン ===
-#include "GameOverScene/GameOverScene.h"
-#include "GameScene/GameScene.h"
-#include "LightScene/LightScene.h"
-#include "ResultScene/ResultScene.h"
-#include "SampleScene/SampleScene.h"
-#include "SelectScene/SelectScene.h"
-#include "TitleScene/TitleScene.h"
+// C++ hardcoded scenes (scenes with rich runtime logic)
+// (All scenes have been moved to DataDrivenScene via JSON)
 
 void Game::Init(SceneContext &ctx) {
   sceneMgr_.Init(ctx);
   registerScenes_();
 
-  // ここで最初のシーンを決める（Gameの責務）
+  // Here we decide the first scene to boot into (Game's responsibility)
 #if defined(RC_DEVELOPMENT)
   const char *boot = "Select";
 #elif defined(_DEBUG)
@@ -31,14 +25,10 @@ void Game::Init(SceneContext &ctx) {
 }
 
 void Game::registerScenes_() {
-  sceneMgr_.Register(std::make_unique<TitleScene>());
-  sceneMgr_.Register(std::make_unique<SelectScene>());
-  sceneMgr_.Register(std::make_unique<GameScene>());
-  sceneMgr_.Register(std::make_unique<ResultScene>());
-  sceneMgr_.Register(std::make_unique<GameOverScene>());
-  sceneMgr_.Register(std::make_unique<SampleScene>());
-  sceneMgr_.Register(std::make_unique<LightScene>());
+  // Load data-driven scenes from JSON directory (editor-managed)
+  sceneMgr_.LoadScenesFromDirectory(kSceneDir);
 }
+
 
 void Game::registerAudioPaths_() {
   // 各音声の登録をここで行う
@@ -78,16 +68,47 @@ void Game::ReloadCurrentScene(SceneContext &ctx) {
 void Game::DrawDebugUI(SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
     if (ImGui::BeginMenu("Scene")) {
-      const char *sceneNames[] = {"Title",    "Select", "Game",     "Result",
-                                  "GameOver", "Sample", "Light"};
+      auto sceneNames = sceneMgr_.GetSceneNames();
       const char *currentSceneName = CurrentSceneName().c_str();
 
-      for (int i = 0; i < IM_ARRAYSIZE(sceneNames); i++) {
-        bool is_selected = (strcmp(currentSceneName, sceneNames[i]) == 0);
-        if (ImGui::MenuItem(sceneNames[i], nullptr, is_selected)) {
-          RequestChange(sceneNames[i]);
+      for (auto& name : sceneNames) {
+        bool is_selected = (name == currentSceneName);
+        if (ImGui::MenuItem(name.c_str(), nullptr, is_selected)) {
+          RequestChange(name);
         }
       }
+
+      ImGui::Separator();
+
+      ImGui::InputText("##NewSceneName", newSceneNameBuf_, sizeof(newSceneNameBuf_));
+      ImGui::SameLine();
+      if (ImGui::MenuItem("New Scene")) {
+        std::string newName(newSceneNameBuf_);
+        if (!newName.empty()) {
+          if (sceneMgr_.CreateNewScene(newName, kSceneDir)) {
+            newSceneNameBuf_[0] = '\0';
+          }
+        }
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::MenuItem("Save Current Scene", "Ctrl+S")) {
+        sceneMgr_.SaveCurrentScene();
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::BeginMenu("Delete Scene")) {
+        for (auto& name : sceneNames) {
+          if (name == CurrentSceneName()) continue;
+          if (ImGui::MenuItem(name.c_str())) {
+            sceneMgr_.DeleteScene(name);
+          }
+        }
+        ImGui::EndMenu();
+      }
+
       ImGui::EndMenu();
     }
 #endif

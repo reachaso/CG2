@@ -2,24 +2,34 @@
 
 #include "IComponent.h"
 #include <string>
+#include <nlohmann/json.hpp>
 
-/// @brief アニメーション制御を担当するコンポーネント
-/// ModelRendererComponent と組み合わせて使用します。
-/// アニメーションの再生/停止、速度制御、スケルトンのデバッグ表示を管理します。
+/// @brief Animation control component.
+/// Used in combination with ModelRendererComponent.
+/// Manages animation playback/stop, speed control, and skeleton debug display.
 class AnimationComponent : public IComponent {
 public:
-  /// @brief アニメーション再生中フラグ
-  bool playing = true;
+  bool playing = true;         ///< Playing flag
+  float speed = 1.0f;          ///< Playback speed (1.0 = normal)
+  bool showSkeleton = false;   ///< Skeleton debug display flag
+  std::string animationPath;   ///< External animation file path (empty = use model's built-in)
+  bool attached_ = false;      ///< Whether animation is attached (internal)
 
-  /// @brief 再生速度（1.0 = 通常速度）
-  float speed = 1.0f;
+  const char* TypeName() const override { return "AnimationComponent"; }
 
-  /// @brief スケルトンのデバッグ表示フラグ
-  bool showSkeleton = false;
+  nlohmann::json Serialize() const override {
+    return {
+      {"playing", playing},
+      {"speed", speed},
+      {"showSkeleton", showSkeleton},
+      {"animationPath", animationPath}
+    };
+  }
 
-  /// @brief 外部アニメーションファイルパス（空文字ならモデル内蔵アニメーションを使用）
-  std::string animationPath;
-
-  /// @brief アニメーションがアタッチ済みかどうか（内部管理用）
-  bool attached_ = false;
+  void Deserialize(const nlohmann::json& j) override {
+    if (j.contains("playing")) playing = j["playing"].get<bool>();
+    if (j.contains("speed")) speed = j["speed"].get<float>();
+    if (j.contains("showSkeleton")) showSkeleton = j["showSkeleton"].get<bool>();
+    if (j.contains("animationPath")) animationPath = j["animationPath"].get<std::string>();
+  }
 };

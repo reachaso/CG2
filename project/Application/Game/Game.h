@@ -48,6 +48,9 @@ public:
   /// @return シーンのポインタ（なければnullptr）
   Scene* GetCurrentScene();
 
+  /// @brief Provide access to SceneManager
+  Scene::SceneManager& GetSceneManager() { return sceneMgr_; }
+
 private:
   /// @brief 使用する全てのシーンを SceneManager に登録する
   void registerScenes_();
@@ -59,4 +62,10 @@ private:
   Scene::SceneManager sceneMgr_; ///< シーンマネージャー
   BgmManager bgm_;               ///< BGM マネージャー
   SeManager se_;                 ///< SE マネージャー
+
+  /// @brief Directory for data-driven scene JSON files
+  static inline const std::string kSceneDir = "Resources/Scenes";
+
+  /// @brief Editor UI: new scene name input buffer
+  char newSceneNameBuf_[128] = {};
 };

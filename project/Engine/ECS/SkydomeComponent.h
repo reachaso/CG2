@@ -2,24 +2,41 @@
 
 #include "IComponent.h"
 #include "Math/MathTypes.h"
+#include <string>
+#include <nlohmann/json.hpp>
 
-/// @brief 天球（Skydome）の描画を担当するコンポーネント
-/// RC::GenerateSkydomeEx() 等で生成されたハンドルを保持します。
+/// @brief Skydome rendering component.
+/// Holds a handle created by RC::GenerateSkydomeEx() etc.
 class SkydomeComponent : public IComponent {
 public:
-  /// @brief 天球ハンドル
-  int skydomeHandle = -1;
+  int skydomeHandle = -1; ///< Skydome handle
+  bool visible = true;    ///< Visibility flag
+  RC::Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; ///< Multiply color
+  int texOverride = -1;   ///< Texture override (-1 for default)
 
-  /// @brief 描画の可視性フラグ
-  bool visible = true;
-
-  /// @brief 色（乗算カラー）
-  RC::Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
-
-  /// @brief テクスチャのオーバーライド (-1 でデフォルト)
-  int texOverride = -1;
-
-  /// @brief 有効なハンドルが設定されているか確認
-  /// @return 有効なハンドルを保持していれば true
+  /// @brief Check if a valid handle is assigned
   bool HasSkydome() const { return skydomeHandle >= 0; }
+
+  std::string skydomePath; ///< Asset path for serialization
+
+  const char* TypeName() const override { return "SkydomeComponent"; }
+
+  nlohmann::json Serialize() const override {
+    return {
+      {"skydomePath", skydomePath},
+      {"visible", visible},
+      {"color", {color.x, color.y, color.z, color.w}},
+      {"texOverride", texOverride}
+    };
+  }
+
+  void Deserialize(const nlohmann::json& j) override {
+    if (j.contains("skydomePath")) skydomePath = j["skydomePath"].get<std::string>();
+    if (j.contains("visible")) visible = j["visible"].get<bool>();
+    if (j.contains("color")) {
+      auto& c = j["color"];
+      color = {c[0].get<float>(), c[1].get<float>(), c[2].get<float>(), c[3].get<float>()};
+    }
+    if (j.contains("texOverride")) texOverride = j["texOverride"].get<int>();
+  }
 };

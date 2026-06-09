@@ -2,8 +2,9 @@
 
 #include "IComponent.h"
 #include <string>
+#include <nlohmann/json.hpp>
 
-/// @brief プリミティブメッシュの形状タイプ
+/// @brief Primitive mesh shape type
 enum class PrimitiveType {
   Sphere,
   Box,
@@ -14,25 +15,34 @@ enum class PrimitiveType {
   Capsule,
 };
 
-/// @brief プリミティブメッシュの描画を担当するコンポーネント
-/// 形状タイプとサイズパラメータを保持し、Entity ループで自動描画されます。
+/// @brief Component for primitive mesh rendering.
+/// Holds shape type and size parameters, automatically drawn in the entity loop.
 class PrimitiveMeshComponent : public IComponent {
 public:
-  /// @brief プリミティブのメッシュハンドル（RC::Generate* で生成）
-  int meshHandle = -1;
+  int meshHandle = -1;    ///< Mesh handle (from RC::Generate*)
+  int texOverride = -1;   ///< Texture override (-1 for default)
+  bool visible = true;    ///< Visibility flag
+  PrimitiveType type = PrimitiveType::Sphere; ///< Shape type (for Inspector)
+  float environmentCoeff = 0.0f; ///< Environment map reflection coefficient
 
-  /// @brief テクスチャのオーバーライド（-1 でデフォルト）
-  int texOverride = -1;
-
-  /// @brief 描画の可視性フラグ
-  bool visible = true;
-
-  /// @brief 形状タイプ（Inspector 表示用）
-  PrimitiveType type = PrimitiveType::Sphere;
-
-  /// @brief 環境マップ映り込み係数（0=映り込みなし、1=完全鏡面）
-  float environmentCoeff = 0.0f;
-
-  /// @brief 有効なメッシュが設定されているかを確認
+  /// @brief Check if a valid mesh is assigned
   bool HasMesh() const { return meshHandle >= 0; }
+
+  const char* TypeName() const override { return "PrimitiveMeshComponent"; }
+
+  nlohmann::json Serialize() const override {
+    return {
+      {"type", static_cast<int>(type)},
+      {"texOverride", texOverride},
+      {"visible", visible},
+      {"environmentCoeff", environmentCoeff}
+    };
+  }
+
+  void Deserialize(const nlohmann::json& j) override {
+    if (j.contains("type")) type = static_cast<PrimitiveType>(j["type"].get<int>());
+    if (j.contains("texOverride")) texOverride = j["texOverride"].get<int>();
+    if (j.contains("visible")) visible = j["visible"].get<bool>();
+    if (j.contains("environmentCoeff")) environmentCoeff = j["environmentCoeff"].get<float>();
+  }
 };

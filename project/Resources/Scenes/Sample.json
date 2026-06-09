@@ -1,0 +1,1137 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.3499999940395355,
+              -15.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "farZ": 100.0,
+            "fovY": 0.44999998807907104,
+            "isMain": true,
+            "nearZ": 0.10000000149011612
+          },
+          "enabled": true,
+          "type": "CameraComponent"
+        }
+      ],
+      "locked": false,
+      "name": "MainCamera",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              0.949999988079071,
+              0.8999999761581421,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.20000000298023224
+            ],
+            "intensity": 1.5,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "DirectionalLightComponent"
+        }
+      ],
+      "locked": false,
+      "name": "DirectionalLight",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              2.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              0.20000000298023224,
+              0.20000000298023224,
+              1.0
+            ],
+            "decay": 1.0,
+            "intensity": 1.0,
+            "radius": 5.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PointLightComponent"
+        }
+      ],
+      "locked": false,
+      "name": "PointLight",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              5.0,
+              2.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.20000000298023224,
+              1.0,
+              0.20000000298023224,
+              1.0
+            ],
+            "decay": 1.0,
+            "intensity": 1.0,
+            "radius": 5.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PointLightComponent"
+        }
+      ],
+      "locked": false,
+      "name": "PointLight2",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              5.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.20000000298023224,
+              0.20000000298023224,
+              1.0,
+              1.0
+            ],
+            "cosAngle": 0.8659999966621399,
+            "decay": 1.0,
+            "direction": [
+              0.0,
+              -1.0,
+              0.0
+            ],
+            "distance": 20.0,
+            "intensity": 1.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "SpotLightComponent"
+        }
+      ],
+      "locked": false,
+      "name": "SpotLight",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              5.0,
+              5.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              0.20000000298023224,
+              1.0
+            ],
+            "cosAngle": 0.8659999966621399,
+            "decay": 1.0,
+            "direction": [
+              0.0,
+              -1.0,
+              0.0
+            ],
+            "distance": 20.0,
+            "intensity": 1.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "SpotLightComponent"
+        }
+      ],
+      "locked": false,
+      "name": "SpotLight2",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              3.0,
+              5.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              0.5,
+              0.0,
+              1.0
+            ],
+            "decay": 1.0,
+            "halfHeight": 1.0,
+            "halfWidth": 2.0,
+            "intensity": 1.0,
+            "range": 10.0,
+            "twoSided": false,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "AreaLightComponent"
+        }
+      ],
+      "locked": false,
+      "name": "AreaLight",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/plane",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Plane",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              0.800000011920929,
+              0.8999999761581421,
+              1.0,
+              0.11999999731779099
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/block",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Block",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.5,
+            "modelPath": "Resources/model/teapot",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Teapot",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              -1.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/terrain",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Terrain",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/multiMesh",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "MultiMesh",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              100.0,
+              100.0,
+              100.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "skyboxPath": "Resources/Skybox/skybox.dds",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "SkyboxComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Skybox",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.6000000238418579,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "skydomePath": "Resources/sky_sphere.png",
+            "texOverride": -1,
+            "visible": false
+          },
+          "enabled": true,
+          "type": "SkydomeComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Skydome",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -1.600000023841858,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Sphere",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              5.0,
+              1.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Box",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 2,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "GroundPlane",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              -4.0,
+              1.25,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              3.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 3,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Cylinder",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              -8.0,
+              1.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 4,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Cone",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              -12.0,
+              1.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 5,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Torus",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              9.0,
+              1.25,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "environmentCoeff": 0.0,
+            "texOverride": -1,
+            "type": 6,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Capsule",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "size": [
+              100.0,
+              100.0
+            ],
+            "spritePath": "Resources/uvChecker.png",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "SpriteRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Sprite",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              -0.0
+            ],
+            "rotation": [
+              3.1415927410125732,
+              -0.34424862265586853,
+              3.1415927410125732
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/AnimatedCube/AnimatedCube.gltf",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": false,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        }
+      ],
+      "locked": false,
+      "name": "AnimatedCube",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/human/walk.gltf",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Walk",
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              3.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/simpleSkin/simpleSkin.gltf",
+            "texOverride": -1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        }
+      ],
+      "locked": false,
+      "name": "SimpleSkin",
+      "visible": true
+    }
+  ],
+  "sceneName": "Sample"
+}

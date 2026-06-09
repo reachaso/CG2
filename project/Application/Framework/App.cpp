@@ -1,11 +1,5 @@
 #include "App.h"
-#include "GameOverScene/GameOverScene.h"
-#include "GameScene/GameScene.h"
 #include "RC.h"
-#include "ResultScene/ResultScene.h"
-#include "SampleScene/SampleScene.h"
-#include "SelectScene/SelectScene.h"
-#include "TitleScene/TitleScene.h"
 #include "SceneManager.h"
 #include <cassert>
 #include <chrono>
@@ -147,7 +141,7 @@ int App::Run() {
       editorManager_.Update(&core_, [this]() {
           // ゲーム（シーン）のUIをMenuBarの中（Windowの右）に構築する
           game_.DrawDebugUI(sceneCtx_);
-      });
+      }, game_.GetCurrentScene());
       
       // 前フレームのViewportホバー状態を入力クラスに伝達
       input_->SetViewportHovered(editorManager_.IsViewportHovered());
