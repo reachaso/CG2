@@ -310,3 +310,79 @@ Scene *Scene::SceneManager::get_(const std::string &name) {
   auto it = scenes_.find(name);
   return (it == scenes_.end()) ? nullptr : it->second.get();
 }
+
+// =================================================================
+// Data-driven scene management
+// =================================================================
+#include "DataDrivenScene/DataDrivenScene.h"
+#include <filesystem>
+
+void Scene::SceneManager::LoadScenesFromDirectory(const std::string& dirPath) {
+  namespace fs = std::filesystem;
+  if (!fs::exists(dirPath) || !fs::is_directory(dirPath)) {
+    Log::Print("[SceneManager] Scene directory not found: " + dirPath);
+    return;
+  }
+
+  for (auto& entry : fs::directory_iterator(dirPath)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".json") {
+      std::string sceneName = entry.path().stem().string();
+      if (scenes_.count(sceneName) > 0) continue;
+
+      auto scene = std::make_unique<DataDrivenScene>(sceneName, entry.path().string());
+      Log::Print("[SceneManager] Registered data-driven scene: " + sceneName);
+      scenes_[sceneName] = std::move(scene);
+    }
+  }
+}
+
+bool Scene::SceneManager::CreateNewScene(const std::string& name, const std::string& dirPath) {
+  if (scenes_.count(name) > 0) {
+    Log::Print("[SceneManager] Scene already exists: " + name);
+    return false;
+  }
+
+  namespace fs = std::filesystem;
+  fs::create_directories(dirPath);
+  std::string filePath = dirPath + "/" + name + ".json";
+
+  auto scene = std::make_unique<DataDrivenScene>(name, filePath);
+  scene->Save();
+  Log::Print("[SceneManager] Created new scene: " + name);
+  scenes_[name] = std::move(scene);
+  return true;
+}
+
+bool Scene::SceneManager::DeleteScene(const std::string& name) {
+  auto it = scenes_.find(name);
+  if (it == scenes_.end()) {
+    Log::Print("[SceneManager] Scene not found for deletion: " + name);
+    return false;
+  }
+
+  if (current_ == it->second.get()) {
+    Log::Print("[SceneManager] Cannot delete active scene: " + name);
+    return false;
+  }
+
+  if (auto* dds = dynamic_cast<DataDrivenScene*>(it->second.get())) {
+    namespace fs = std::filesystem;
+    if (fs::exists(dds->FilePath())) {
+      fs::remove(dds->FilePath());
+      Log::Print("[SceneManager] Deleted scene file: " + dds->FilePath());
+    }
+  }
+
+  scenes_.erase(it);
+  Log::Print("[SceneManager] Deleted scene: " + name);
+  return true;
+}
+
+bool Scene::SceneManager::SaveCurrentScene() {
+  if (!current_) return false;
+  if (auto* dds = dynamic_cast<DataDrivenScene*>(current_)) {
+    return dds->Save();
+  }
+  Log::Print("[SceneManager] Current scene is not a DataDrivenScene, cannot save.");
+  return false;
+}

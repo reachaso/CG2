@@ -2,33 +2,46 @@
 
 #include "IComponent.h"
 #include "Math/MathTypes.h"
+#include <nlohmann/json.hpp>
 
-/// @brief 3Dモデルの描画を担当するコンポーネント
-/// モデルのハンドルを保持し、RenderSystem による自動描画の対象となります。
+/// @brief Component for 3D model rendering.
+/// Holds a model handle and is automatically drawn by the RenderSystem.
 class ModelRendererComponent : public IComponent {
 public:
-  /// @brief モデルハンドル
-  /// RC::LoadModel() によって返されたIDを保持します。
-  int modelHandle = -1;
+  int modelHandle = -1;   ///< Model handle (returned by RC::LoadModel())
+  int texOverride = -1;   ///< Texture override (-1 for default)
+  bool visible = true;    ///< Visibility flag
+  int blendMode = 0;      ///< Blend mode
+  RC::Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; ///< Multiply color
+  float environmentCoeff = 0.0f; ///< Environment map reflection coefficient
 
-  /// @brief テクスチャのオーバーライド
-  /// マテリアル設定とは別のテクスチャを強制する場合に使用します（-1 でデフォルト）。
-  int texOverride = -1;
-
-  /// @brief 描画の可視性フラグ
-  bool visible = true;
-
-  /// @brief ブレンドモード
-  /// 描画時のブレンディング設定を指定します。
-  int blendMode = 0;
-
-  /// @brief モデルの色（乗算カラー）
-  RC::Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
-
-  /// @brief 環境マップ映り込み係数（0=映り込みなし、1=完全鏡面）
-  float environmentCoeff = 0.0f;
-
-  /// @brief 有効なモデルが設定されているか確認
-  /// @return 有効なハンドルを保持していれば true
+  /// @brief Check if a valid model is assigned
   bool HasModel() const { return modelHandle >= 0; }
+
+  std::string modelPath; ///< Asset path for serialization
+
+  const char* TypeName() const override { return "ModelRendererComponent"; }
+
+  nlohmann::json Serialize() const override {
+    return {
+      {"modelPath", modelPath},
+      {"texOverride", texOverride},
+      {"visible", visible},
+      {"blendMode", blendMode},
+      {"color", {color.x, color.y, color.z, color.w}},
+      {"environmentCoeff", environmentCoeff}
+    };
+  }
+
+  void Deserialize(const nlohmann::json& j) override {
+    if (j.contains("modelPath")) modelPath = j["modelPath"].get<std::string>();
+    if (j.contains("texOverride")) texOverride = j["texOverride"].get<int>();
+    if (j.contains("visible")) visible = j["visible"].get<bool>();
+    if (j.contains("blendMode")) blendMode = j["blendMode"].get<int>();
+    if (j.contains("color")) {
+      auto& c = j["color"];
+      color = {c[0].get<float>(), c[1].get<float>(), c[2].get<float>(), c[3].get<float>()};
+    }
+    if (j.contains("environmentCoeff")) environmentCoeff = j["environmentCoeff"].get<float>();
+  }
 };

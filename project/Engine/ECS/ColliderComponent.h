@@ -2,32 +2,51 @@
 #include "IComponent.h"
 #include "Math/MathTypes.h"
 #include "struct.h" // AABB
+#include <nlohmann/json.hpp>
 
-/// @brief 当たり判定（衝突）情報を保持するコンポーネント
-/// 形状の種類（AABB, Sphere, Capsule）やそのパラメータ、衝突レイヤー等を管理します。
+/// @brief Collision detection component.
+/// Manages shape type (AABB, Sphere, Capsule), parameters, and collision layers.
 class ColliderComponent : public IComponent {
 public:
-  /// @brief コライダーの形状定義
+  /// @brief Collider shape definition
   enum class Shape {
-    AABB,    ///< 軸平行境界ボックス
-    Sphere,  ///< 球体
-    Capsule, ///< カプセル
+    AABB,    ///< Axis-aligned bounding box
+    Sphere,  ///< Sphere
+    Capsule, ///< Capsule
   };
 
-  Shape shape = Shape::AABB; ///< 現在のコライダー形状
+  Shape shape = Shape::AABB; ///< Current collider shape
 
-  /// @brief AABBパラメータ
-  AABB aabb;
+  AABB aabb; ///< AABB parameters
 
-  /// @brief Sphereパラメータ
-  RC::Vector3 center = {0.0f, 0.0f, 0.0f}; ///< 中心座標（ローカル）
-  float radius = 1.0f;                      ///< 半径
+  RC::Vector3 center = {0.0f, 0.0f, 0.0f}; ///< Center position (local)
+  float radius = 1.0f;                      ///< Radius
 
-  /// @brief 衝突レイヤー（ビットマスク）
-  /// どのレイヤーと衝突するかを判定するために使用します。
-  uint32_t layer = 0xFFFFFFFF;
+  uint32_t layer = 0xFFFFFFFF; ///< Collision layer (bitmask)
 
-  /// @brief トリガーモード設定
-  /// true の場合、物理的な衝突応答（押し出し等）を行わず、接触イベントの通知のみを行います。
+  /// @brief Trigger mode. If true, no physics response, only event notification.
   bool isTrigger = false;
+
+  const char* TypeName() const override { return "ColliderComponent"; }
+
+  nlohmann::json Serialize() const override {
+    return {
+      {"shape", static_cast<int>(shape)},
+      {"center", {center.x, center.y, center.z}},
+      {"radius", radius},
+      {"layer", layer},
+      {"isTrigger", isTrigger}
+    };
+  }
+
+  void Deserialize(const nlohmann::json& j) override {
+    if (j.contains("shape")) shape = static_cast<Shape>(j["shape"].get<int>());
+    if (j.contains("center")) {
+      auto& c = j["center"];
+      center = {c[0].get<float>(), c[1].get<float>(), c[2].get<float>()};
+    }
+    if (j.contains("radius")) radius = j["radius"].get<float>();
+    if (j.contains("layer")) layer = j["layer"].get<uint32_t>();
+    if (j.contains("isTrigger")) isTrigger = j["isTrigger"].get<bool>();
+  }
 };

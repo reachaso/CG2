@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <Filter Include="..">
@@ -93,29 +93,8 @@
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp">
       <Filter>Game\Scene\Fade</Filter>
     </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\GameOverScene\GameOverScene.cpp">
-      <Filter>Game\Scene\GameOverScene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\GameScene\GameScene.cpp">
-      <Filter>Game\Scene\GameScene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\LightScene\LightScene.cpp">
-      <Filter>Game\Scene\LightScene</Filter>
-    </ClCompile>
     <ClCompile Include="..\Application\Game\Scene\ParticleScene\ParticleScene.cpp">
       <Filter>Game\Scene\ParticleScene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\ResultScene\ResultScene.cpp">
-      <Filter>Game\Scene\ResultScene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\SampleScene\SampleScene.cpp">
-      <Filter>Game\Scene\SampleScene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\SelectScene\SelectScene.cpp">
-      <Filter>Game\Scene\SelectScene</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Application\Game\Scene\TitleScene\TitleScene.cpp">
-      <Filter>Game\Scene\TitleScene</Filter>
     </ClCompile>
     <ClCompile Include="..\Application\Game\Scene\SceneManager.cpp">
       <Filter>Game\Scene</Filter>
@@ -137,35 +116,14 @@
     <ClInclude Include="..\Application\Game\Scene\Fade\Fade.h">
       <Filter>Game\Scene\Fade</Filter>
     </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\GameOverScene\GameOverScene.h">
-      <Filter>Game\Scene\GameOverScene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\GameScene\GameScene.h">
-      <Filter>Game\Scene\GameScene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\LightScene\LightScene.h">
-      <Filter>Game\Scene\LightScene</Filter>
-    </ClInclude>
     <ClInclude Include="..\Application\Game\Scene\ParticleScene\ParticleScene.h">
       <Filter>Game\Scene\ParticleScene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\ResultScene\ResultScene.h">
-      <Filter>Game\Scene\ResultScene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\SampleScene\SampleScene.h">
-      <Filter>Game\Scene\SampleScene</Filter>
     </ClInclude>
     <ClInclude Include="..\Application\Game\Scene\Scene.h">
       <Filter>Game\Scene</Filter>
     </ClInclude>
     <ClInclude Include="..\Application\Game\Scene\SceneManager.h">
       <Filter>Game\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\SelectScene\SelectScene.h">
-      <Filter>Game\Scene\SelectScene</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Application\Game\Scene\TitleScene\TitleScene.h">
-      <Filter>Game\Scene\TitleScene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

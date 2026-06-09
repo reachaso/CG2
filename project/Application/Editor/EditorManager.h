@@ -3,6 +3,7 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include <filesystem>
 
 class Dx12Core;
 class Scene;
@@ -21,7 +22,9 @@ public:
 
   /// @brief 毎フレームの更新処理（メニューバーやドッキングスペースの構築）
   /// @param core Dx12Core インスタンスへのポインタ
-  void Update(Dx12Core* core = nullptr, std::function<void()> onMenuAppend = nullptr);
+  /// @param onMenuAppend メニューバー追加用コールバック
+  /// @param currentScene 現在のシーン
+  void Update(Dx12Core* core = nullptr, std::function<void()> onMenuAppend = nullptr, Scene* currentScene = nullptr);
 
   /// @brief 各種パネルの描画
   /// @param viewportSrv ゲーム画面（Viewport）に表示するテクスチャのSRVハンドル
@@ -67,5 +70,14 @@ private:
   int lockLockedTex_ = -1;
   int lockUnlockedTex_ = -1;
 
+  int folderIconTex_ = -1;
+  int fileIconTex_ = -1;
+  int fileImageTex_ = -1;
+  int file3DTex_ = -1;
+  int fileMaterialTex_ = -1;
+  int fileDocTex_ = -1;
+  int fileFontTex_ = -1;
+
   std::weak_ptr<Entity> selectedEntity_; ///< Inspector表示用の選択エンティティ
+  std::filesystem::path currentDirectory_ = "Resources"; ///< コンテンツブラウザの現在ディレクトリ
 };

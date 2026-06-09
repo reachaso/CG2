@@ -20,6 +20,8 @@
 #include "ECS/SpriteRendererComponent.h"
 #include "Render/RenderCommon.h"
 #include "Math/Math.h"
+#include <algorithm>
+#include <filesystem>
 
 void EditorManager::Initialize() {
 #if RC_ENABLE_IMGUI
@@ -33,6 +35,14 @@ void EditorManager::Initialize() {
   eyeHiddenTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/eye_hidden.png");
   lockLockedTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/lock_locked.png");
   lockUnlockedTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/lock_unlocked.png");
+  
+  folderIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/folder.png");
+  fileIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file.png");
+  fileImageTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file_image.png");
+  file3DTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file_3d.png");
+  fileMaterialTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file_material.png");
+  fileDocTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file_doc.png");
+  fileFontTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file_font.png");
 
   ApplyDarkTheme();
 #endif
@@ -100,7 +110,7 @@ void EditorManager::ApplyDarkTheme() {
 #endif
 }
 
-void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend) {
+void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
   // ============================
   // メニューバー
@@ -123,6 +133,86 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend) {
 
     if (onMenuAppend) {
       onMenuAppend();
+    }
+
+    if (currentScene) {
+      if (ImGui::BeginMenu("Add")) {
+        if (ImGui::BeginMenu("Mesh")) {
+          if (ImGui::MenuItem("Cube")) {
+            auto e = currentScene->CreateEntity("Cube");
+            e->AddComponent<TransformComponent>();
+            auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Box;
+            pm.meshHandle = RC::GenerateBox();
+          }
+          if (ImGui::MenuItem("Sphere")) {
+            auto e = currentScene->CreateEntity("Sphere");
+            e->AddComponent<TransformComponent>();
+            auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Sphere;
+            pm.meshHandle = RC::GenerateSphere();
+          }
+          if (ImGui::MenuItem("Plane")) {
+            auto e = currentScene->CreateEntity("Plane");
+            e->AddComponent<TransformComponent>();
+            auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Plane;
+            pm.meshHandle = RC::GeneratePlane();
+          }
+          if (ImGui::MenuItem("Cylinder")) {
+            auto e = currentScene->CreateEntity("Cylinder");
+            e->AddComponent<TransformComponent>();
+            auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Cylinder;
+            pm.meshHandle = RC::GenerateCylinder();
+          }
+          if (ImGui::MenuItem("Cone")) {
+            auto e = currentScene->CreateEntity("Cone");
+            e->AddComponent<TransformComponent>();
+            auto& pm = e->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Cone;
+            pm.meshHandle = RC::GenerateCone();
+          }
+          ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Environment")) {
+          if (ImGui::MenuItem("Skybox")) {
+            auto e = currentScene->CreateEntity("Skybox");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<SkyboxComponent>();
+          }
+          if (ImGui::MenuItem("Skydome")) {
+            auto e = currentScene->CreateEntity("Skydome");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<SkydomeComponent>();
+          }
+          ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Light")) {
+          if (ImGui::MenuItem("Directional Light")) {
+            auto e = currentScene->CreateEntity("Directional Light");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<DirectionalLightComponent>();
+          }
+          if (ImGui::MenuItem("Point Light")) {
+            auto e = currentScene->CreateEntity("Point Light");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<PointLightComponent>();
+          }
+          if (ImGui::MenuItem("Spot Light")) {
+            auto e = currentScene->CreateEntity("Spot Light");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<SpotLightComponent>();
+          }
+          if (ImGui::MenuItem("Area Light")) {
+            auto e = currentScene->CreateEntity("Area Light");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<AreaLightComponent>();
+          }
+          ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
+      }
     }
 
     // キャプチャ・録画機能の直接ボタン
@@ -271,6 +361,8 @@ void EditorManager::SetupDockingLayout() {
 
 void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, float deltaTime, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
+
+
   if (showDemoWindow_) {
     ImGui::ShowDemoWindow(&showDemoWindow_);
   }
@@ -300,10 +392,73 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
     float width = vMax.x - vMin.x;
     float height = vMax.y - vMin.y;
 
-    // ゲーム描画用SRVをImGuiのImageとして表示
+      // ゲーム描画用SRVをImGuiのImageとして表示
     if (viewportSrv.ptr != 0 && width > 0 && height > 0) {
       ImGui::Image((ImTextureID)viewportSrv.ptr, ImVec2(width, height));
       
+      // ===== Drop Target =====
+      if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+              std::string droppedPath((const char*)payload->Data);
+              std::filesystem::path p(droppedPath);
+              std::string ext = p.extension().string();
+              std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+              
+              if (currentScene) {
+                  auto e = currentScene->CreateEntity(p.stem().string());
+                  auto& tr = e->AddComponent<TransformComponent>();
+                  
+                  // ドラッグ先の座標計算 (Screen to World)
+                  float mouseX = ImGui::GetMousePos().x - vMin.x;
+                  float mouseY = ImGui::GetMousePos().y - vMin.y;
+                  RC::Vector3 dropPos = {0, 0, 0};
+                  
+                  // エディタ（またはゲーム）の現在のカメラを取得
+                  RC::CameraController* cam = RC::GetRenderContext().Ctx()->camera;
+                  if (cam) {
+                      // NDC座標 (-1.0 ～ 1.0)
+                      float ndcX = (2.0f * mouseX) / width - 1.0f;
+                      float ndcY = 1.0f - (2.0f * mouseY) / height;
+                      
+                      // ビュー・プロジェクション行列の計算
+                      RC::Matrix4x4 view = cam->GetView();
+                      RC::Matrix4x4 proj = cam->GetProjection();
+                      RC::Matrix4x4 viewProj = ::Multiply(view, proj);
+                      RC::Matrix4x4 invViewProj = ::Inverse(viewProj);
+                      
+                      // Far平面上の点を計算
+                      RC::Vector3 farPoint = ::Vector3Transform({ndcX, ndcY, 1.0f}, invViewProj);
+                      RC::Vector3 camPos = cam->GetWorldPos();
+                      
+                      // カメラからFar点へのレイ
+                      RC::Vector3 rayDir = ::Normalize(::Subtract(farPoint, camPos));
+                      
+                      // Y=0 の平面（地面）との交差を求める
+                      if (std::abs(rayDir.y) > 0.001f) {
+                          float t = -camPos.y / rayDir.y;
+                          if (t > 0.0f) {
+                              dropPos = ::Add(camPos, ::Multiply(rayDir, t));
+                          } else {
+                              dropPos = ::Add(camPos, ::Multiply(rayDir, 10.0f)); // カメラの後ろ側を向いてる場合は適当に前に置く
+                          }
+                      } else {
+                          dropPos = ::Add(camPos, ::Multiply(rayDir, 10.0f)); // 水平に見ている場合は適当に前に置く
+                      }
+                  }
+                  tr.position = dropPos;
+                  
+                  if (ext == ".gltf" || ext == ".obj") {
+                      auto& ren = e->AddComponent<ModelRendererComponent>();
+                      ren.modelHandle = RC::LoadModel(p.string());
+                  } else if (ext == ".png" || ext == ".jpg" || ext == ".dds") {
+                      // Note: SpriteRendererComponent requires SceneContext to load correctly, so we skip auto-loading for now.
+                  }
+              }
+          }
+          ImGui::EndDragDropTarget();
+      }
+      // =======================
+
       // シェーディングモードのアイコン群をビューポート右上にオーバーレイ表示
       // 描画開始位置を決定 (上部のバーと重ならないようY座標を少し下げる)
       ImGui::SetCursorPos(ImVec2(width - 186.0f, 24.0f)); 
@@ -389,6 +544,20 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (ImGui::IsItemClicked() && !e->IsLocked()) {
                 selectedEntity_ = e;
             }
+            
+            // 右クリックメニュー (Delete) - ロックされていない場合のみ
+            if (!e->IsLocked()) {
+                if (ImGui::BeginPopupContextItem()) {
+                    if (ImGui::MenuItem("Delete")) {
+                        e->Destroy();
+                        if (selectedEntity_.lock() == e) {
+                            selectedEntity_.reset();
+                        }
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+
             ImGui::TreePop();
         }
 
@@ -563,8 +732,75 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
 
   // Content Browser パネル
   if (ImGui::Begin("Content Browser")) {
-    ImGui::Text("Assets");
-    // TODO: Asset List
+    // フォルダのパスを表示
+    std::string currentPathStr = currentDirectory_.string();
+    // Windowsのバックスラッシュをスラッシュに置換
+    std::replace(currentPathStr.begin(), currentPathStr.end(), '\\', '/');
+    ImGui::Text("Assets: %s", currentPathStr.c_str());
+    ImGui::SameLine();
+    
+    // 上の階層へ戻るボタン (Resourcesより上には行かないようにする簡易制御)
+    if (ImGui::Button("Up") && currentDirectory_ != "Resources" && currentDirectory_ != "Resources/") {
+      currentDirectory_ = currentDirectory_.parent_path();
+    }
+    ImGui::Separator();
+
+    // グリッドレイアウトの計算
+    float cellSize = 90.0f;
+    float panelWidth = ImGui::GetContentRegionAvail().x;
+    int columnCount = (int)(panelWidth / cellSize);
+    if (columnCount < 1) columnCount = 1;
+
+    if (ImGui::BeginTable("ContentTable", columnCount)) {
+      if (std::filesystem::exists(currentDirectory_)) {
+        for (const auto& entry : std::filesystem::directory_iterator(currentDirectory_)) {
+          ImGui::TableNextColumn();
+          const auto& path = entry.path();
+          std::string filename = path.filename().string();
+          
+          if (entry.is_directory()) {
+            // ディレクトリをアイコンで表示
+            ImTextureID iconId = (ImTextureID)RC::GetRenderContext().Textures().GetSrv(folderIconTex_).ptr;
+            ImGui::BeginGroup();
+            bool clicked = ImGui::ImageButton(filename.c_str(), iconId, ImVec2(cellSize - 30, cellSize - 30));
+            ImGui::TextWrapped("%s", filename.c_str());
+            ImGui::EndGroup();
+            
+            if (clicked) {
+              currentDirectory_ /= path.filename();
+            }
+          } else {
+            // ファイルをアイコンで表示し、ドラッグ可能にする
+            std::string ext = path.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            
+            int iconTexId = fileIconTex_;
+            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") iconTexId = fileImageTex_;
+            else if (ext == ".obj" || ext == ".blend" || ext == ".fbx" || ext == ".gltf") iconTexId = file3DTex_;
+            else if (ext == ".mtl" || ext == ".mat") iconTexId = fileMaterialTex_;
+            else if (ext == ".md" || ext == ".txt" || ext == ".json") iconTexId = fileDocTex_;
+            else if (ext == ".ttf" || ext == ".otf") iconTexId = fileFontTex_;
+            
+            ImTextureID iconId = (ImTextureID)RC::GetRenderContext().Textures().GetSrv(iconTexId).ptr;
+            ImGui::BeginGroup();
+            ImGui::ImageButton(filename.c_str(), iconId, ImVec2(cellSize - 30, cellSize - 30));
+            
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+              std::string payloadPath = path.string();
+              // Windowsのバックスラッシュをスラッシュに置換してペイロードに渡す
+              std::replace(payloadPath.begin(), payloadPath.end(), '\\', '/');
+              ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", payloadPath.c_str(), payloadPath.size() + 1);
+              ImGui::Text("Dragging: %s", filename.c_str());
+              ImGui::EndDragDropSource();
+            }
+            
+            ImGui::TextWrapped("%s", filename.c_str());
+            ImGui::EndGroup();
+          }
+        }
+      }
+      ImGui::EndTable();
+    }
   }
   ImGui::End();
 

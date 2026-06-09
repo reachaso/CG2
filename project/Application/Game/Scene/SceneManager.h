@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace RC { class CameraController; }
 
@@ -67,6 +68,27 @@ public:
   /// @brief 現在アクティブなシーンのポインタを取得する
   /// @return シーンへのポインタ
   Scene* GetCurrentScene() const { return current_; }
+
+  /// @brief Get all registered scene names
+  std::vector<std::string> GetSceneNames() const {
+    std::vector<std::string> names;
+    for (auto& [key, _] : scenes_) {
+      names.push_back(key);
+    }
+    return names;
+  }
+
+  /// @brief Load scenes from JSON files in directory
+  void LoadScenesFromDirectory(const std::string& dirPath);
+
+  /// @brief Create a new empty scene and register it
+  bool CreateNewScene(const std::string& name, const std::string& dirPath);
+
+  /// @brief Delete a registered scene (and its JSON file)
+  bool DeleteScene(const std::string& name);
+
+  /// @brief Save current scene to file
+  bool SaveCurrentScene();
 
 private:
   /// @brief 登録済みシーンを名前で検索する内部ヘルパー

@@ -111,4 +111,50 @@ public:
 protected:
   std::vector<std::shared_ptr<Entity>> entities_; ///< シーン内のエンティティ一覧
   uint32_t selectedEntityId_ = 0; ///< 選択中のエンティティID
+
+  /// @brief Update all active entities
+  void UpdateEntities(float deltaTime) {
+    for (auto& e : entities_) {
+      if (e && e->IsActive() && !e->IsPendingDestroy()) {
+        e->UpdateAll(deltaTime);
+      }
+    }
+  }
+
+  /// @brief Remove entities marked for destruction
+  void RemoveDeadEntities() {
+    entities_.erase(
+      std::remove_if(entities_.begin(), entities_.end(),
+        [](const std::shared_ptr<Entity>& e) {
+          return !e || e->IsPendingDestroy();
+        }),
+      entities_.end());
+  }
+
+  /// @brief Destroy entity by name
+  /// @return true if found and marked
+  bool DestroyEntityByName(const std::string& name) {
+    for (auto& e : entities_) {
+      if (e && e->Name() == name) { e->Destroy(); return true; }
+    }
+    return false;
+  }
+
+  /// @brief Destroy entity by ID
+  /// @return true if found and marked
+  bool DestroyEntityById(uint32_t id) {
+    for (auto& e : entities_) {
+      if (e && e->Id() == id) { e->Destroy(); return true; }
+    }
+    return false;
+  }
+
+  /// @brief Find entity by name
+  /// @return Pointer to entity, or nullptr
+  Entity* FindEntityByName(const std::string& name) {
+    for (auto& e : entities_) {
+      if (e && e->Name() == name) return e.get();
+    }
+    return nullptr;
+  }
 };

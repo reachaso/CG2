@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -80,7 +80,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\ ;$(ProjectDir);$(ProjectDir)..\Engine\;$(ProjectDir)..\Engine\Audio;$(ProjectDir)..\Engine\Common;$(ProjectDir)..\Engine\Camera;$(ProjectDir)..\Engine\Dx12;$(ProjectDir)..\Engine\Graphics;$(ProjectDir)..\Engine\Particle;$(ProjectDir)..\Engine\Render;$(ProjectDir)..\Engine\Window;$(ProjectDir)..\Engine\Input;$(ProjectDir)..\Engine\ImGuiManager;$(ProjectDir)Framework\;$(ProjectDir)Game\;$(ProjectDir)Game\Scene\;$(ProjectDir)..\Externals\;$(ProjectDir)..\Externals\imgui;$(ProjectDir)..\Externals\assimp\include;$(ProjectDir)..\Resources\Shader\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ ;$(ProjectDir);$(ProjectDir)..\Engine\;$(ProjectDir)..\Engine\Audio;$(ProjectDir)..\Engine\Common;$(ProjectDir)..\Engine\Camera;$(ProjectDir)..\Engine\Dx12;$(ProjectDir)..\Engine\Graphics;$(ProjectDir)..\Engine\Particle;$(ProjectDir)..\Engine\Render;$(ProjectDir)..\Engine\Window;$(ProjectDir)..\Engine\Input;$(ProjectDir)..\Engine\ImGuiManager;$(ProjectDir)Framework\;$(ProjectDir)Game\;$(ProjectDir)Game\Scene\;$(ProjectDir)..\Externals\;$(ProjectDir)..\Externals\nlohmann\include;$(ProjectDir)..\Externals\imgui;$(ProjectDir)..\Externals\assimp\include;$(ProjectDir)..\Resources\Shader\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -108,7 +108,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\ ;$(ProjectDir);$(ProjectDir)..\Engine\;$(ProjectDir)..\Engine\Audio;$(ProjectDir)..\Engine\Common;$(ProjectDir)..\Engine\Camera;$(ProjectDir)..\Engine\Dx12;$(ProjectDir)..\Engine\Graphics;$(ProjectDir)..\Engine\Particle;$(ProjectDir)..\Engine\Render;$(ProjectDir)..\Engine\Window;$(ProjectDir)..\Engine\Input;$(ProjectDir)..\Engine\ImGuiManager;$(ProjectDir)Framework\;$(ProjectDir)Game\;$(ProjectDir)Game\Scene\;$(ProjectDir)..\Externals\;$(ProjectDir)..\Externals\imgui;$(ProjectDir)..\Externals\assimp\include;$(ProjectDir)..\Resources\Shader\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ ;$(ProjectDir);$(ProjectDir)..\Engine\;$(ProjectDir)..\Engine\Audio;$(ProjectDir)..\Engine\Common;$(ProjectDir)..\Engine\Camera;$(ProjectDir)..\Engine\Dx12;$(ProjectDir)..\Engine\Graphics;$(ProjectDir)..\Engine\Particle;$(ProjectDir)..\Engine\Render;$(ProjectDir)..\Engine\Window;$(ProjectDir)..\Engine\Input;$(ProjectDir)..\Engine\ImGuiManager;$(ProjectDir)Framework\;$(ProjectDir)Game\;$(ProjectDir)Game\Scene\;$(ProjectDir)..\Externals\;$(ProjectDir)..\Externals\nlohmann\include;$(ProjectDir)..\Externals\imgui;$(ProjectDir)..\Externals\assimp\include;$(ProjectDir)..\Resources\Shader\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -139,7 +139,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\ ;$(ProjectDir);$(ProjectDir)..\Engine\;$(ProjectDir)..\Engine\Audio;$(ProjectDir)..\Engine\Common;$(ProjectDir)..\Engine\Camera;$(ProjectDir)..\Engine\Dx12;$(ProjectDir)..\Engine\Graphics;$(ProjectDir)..\Engine\Particle;$(ProjectDir)..\Engine\Render;$(ProjectDir)..\Engine\Window;$(ProjectDir)..\Engine\Input;$(ProjectDir)..\Engine\ImGuiManager;$(ProjectDir)Framework\;$(ProjectDir)Game\;$(ProjectDir)Game\Scene\;$(ProjectDir)..\Externals\;$(ProjectDir)..\Externals\imgui;$(ProjectDir)..\Externals\assimp\include;$(ProjectDir)..\Resources\Shader\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\ ;$(ProjectDir);$(ProjectDir)..\Engine\;$(ProjectDir)..\Engine\Audio;$(ProjectDir)..\Engine\Common;$(ProjectDir)..\Engine\Camera;$(ProjectDir)..\Engine\Dx12;$(ProjectDir)..\Engine\Graphics;$(ProjectDir)..\Engine\Particle;$(ProjectDir)..\Engine\Render;$(ProjectDir)..\Engine\Window;$(ProjectDir)..\Engine\Input;$(ProjectDir)..\Engine\ImGuiManager;$(ProjectDir)Framework\;$(ProjectDir)Game\;$(ProjectDir)Game\Scene\;$(ProjectDir)..\Externals\;$(ProjectDir)..\Externals\nlohmann\include;$(ProjectDir)..\Externals\imgui;$(ProjectDir)..\Externals\assimp\include;$(ProjectDir)..\Resources\Shader\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -168,13 +168,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Scene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\SceneManager.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\GameOverScene\GameOverScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\GameScene\GameScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\LightScene\LightScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\ResultScene\ResultScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\SampleScene\SampleScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\SelectScene\SelectScene.cpp" />
-    <ClCompile Include="..\Application\Game\Scene\TitleScene\TitleScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <!-- Framework -->
@@ -184,15 +177,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <!-- Game -->
     <ClInclude Include="..\Application\Game\Game.h" />
     <ClInclude Include="..\Application\Game\Scene\Fade\Fade.h" />
-    <ClInclude Include="..\Application\Game\Scene\GameOverScene\GameOverScene.h" />
-    <ClInclude Include="..\Application\Game\Scene\GameScene\GameScene.h" />
-    <ClInclude Include="..\Application\Game\Scene\LightScene\LightScene.h" />
-    <ClInclude Include="..\Application\Game\Scene\ResultScene\ResultScene.h" />
-    <ClInclude Include="..\Application\Game\Scene\SampleScene\SampleScene.h" />
     <ClInclude Include="..\Application\Game\Scene\Scene.h" />
     <ClInclude Include="..\Application\Game\Scene\SceneManager.h" />
-    <ClInclude Include="..\Application\Game\Scene\SelectScene\SelectScene.h" />
-    <ClInclude Include="..\Application\Game\Scene\TitleScene\TitleScene.h" />
+    <ClInclude Include="..\Application\Game\Scene\DataDrivenScene\DataDrivenScene.h" />
   </ItemGroup>
   <ItemGroup>
     <!-- 繧ｷ繧ｧ繝ｼ繝繝ｼ (繝薙Ν繝峨°繧蛾勁螟・/ 蜿ら・逕ｨ) -->
