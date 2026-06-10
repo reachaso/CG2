@@ -1,5 +1,8 @@
 #include "Skybox.h"
 #include "../../Render/RenderContext.h"
+#include "../../../Application/Game/Scene/Scene.h"
+#include "../../Dx12/Dx12Core.h"
+#include "../../Dx12/DeferredReleaseQueue/DeferredReleaseQueue.h"
 #include "Math/Math.h"
 #include "imgui/imgui.h"
 #include <cassert>
@@ -7,11 +10,20 @@
 using namespace RC;
 
 Skybox::~Skybox() {
-  vb_.resource.Reset();
-  ib_.resource.Reset();
-  cbWvp_.resource.Reset();
-  cbMat_.resource.Reset();
-  cbLight_.resource.Reset();
+  if (auto ctx = GetRenderContext().Ctx()) {
+    auto& dq = ctx->core->DeferredRelease();
+    if (vb_.resource) dq.Enqueue(std::move(vb_.resource), UINT64_MAX);
+    if (ib_.resource) dq.Enqueue(std::move(ib_.resource), UINT64_MAX);
+    if (cbWvp_.resource) dq.Enqueue(std::move(cbWvp_.resource), UINT64_MAX);
+    if (cbMat_.resource) dq.Enqueue(std::move(cbMat_.resource), UINT64_MAX);
+    if (cbLight_.resource) dq.Enqueue(std::move(cbLight_.resource), UINT64_MAX);
+  } else {
+    vb_.resource.Reset();
+    ib_.resource.Reset();
+    cbWvp_.resource.Reset();
+    cbMat_.resource.Reset();
+    cbLight_.resource.Reset();
+  }
 }
 
 void Skybox::Initialize(ID3D12Device *device) {

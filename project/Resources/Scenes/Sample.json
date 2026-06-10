@@ -362,7 +362,9 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/plane",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
@@ -408,7 +410,9 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/block",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
@@ -424,9 +428,29 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               0.0,
-              0.0,
+              4.0,
               0.0
             ],
             "rotation": [
@@ -454,11 +478,27 @@
             ],
             "environmentCoeff": 0.5,
             "modelPath": "Resources/model/teapot",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
           "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "isKinematic": false,
+            "mass": 1.0,
+            "useGravity": true,
+            "velocity": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "enabled": true,
+          "type": "RigidbodyComponent"
         }
       ],
       "locked": false,
@@ -500,7 +540,9 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/terrain",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
@@ -546,7 +588,9 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/multiMesh",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
@@ -633,7 +677,7 @@
               1.0
             ],
             "skydomePath": "Resources/sky_sphere.png",
-            "texOverride": -1,
+            "texturePath": "",
             "visible": false
           },
           "enabled": true,
@@ -671,7 +715,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 0,
             "visible": true
           },
@@ -710,7 +756,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 1,
             "visible": true
           },
@@ -749,7 +797,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 2,
             "visible": true
           },
@@ -788,7 +838,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 3,
             "visible": true
           },
@@ -827,7 +879,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 4,
             "visible": true
           },
@@ -866,7 +920,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 5,
             "visible": true
           },
@@ -905,7 +961,9 @@
         {
           "data": {
             "environmentCoeff": 0.0,
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "type": 6,
             "visible": true
           },
@@ -969,15 +1027,35 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               0.0,
               0.0,
               -0.0
             ],
             "rotation": [
-              3.1415927410125732,
-              -0.34424862265586853,
-              3.1415927410125732
+              -0.0,
+              0.0,
+              0.0
             ],
             "scale": [
               1.0,
@@ -990,6 +1068,16 @@
         },
         {
           "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": false,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        },
+        {
+          "data": {
             "blendMode": 0,
             "color": [
               1.0,
@@ -999,21 +1087,13 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/AnimatedCube/AnimatedCube.gltf",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
           "type": "ModelRendererComponent"
-        },
-        {
-          "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": false,
-            "speed": 1.0
-          },
-          "enabled": true,
-          "type": "AnimationComponent"
         }
       ],
       "locked": false,
@@ -1046,6 +1126,16 @@
         },
         {
           "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        },
+        {
+          "data": {
             "blendMode": 0,
             "color": [
               1.0,
@@ -1055,21 +1145,13 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/human/walk.gltf",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
           "type": "ModelRendererComponent"
-        },
-        {
-          "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": true,
-            "speed": 1.0
-          },
-          "enabled": true,
-          "type": "AnimationComponent"
         }
       ],
       "locked": false,
@@ -1102,6 +1184,16 @@
         },
         {
           "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        },
+        {
+          "data": {
             "blendMode": 0,
             "color": [
               1.0,
@@ -1111,21 +1203,13 @@
             ],
             "environmentCoeff": 0.0,
             "modelPath": "Resources/model/simpleSkin/simpleSkin.gltf",
-            "texOverride": -1,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
             "visible": true
           },
           "enabled": true,
           "type": "ModelRendererComponent"
-        },
-        {
-          "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": true,
-            "speed": 1.0
-          },
-          "enabled": true,
-          "type": "AnimationComponent"
         }
       ],
       "locked": false,

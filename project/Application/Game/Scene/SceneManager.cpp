@@ -4,9 +4,12 @@
 #include "RenderCommon.h"
 #include "Fade/Fade.h"
 #include "Camera/CameraController.h"
+#include "DataDrivenScene/DataDrivenScene.h"
 #include <chrono>
 #include <format>
 #include <cstdlib>
+
+namespace RC { class CameraController; }
 
 class FadeOutState;
 class FadeInState;
@@ -255,25 +258,44 @@ void Scene::SceneManager::ChangeImmediately(const std::string &name,
   requested_.clear();
 
   auto end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<float> duration = end - start;
-  Log::Print(std::format("[Scene] シーン切り替え完了 (Time: {:.3f}s)", duration.count()));
+  std::chrono::duration<double> elapsed = end - start;
+  Log::Print(std::format("[Scene] Load time: {:.4f} sec", elapsed.count()));
+
+  requested_.clear();
 
   // 新しいシーンでのテクスチャログ出力を許可するためにリセット
   RC::ClearTextureLogHistory();
 }
 
 void Scene::SceneManager::ReloadCurrentScene(SceneContext &ctx) {
-  if (!current_) return;
-  
-  Log::Print("[Scene] シーンリロード: " + currentName_);
-  
-  RC::ClearPostEffects();
-  
-  current_->OnExit(ctx);
-  current_->OnEnter(ctx);
-  
-  RC::WaitAllLoads();
-  RC::ClearTextureLogHistory();
+  if (current_) {
+    Log::Print("[Scene] Reloading scene: " + currentName_);
+    RC::ClearPostEffects();
+    current_->OnExit(ctx);
+    current_->OnEnter(ctx);
+    RC::WaitAllLoads();
+    RC::ClearTextureLogHistory();
+  }
+}
+
+void Scene::SceneManager::BackupCurrentScene() {
+    if (current_) {
+        // dynamic_cast checking if it's DataDrivenScene
+        if (auto* dds = dynamic_cast<DataDrivenScene*>(current_)) {
+            dds->BackupState();
+            Log::Print("[Scene] Backup created for: " + currentName_);
+        }
+    }
+}
+
+void Scene::SceneManager::RestoreCurrentScene(SceneContext &ctx) {
+    if (current_) {
+        if (auto* dds = dynamic_cast<DataDrivenScene*>(current_)) {
+            Log::Print("[Scene] Restoring scene from backup: " + currentName_);
+            RC::ClearPostEffects();
+            dds->RestoreState(ctx);
+        }
+    }
 }
 
 void Scene::SceneManager::Update(SceneContext &ctx) {

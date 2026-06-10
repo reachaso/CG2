@@ -1,4 +1,4 @@
-$PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+﻿$PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 
 Write-Host "🎨 コードの自動整形(Format)を開始します..." -ForegroundColor Cyan

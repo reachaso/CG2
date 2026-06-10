@@ -178,14 +178,25 @@ void TextureManager::Unload(TextureID id) {
 
 D3D12_GPU_DESCRIPTOR_HANDLE TextureManager::GetSrv(TextureID id) const {
   std::lock_guard lock(mtx_);
-  static D3D12_GPU_DESCRIPTOR_HANDLE nullHandle{}; // 失敗時用
+
+  auto getWhiteTex = [&]() -> D3D12_GPU_DESCRIPTOR_HANDLE {
+    std::string whitePath = Log::NormalizePath("Resources/white1x1.png");
+    auto it = cache_.find(whitePath);
+    if (it != cache_.end() && it->second.IsLoaded()) {
+        return it->second.GpuSrv();
+    }
+    return D3D12_GPU_DESCRIPTOR_HANDLE{};
+  };
+
   auto it = idToPath_.find(id);
   if (it == idToPath_.end())
-    return nullHandle;
+    return getWhiteTex();
+    
   auto itTex = cache_.find(it->second);
   if (itTex == cache_.end() || !itTex->second.IsLoaded())
-    return nullHandle;
-  return itTex->second.GpuSrv(); // 既存APIで取得
+    return getWhiteTex();
+    
+  return itTex->second.GpuSrv();
 }
 
 const DirectX::TexMetadata *TextureManager::GetMeta(TextureID id) const {

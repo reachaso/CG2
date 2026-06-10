@@ -1,4 +1,4 @@
-$PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+﻿$PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $ShaderDir = Join-Path $ProjectRoot "project\Resources\Shader"
 

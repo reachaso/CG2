@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -165,6 +165,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\Application\Editor\EditorManager.cpp" />
     <!-- Game -->
     <ClCompile Include="..\\Application\\Game\\Game.cpp" />
+    <ClCompile Include="..\Application\Game\Framework\GameModeBase.cpp" />
     <ClCompile Include="..\\Application\\Game\\Scripts\\TestRotatorScript.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Scene.cpp" />
@@ -177,6 +178,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="..\Application\Editor\EditorManager.h" />
     <!-- Game -->
     <ClInclude Include="..\Application\Game\Game.h" />
+    <ClInclude Include="..\Application\Game\Framework\GameModeBase.h" />
+    <ClInclude Include="..\Application\Game\Framework\GameStateBase.h" />
     <ClInclude Include="..\Application\Game\Scene\Fade\Fade.h" />
     <ClInclude Include="..\Application\Game\Scene\Scene.h" />
     <ClInclude Include="..\Application\Game\Scene\SceneManager.h" />

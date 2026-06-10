@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     ChasoEngine - CLI Build & Run Script
 .DESCRIPTION

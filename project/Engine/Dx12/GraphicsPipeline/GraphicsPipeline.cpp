@@ -736,7 +736,7 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     break;
 
   case RootSignatureType::Water:
-    // Object3D と同じ 0..8 に加え、b6 (ALL) に WaterParams を追加
+    // Object3D と同じ 0..10 に加え、b6 (ALL) に WaterParams を追加
     // 0: CBV b0 (PS)  Material
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -796,12 +796,34 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[8].DescriptorTable.NumDescriptorRanges = 1;
     params[8].DescriptorTable.pDescriptorRanges = &ranges[1];
 
-    // 9: CBV b6 (ALL)  WaterParams (VS+PS で共有)
-    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    params[9].Descriptor.ShaderRegister = 6;
+    // 9: SRV table t2 (PS) NormalMap
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[2].BaseShaderRegister = 2; // t2
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    paramCount = 10;
+    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[9].DescriptorTable.NumDescriptorRanges = 1;
+    params[9].DescriptorTable.pDescriptorRanges = &ranges[2];
+
+    // 10: SRV table t3 (PS) RoughnessMap
+    ranges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[3].BaseShaderRegister = 3; // t3
+    ranges[3].NumDescriptors = 1;
+    ranges[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[10].DescriptorTable.NumDescriptorRanges = 1;
+    params[10].DescriptorTable.pDescriptorRanges = &ranges[3];
+
+    // 11: CBV b6 (ALL)  WaterParams (VS+PS で共有)
+    params[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[11].Descriptor.ShaderRegister = 6;
+
+    paramCount = 12;
     break;
   }
 

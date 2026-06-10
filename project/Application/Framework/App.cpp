@@ -149,9 +149,12 @@ int App::Run() {
       // プレイ状態の同期
       PlayState currentPlayState = editorManager_.GetPlayState();
       if (sceneCtx_.playState != currentPlayState) {
-          if (currentPlayState == PlayState::Stopped) {
-              // 停止された場合、シーンをリロードする
-              game_.ReloadCurrentScene(sceneCtx_);
+          if (currentPlayState == PlayState::Playing && sceneCtx_.playState == PlayState::Stopped) {
+              // 停止中から再生開始した瞬間：現在のシーンのバックアップを取る
+              game_.BackupCurrentScene();
+          } else if (currentPlayState == PlayState::Stopped) {
+              // 停止された場合、バックアップからシーンを復元する
+              game_.RestoreCurrentScene(sceneCtx_);
           }
           sceneCtx_.playState = currentPlayState;
       }

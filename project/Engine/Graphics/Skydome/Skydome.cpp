@@ -1,5 +1,8 @@
 #include "Skydome.h"
 #include "../../Render/RenderContext.h"
+#include "../../../Application/Game/Scene/Scene.h"
+#include "../../Dx12/Dx12Core.h"
+#include "../../Dx12/DeferredReleaseQueue/DeferredReleaseQueue.h"
 #include "Math/Math.h"
 #include "imgui/imgui.h"
 #include <cassert>
@@ -12,11 +15,20 @@
 using namespace RC;
 
 Skydome::~Skydome() {
-  vb_.resource.Reset();
-  ib_.resource.Reset();
-  cbWvp_.resource.Reset();
-  cbMat_.resource.Reset();
-  cbLight_.resource.Reset();
+  if (auto ctx = GetRenderContext().Ctx()) {
+    auto& dq = ctx->core->DeferredRelease();
+    if (vb_.resource) dq.Enqueue(std::move(vb_.resource), UINT64_MAX);
+    if (ib_.resource) dq.Enqueue(std::move(ib_.resource), UINT64_MAX);
+    if (cbWvp_.resource) dq.Enqueue(std::move(cbWvp_.resource), UINT64_MAX);
+    if (cbMat_.resource) dq.Enqueue(std::move(cbMat_.resource), UINT64_MAX);
+    if (cbLight_.resource) dq.Enqueue(std::move(cbLight_.resource), UINT64_MAX);
+  } else {
+    vb_.resource.Reset();
+    ib_.resource.Reset();
+    cbWvp_.resource.Reset();
+    cbMat_.resource.Reset();
+    cbLight_.resource.Reset();
+  }
 }
 
 void Skydome::Initialize(ID3D12Device *device, float radius, UINT sliceCount,
@@ -73,7 +85,10 @@ void Skydome::Draw(ID3D12GraphicsCommandList *cmdList) {
       0, cbMat_.resource->GetGPUVirtualAddress());
   cmdList->SetGraphicsRootConstantBufferView(
       1, cbWvp_.resource->GetGPUVirtualAddress());
-  cmdList->SetGraphicsRootDescriptorTable(2, textureSrv_);
+  
+  if (textureSrv_.ptr != 0) {
+      cmdList->SetGraphicsRootDescriptorTable(2, textureSrv_);
+  }
 
   // Light CB（b1）: 外部ライトが指定されていればそちらを使う
   const D3D12_GPU_VIRTUAL_ADDRESS lightAddr =

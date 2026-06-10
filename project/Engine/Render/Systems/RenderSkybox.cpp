@@ -37,8 +37,8 @@ void DrawSkyBox(int skyboxHandle) {
   }
 
   // コマンドキューにPSO切り替え→描画→元に戻すを積む
-  ctx.PushCommand3D([skyboxHandle, world,
-                     wvp](ID3D12GraphicsCommandList *cl) {
+  const uint64_t key = SortKey::Make(SortKey::kLayerOpaque, SortKey::HashPSO("skybox"), 0);
+  ctx.PushCommand3D(key, [skyboxHandle, world, envSrv](ID3D12GraphicsCommandList *cl) {
     auto &r = GetRenderContext();
     auto *sb = r.SkyBoxes().Get(skyboxHandle);
     if (!sb)

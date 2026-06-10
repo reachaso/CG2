@@ -119,6 +119,10 @@ ModelResource::GetSrvForMaterial_(uint32_t materialIndex) const {
     if (h.ptr != 0)
       return h;
   }
+  
+  if (texman_) {
+      return texman_->GetSrv(-1);
+  }
 
   return D3D12_GPU_DESCRIPTOR_HANDLE{};
 }

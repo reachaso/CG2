@@ -48,6 +48,13 @@ public:
   /// @param ctx シーンコンテキスト
   void ReloadCurrentScene(SceneContext &ctx);
 
+  /// @brief 現在のシーンのメモリバックアップを取る
+  void BackupCurrentScene();
+
+  /// @brief 現在のシーンをメモリバックアップから復元する
+  /// @param ctx シーンコンテキスト
+  void RestoreCurrentScene(SceneContext &ctx);
+
   /// @brief 更新処理（現在の状態に応じた Update を呼び出す）
   /// @param ctx シーンコンテキスト
   void Update(SceneContext &ctx);

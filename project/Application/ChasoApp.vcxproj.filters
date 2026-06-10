@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <Filter Include="..">
@@ -9,6 +9,9 @@
     </Filter>
     <Filter Include="Game">
       <UniqueIdentifier>{63d72051-e901-c069-f8aa-1b32aa0c43bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game\Framework">
+      <UniqueIdentifier>{12345678-cff7-b598-471f-844b704aa803}</UniqueIdentifier>
     </Filter>
     <Filter Include="Game\Scene">
       <UniqueIdentifier>{257654ef-124c-c4e9-e8f4-ba8e3de21951}</UniqueIdentifier>
@@ -90,6 +93,9 @@
     <ClCompile Include="..\Application\Game\Game.cpp">
       <Filter>Game</Filter>
     </ClCompile>
+    <ClCompile Include="..\Application\Game\Framework\GameModeBase.cpp">
+      <Filter>Game\Framework</Filter>
+    </ClCompile>
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp">
       <Filter>Game\Scene\Fade</Filter>
     </ClCompile>
@@ -112,6 +118,12 @@
     </ClInclude>
     <ClInclude Include="..\Application\Game\Game.h">
       <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Application\Game\Framework\GameModeBase.h">
+      <Filter>Game\Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Application\Game\Framework\GameStateBase.h">
+      <Filter>Game\Framework</Filter>
     </ClInclude>
     <ClInclude Include="..\Application\Game\Scene\Fade\Fade.h">
       <Filter>Game\Scene\Fade</Filter>

@@ -44,6 +44,13 @@ public:
   /// @param ctx シーンコンテキスト
   void ReloadCurrentScene(SceneContext &ctx);
 
+  /// @brief 現在のシーンのメモリバックアップを取る
+  void BackupCurrentScene();
+
+  /// @brief 現在のシーンをメモリバックアップから復元する
+  /// @param ctx シーンコンテキスト
+  void RestoreCurrentScene(SceneContext &ctx);
+
   /// @brief 現在実行中のシーンのポインタを取得する
   /// @return シーンのポインタ（なければnullptr）
   Scene* GetCurrentScene();

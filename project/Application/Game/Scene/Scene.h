@@ -6,6 +6,7 @@
 #include <vector>
 #include "AppConfig.h"
 #include "ECS/Entity.h"
+#include "../Framework/GameModeBase.h"
 
 // 前方宣言（App 側の実体を参照するため）
 class Dx12Core;
@@ -112,9 +113,13 @@ public:
   /// @brief 選択中のエンティティIDを取得する
   uint32_t GetSelectedEntityId() const { return selectedEntityId_; }
 
+  /// @brief GameModeの取得
+  GameModeBase* GetGameMode() const { return gameMode_.get(); }
+
 protected:
   std::vector<std::shared_ptr<Entity>> entities_; ///< シーン内のエンティティ一覧
   uint32_t selectedEntityId_ = 0; ///< 選択中のエンティティID
+  std::unique_ptr<GameModeBase> gameMode_ = std::make_unique<GameModeBase>(); ///< ゲームルールの管理
 
   /// @brief Update all active entities
   void UpdateEntities(float deltaTime) {

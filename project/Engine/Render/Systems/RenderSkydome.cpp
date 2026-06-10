@@ -40,7 +40,8 @@ void DrawSkydome(int skydomeHandle, int texHandle) {
   D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
   BlendMode blend = ctx.CurrentBlendMode();
 
-  ctx.PushCommand3D([s, skydomeHandle, world, texHandle, lightAddr,
+  const uint64_t key = SortKey::Make(SortKey::kLayerOpaque, SortKey::HashPSO("object3d"), 0);
+  ctx.PushCommand3D(key, [s, skydomeHandle, world, texHandle, lightAddr,
                      blend](ID3D12GraphicsCommandList *cl) {
     auto &ctx = GetRenderContext();
     auto prevBlend = ctx.CurrentBlendMode();

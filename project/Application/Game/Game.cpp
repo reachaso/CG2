@@ -65,6 +65,14 @@ void Game::ReloadCurrentScene(SceneContext &ctx) {
   sceneMgr_.ReloadCurrentScene(ctx);
 }
 
+void Game::BackupCurrentScene() {
+  sceneMgr_.BackupCurrentScene();
+}
+
+void Game::RestoreCurrentScene(SceneContext &ctx) {
+  sceneMgr_.RestoreCurrentScene(ctx);
+}
+
 void Game::DrawDebugUI(SceneContext &ctx) {
 #if RC_ENABLE_IMGUI
     if (ImGui::BeginMenu("Scene")) {

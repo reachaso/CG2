@@ -19,7 +19,7 @@
 #include "ECS/SkyboxComponent.h"
 #include "ECS/SkydomeComponent.h"
 #include "ECS/WaterComponent.h"
-
+#include "ECS/RigidbodyComponent.h"
 // Light sources for Dereferencing
 #include "Graphics/Light/Directional/DirectionalLightSource.h"
 #include "Graphics/Light/Point/PointLightSource.h"
@@ -203,7 +203,19 @@ public:
     waterTime_ += ctx.deltaTime;
     RC::SetWaterTime(waterTime_);
 
-    UpdateEntities(ctx.deltaTime);
+    float updateDt = ctx.isPlaying() ? ctx.deltaTime : 0.0f;
+
+    if (ctx.isPlaying()) {
+        if (gameMode_ && !gameMode_->HasBegunPlay()) {
+            gameMode_->BeginPlay(ctx);
+            gameMode_->MarkBegunPlay();
+        }
+        if (gameMode_) {
+            gameMode_->Tick(ctx);
+        }
+    }
+
+    UpdateEntities(updateDt);
     RemoveDeadEntities();
 
     // === Play/Editor カメラ切り替え ===
@@ -331,6 +343,7 @@ public:
   /// @brief Load entities from JSON file
   bool Load() {
     entities_.clear();
+    gameMode_ = std::make_unique<GameModeBase>(); // GameModeのリセット
 
     if (!std::filesystem::exists(filePath_)) {
       Log::Print("[DataDrivenScene] File not found: " + filePath_);
@@ -370,10 +383,42 @@ public:
   /// @brief Change scene name
   void SetSceneName(const std::string& name) { sceneName_ = name; }
 
+  /// @brief Backup the current state of entities to memory
+  void BackupState() {
+      backupJson_.clear();
+      for (auto& e : entities_) {
+          if (e) {
+              backupJson_.push_back(e->Serialize());
+          }
+      }
+  }
+
+  /// @brief Restore the state of entities from memory
+  void RestoreState(SceneContext& ctx) {
+      if (backupJson_.empty()) return;
+      
+      for (auto& e : entities_) {
+          ReleaseRuntimeResources(*e);
+      }
+      entities_.clear();
+      gameMode_ = std::make_unique<GameModeBase>(); // GameModeのリセット
+
+      for (auto& ej : backupJson_) {
+          auto entity = std::make_shared<Entity>();
+          entity->Deserialize(ej);
+          entities_.push_back(entity);
+      }
+      
+      for (auto& e : entities_) {
+          InitializeRuntimeResources(*e, ctx);
+      }
+  }
+
 private:
   std::string sceneName_;
   std::string filePath_;
   float waterTime_ = 0.0f; ///< 水面アニメーション用累積時間
+  nlohmann::json backupJson_; ///< メモリ上へのバックアップ用
 
   /// @brief Register all components to ComponentFactory (called once)
   static void RegisterAllComponents() {
@@ -391,6 +436,7 @@ private:
     Entity::ComponentFactory::Register<SkyboxComponent>("SkyboxComponent");
     Entity::ComponentFactory::Register<SkydomeComponent>("SkydomeComponent");
     Entity::ComponentFactory::Register<WaterComponent>("WaterComponent");
+    Entity::ComponentFactory::Register<RigidbodyComponent>("RigidbodyComponent");
   }
 
   void InitializeRuntimeResources(Entity& e, SceneContext& ctx) {
@@ -466,8 +512,11 @@ private:
           if (!sb->skyboxPath.empty()) sb->skyboxHandle = RC::CreateSkyBox(sb->skyboxPath);
       }
       if (auto* sd = e.GetComponent<SkydomeComponent>()) {
-          if (!sd->skydomePath.empty()) sd->skydomeHandle = RC::GenerateSkydome(RC::LoadTex(sd->skydomePath));
-          if (!sd->texturePath.empty()) sd->texOverride = RC::LoadTex(sd->texturePath);
+          int initTex = -1;
+          if (!sd->texturePath.empty()) initTex = RC::LoadTex(sd->texturePath);
+          else if (!sd->skydomePath.empty()) initTex = RC::LoadTex(sd->skydomePath);
+          sd->texOverride = initTex;
+          sd->skydomeHandle = RC::GenerateSkydomeEx(initTex);
       }
       if (auto* spr = e.GetComponent<SpriteRendererComponent>()) {
           if (!spr->spritePath.empty()) spr->spriteHandle = RC::LoadSprite(spr->spritePath, ctx);

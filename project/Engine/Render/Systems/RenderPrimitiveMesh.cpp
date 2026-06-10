@@ -58,7 +58,9 @@ void DrawPrimitiveMesh(int meshHandle, int texHandle) {
   D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
   BlendMode blend = ctx.CurrentBlendMode();
 
-  ctx.PushCommand3D([m, meshHandle, world, texHandle, lightAddr, blend](ID3D12GraphicsCommandList *cl) {
+  auto layer = (blend == kBlendModeNone || blend == kBlendModeNormal) ? SortKey::kLayerOpaque : SortKey::kLayerTranslucent;
+  const uint64_t key = SortKey::Make(layer, SortKey::HashPSO("object3d"), 0);
+  ctx.PushCommand3D(key, [m, meshHandle, world, texHandle, lightAddr, blend](ID3D12GraphicsCommandList *cl) {
     auto &ctx = GetRenderContext();
     auto prevBlend = ctx.CurrentBlendMode();
     ctx.SetBlendMode(blend);

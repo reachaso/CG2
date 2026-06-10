@@ -75,7 +75,8 @@ void DrawWater(int meshHandle, int normalMapHandle) {
   D3D12_GPU_VIRTUAL_ADDRESS waterCBAddr = s_waterCB ? s_waterCB->GetGPUVirtualAddress() : 0;
   BlendMode blend = ctx.CurrentBlendMode();
 
-  ctx.PushCommand3D([m, meshHandle, world, normalMapHandle, lightAddr, waterCBAddr, blend](ID3D12GraphicsCommandList *cl) {
+  const uint64_t key = SortKey::Make(SortKey::kLayerTranslucent, SortKey::HashPSO("water"), 0);
+  ctx.PushCommand3D(key, [m, meshHandle, world, normalMapHandle, lightAddr, waterCBAddr, blend](ID3D12GraphicsCommandList *cl) {
     auto &ctx = GetRenderContext();
     auto prevBlend = ctx.CurrentBlendMode();
     ctx.SetBlendMode(blend);
@@ -86,15 +87,10 @@ void DrawWater(int meshHandle, int normalMapHandle) {
       cl->SetGraphicsRootConstantBufferView(3, lightAddr);
       ctx.BindAllLightCBs();
 
-      // b6: WaterParams をバインド（RootParam[9] に追加する必要があるが、
-      // 既存の Object3D ルートシグネチャでは b6 は空いているので
-      // PointLightCB 等のあとに追加するか、
-      // 既存のスロットに合わせる）
-      // 注: Object3D Root Signature は RootParam 数が9つ (0..8) なので、
-      // water 用のパラメータは既存の空き領域を使うか追加が必要。
-      // ここでは RootParam[9] として水面CB を追加する設計。
+      // b6: WaterParams をバインド
+      // Object3D と同じパラメータ (0〜10) を使用し、11番目に WaterParams を配置する
       if (waterCBAddr) {
-        cl->SetGraphicsRootConstantBufferView(9, waterCBAddr);
+        cl->SetGraphicsRootConstantBufferView(11, waterCBAddr);
       }
 
       ctx.PrimitiveMeshes().ApplyTexture(meshHandle, normalMapHandle);

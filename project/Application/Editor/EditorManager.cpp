@@ -19,6 +19,7 @@
 #include "ECS/PrimitiveMeshComponent.h"
 #include "ECS/SpriteRendererComponent.h"
 #include "ECS/WaterComponent.h"
+#include "ECS/RigidbodyComponent.h"
 #include "Render/RenderCommon.h"
 #include "Math/Math.h"
 #include "Math/MathUtils.h"
@@ -191,7 +192,8 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
           if (ImGui::MenuItem("Skydome")) {
             auto e = currentScene->CreateEntity("Skydome");
             e->AddComponent<TransformComponent>();
-            e->AddComponent<SkydomeComponent>();
+            auto& sd = e->AddComponent<SkydomeComponent>();
+            sd.skydomeHandle = RC::GenerateSkydomeEx(-1);
           }
           if (ImGui::MenuItem("Water")) {
             auto e = currentScene->CreateEntity("Water");
@@ -653,30 +655,30 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         ImGui::Separator();
 
         if (auto* tr = e->GetComponent<TransformComponent>()) {
-            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("Transform (変形)", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Indent(8.0f);
                bool enabled = tr->IsEnabled();
-               if (ImGui::Checkbox("Enabled##TR", &enabled)) tr->SetEnabled(enabled);
+               if (ImGui::Checkbox("Enabled (有効化)##TR", &enabled)) tr->SetEnabled(enabled);
                ImGui::SameLine(ImGui::GetContentRegionAvail().x - 40.0f);
-               if (ImGui::Button("Reset##TR")) {
+               if (ImGui::Button("Reset (リセット)##TR")) {
                    tr->position = {0.0f, 0.0f, 0.0f};
                    tr->rotation = {0.0f, 0.0f, 0.0f};
                    tr->scale = {1.0f, 1.0f, 1.0f};
                }
-               ImGui::DragFloat3("Position", &tr->position.x, 0.1f);
+               ImGui::DragFloat3("Position (位置)", &tr->position.x, 0.1f);
                
                // Euler 変換 (deg <-> rad)
                RC::Vector3 eulerDegrees = { tr->rotation.x * 180.0f / 3.14159265f, tr->rotation.y * 180.0f / 3.14159265f, tr->rotation.z * 180.0f / 3.14159265f };
-               if (ImGui::DragFloat3("Rotation", &eulerDegrees.x, 1.0f)) {
+               if (ImGui::DragFloat3("Rotation (回転)", &eulerDegrees.x, 1.0f)) {
                    tr->rotation = { eulerDegrees.x * 3.14159265f / 180.0f, eulerDegrees.y * 3.14159265f / 180.0f, eulerDegrees.z * 3.14159265f / 180.0f };
                }
-               ImGui::DragFloat3("Scale", &tr->scale.x, 0.1f);
+               ImGui::DragFloat3("Scale (スケール)", &tr->scale.x, 0.1f);
                ImGui::Unindent(8.0f);
             }
         }
 
         if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Model Renderer", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Model Renderer (モデル描画)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<ModelRendererComponent>(); };
                 ImGui::EndPopup();
@@ -684,20 +686,20 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = ren->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Model", &enabled)) ren->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##Model", &ren->visible);
+               if (ImGui::Checkbox("Enabled (有効化)##Model", &enabled)) ren->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##Model", &ren->visible);
                ImGui::Text("Model Handle: %d", ren->modelHandle);
                ImGui::Unindent(8.0f);
             }
             // ── Material セクション ──
-            if (ren->HasModel() && ImGui::CollapsingHeader("Material##Model", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ren->HasModel() && ImGui::CollapsingHeader("Material (マテリアル)##Model", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Indent(8.0f);
 
                // -- Base Color --
-               ImGui::ColorEdit4("Base Color##Model", &ren->color.x);
+               ImGui::ColorEdit4("Base Color (基本色)##Model", &ren->color.x);
 
                // -- Texture --
-               ImGui::Text("Texture");
+               ImGui::Text("Texture (テクスチャ)");
                ImGui::SameLine();
                std::string texLabelStr = ren->texturePath.empty() ? "(None)##TexM" : std::filesystem::path(ren->texturePath).filename().string() + "##TexM";
                ImGui::Button(texLabelStr.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
@@ -723,7 +725,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                }
 
                // -- Normal Map --
-               ImGui::Text("Normal Map");
+               ImGui::Text("Normal Map (法線マップ)");
                ImGui::SameLine();
                std::string normalLabelStr = ren->normalMapPath.empty() ? "(None)##NmapM" : std::filesystem::path(ren->normalMapPath).filename().string() + "##NmapM";
                ImGui::Button(normalLabelStr.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
@@ -751,7 +753,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                }
 
                // -- Roughness Map --
-               ImGui::Text("Roughness Map");
+               ImGui::Text("Roughness Map (粗さマップ)");
                ImGui::SameLine();
                std::string roughnessLabelStr = ren->roughnessMapPath.empty() ? "(None)##RmapM" : std::filesystem::path(ren->roughnessMapPath).filename().string() + "##RmapM";
                ImGui::Button(roughnessLabelStr.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
@@ -787,27 +789,27 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                    int lightMode = mat->lightingMode;
                    if (lightMode < 0) lightMode = 0;
                    if (lightMode > 2) lightMode = 2;
-                   if (ImGui::Combo("Lighting##Model", &lightMode, lightingModes, 3)) {
+                   if (ImGui::Combo("Lighting (ライティング)##Model", &lightMode, lightingModes, 3)) {
                        mat->lightingMode = lightMode;
                    }
 
                    // Shininess
-                   ImGui::DragFloat("Shininess##Model", &mat->shininess, 1.0f, 0.0f, 512.0f);
+                   ImGui::DragFloat("Shininess (光沢)##Model", &mat->shininess, 1.0f, 0.0f, 512.0f);
 
                    // Environment Reflection
-                   if (ImGui::DragFloat("Env Reflection##Model", &mat->environmentCoefficient, 0.01f, 0.0f, 1.0f)) {
+                   if (ImGui::DragFloat("Env Reflection (環境反射)##Model", &mat->environmentCoefficient, 0.01f, 0.0f, 1.0f)) {
                        ren->environmentCoeff = mat->environmentCoefficient;
                    }
 
                    ImGui::Separator();
 
                    // -- UV Transform (Tiling & Offset) --
-                   ImGui::Text("UV Transform");
+                   ImGui::Text("UV Transform (UV変換)");
                    // UV Tiling (scale)
                    float tilingX = mat->uvTransform.m[0][0];
                    float tilingY = mat->uvTransform.m[1][1];
                    float tiling[2] = { tilingX, tilingY };
-                   if (ImGui::DragFloat2("Tiling##Model", tiling, 0.01f)) {
+                   if (ImGui::DragFloat2("Tiling (タイリング)##Model", tiling, 0.01f)) {
                        mat->uvTransform.m[0][0] = tiling[0];
                        mat->uvTransform.m[1][1] = tiling[1];
                    }
@@ -815,7 +817,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                    float offsetX = mat->uvTransform.m[3][0];
                    float offsetY = mat->uvTransform.m[3][1];
                    float offset[2] = { offsetX, offsetY };
-                   if (ImGui::DragFloat2("Offset##Model", offset, 0.01f)) {
+                   if (ImGui::DragFloat2("Offset (オフセット)##Model", offset, 0.01f)) {
                        mat->uvTransform.m[3][0] = offset[0];
                        mat->uvTransform.m[3][1] = offset[1];
                    }
@@ -826,7 +828,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         }
 
         if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Primitive Mesh", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Primitive Mesh (基本図形)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<PrimitiveMeshComponent>(); };
                 ImGui::EndPopup();
@@ -834,22 +836,22 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = pm->IsEnabled();
-               if (ImGui::Checkbox("Enabled##PM", &enabled)) pm->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##PM", &pm->visible);
+               if (ImGui::Checkbox("Enabled (有効化)##PM", &enabled)) pm->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##PM", &pm->visible);
                static const char* typeNames[] = {
                    "Sphere", "Box", "Plane", "Cylinder", "Cone", "Torus", "Capsule"
                };
                int typeIdx = static_cast<int>(pm->type);
-               ImGui::Text("Type: %s", (typeIdx >= 0 && typeIdx < 7) ? typeNames[typeIdx] : "Unknown");
+               ImGui::Text("Type (種類): %s", (typeIdx >= 0 && typeIdx < 7) ? typeNames[typeIdx] : "Unknown");
                ImGui::Text("Mesh Handle: %d", pm->meshHandle);
                ImGui::Unindent(8.0f);
             }
             // ── Material セクション ──
-            if (pm->HasMesh() && ImGui::CollapsingHeader("Material##PM", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (pm->HasMesh() && ImGui::CollapsingHeader("Material (マテリアル)##PM", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Indent(8.0f);
 
                // -- Texture --
-               ImGui::Text("Texture");
+               ImGui::Text("Texture (テクスチャ)");
                ImGui::SameLine();
                std::string texLabelStrPM = pm->texturePath.empty() ? "(None)##TexPM" : std::filesystem::path(pm->texturePath).filename().string() + "##TexPM";
                ImGui::Button(texLabelStrPM.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
@@ -875,7 +877,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                }
 
                // -- Normal Map --
-               ImGui::Text("Normal Map");
+               ImGui::Text("Normal Map (法線マップ)");
                ImGui::SameLine();
                std::string normalLabelStrPM = pm->normalMapPath.empty() ? "(None)##NmapPM" : std::filesystem::path(pm->normalMapPath).filename().string() + "##NmapPM";
                ImGui::Button(normalLabelStrPM.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
@@ -903,7 +905,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                }
 
                // -- Roughness Map --
-               ImGui::Text("Roughness Map");
+               ImGui::Text("Roughness Map (粗さマップ)");
                ImGui::SameLine();
                std::string roughnessLabelStrPM = pm->roughnessMapPath.empty() ? "(None)##RmapPM" : std::filesystem::path(pm->roughnessMapPath).filename().string() + "##RmapPM";
                ImGui::Button(roughnessLabelStrPM.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
@@ -935,40 +937,40 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                // -- GPU Material properties --
                if (Material* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
                    // Base Color
-                   ImGui::ColorEdit4("Base Color##PM", &mat->color.x);
+                   ImGui::ColorEdit4("Base Color (基本色)##PM", &mat->color.x);
 
                    // Lighting Mode
                    const char* lightingModes[] = { "None", "Lambert", "Half Lambert" };
                    int lightMode = mat->lightingMode;
                    if (lightMode < 0) lightMode = 0;
                    if (lightMode > 2) lightMode = 2;
-                   if (ImGui::Combo("Lighting##PM", &lightMode, lightingModes, 3)) {
+                   if (ImGui::Combo("Lighting (ライティング)##PM", &lightMode, lightingModes, 3)) {
                        mat->lightingMode = lightMode;
                    }
 
                    // Shininess
-                   ImGui::DragFloat("Shininess##PM", &mat->shininess, 1.0f, 0.0f, 512.0f);
+                   ImGui::DragFloat("Shininess (光沢)##PM", &mat->shininess, 1.0f, 0.0f, 512.0f);
 
                    // Environment Reflection
-                   if (ImGui::DragFloat("Env Reflection##PM", &mat->environmentCoefficient, 0.01f, 0.0f, 1.0f)) {
+                   if (ImGui::DragFloat("Env Reflection (環境反射)##PM", &mat->environmentCoefficient, 0.01f, 0.0f, 1.0f)) {
                        pm->environmentCoeff = mat->environmentCoefficient;
                    }
 
                    ImGui::Separator();
 
                    // -- UV Transform (Tiling & Offset) --
-                   ImGui::Text("UV Transform");
+                   ImGui::Text("UV Transform (UV変換)");
                    float tilingX = mat->uvTransform.m[0][0];
                    float tilingY = mat->uvTransform.m[1][1];
                    float tiling[2] = { tilingX, tilingY };
-                   if (ImGui::DragFloat2("Tiling##PM", tiling, 0.01f)) {
+                   if (ImGui::DragFloat2("Tiling (タイリング)##PM", tiling, 0.01f)) {
                        mat->uvTransform.m[0][0] = tiling[0];
                        mat->uvTransform.m[1][1] = tiling[1];
                    }
                    float offsetX = mat->uvTransform.m[3][0];
                    float offsetY = mat->uvTransform.m[3][1];
                    float offset[2] = { offsetX, offsetY };
-                   if (ImGui::DragFloat2("Offset##PM", offset, 0.01f)) {
+                   if (ImGui::DragFloat2("Offset (オフセット)##PM", offset, 0.01f)) {
                        mat->uvTransform.m[3][0] = offset[0];
                        mat->uvTransform.m[3][1] = offset[1];
                    }
@@ -979,7 +981,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         }
 
         if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Sprite Renderer", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Sprite Renderer (スプライト描画)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<SpriteRendererComponent>(); };
                 ImGui::EndPopup();
@@ -987,17 +989,17 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = spr->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Spr", &enabled)) spr->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##Spr", &spr->visible);
-               ImGui::DragFloat2("Size", &spr->size.x, 1.0f, 0.0f, 4096.0f);
-               ImGui::ColorEdit4("Color##Spr", &spr->color.x);
+               if (ImGui::Checkbox("Enabled (有効化)##Spr", &enabled)) spr->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##Spr", &spr->visible);
+               ImGui::DragFloat2("Size (サイズ)", &spr->size.x, 1.0f, 0.0f, 4096.0f);
+               ImGui::ColorEdit4("Color (色)##Spr", &spr->color.x);
                ImGui::Text("Sprite Handle: %d", spr->spriteHandle);
                ImGui::Unindent(8.0f);
             }
         }
 
         if (auto* anim = e->GetComponent<AnimationComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Animation", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Animation (アニメーション)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<AnimationComponent>(); };
                 ImGui::EndPopup();
@@ -1005,13 +1007,13 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = anim->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Anim", &enabled)) anim->SetEnabled(enabled);
-               ImGui::Checkbox("Playing", &anim->playing);
-               ImGui::DragFloat("Speed", &anim->speed, 0.05f, 0.0f, 10.0f);
+               if (ImGui::Checkbox("Enabled (有効化)##Anim", &enabled)) anim->SetEnabled(enabled);
+               ImGui::Checkbox("Playing (再生中)", &anim->playing);
+               ImGui::DragFloat("Speed (再生速度)", &anim->speed, 0.05f, 0.0f, 10.0f);
                // スキンデータがあるモデルのみ Show Skeleton を表示
                if (auto* ren2 = e->GetComponent<ModelRendererComponent>()) {
                    if (ren2->HasModel() && RC::HasModelSkinData(ren2->modelHandle)) {
-                       ImGui::Checkbox("Show Skeleton", &anim->showSkeleton);
+                       ImGui::Checkbox("Show Skeleton (骨格表示)", &anim->showSkeleton);
                    }
                }
                if (!anim->animationPath.empty()) {
@@ -1024,7 +1026,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         }
 
         if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Skybox", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Skybox (スカイボックス)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<SkyboxComponent>(); };
                 ImGui::EndPopup();
@@ -1032,22 +1034,22 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = skybox->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Skybox", &enabled)) skybox->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##Skybox", &skybox->visible);
+               if (ImGui::Checkbox("Enabled (有効化)##Skybox", &enabled)) skybox->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##Skybox", &skybox->visible);
                ImGui::Text("Skybox Handle: %d", skybox->skyboxHandle);
                ImGui::Unindent(8.0f);
             }
             // ── Material セクション ──
-            if (ImGui::CollapsingHeader("Material##Skybox", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("Material (マテリアル)##Skybox", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Indent(8.0f);
 
-               ImGui::ColorEdit4("Color##Skybox", &skybox->color.x);
+               ImGui::ColorEdit4("Color (色)##Skybox", &skybox->color.x);
 
                // -- Cubemap Texture --
-               ImGui::Text("Cubemap");
+               ImGui::Text("Cubemap (キューブマップ)");
                ImGui::SameLine();
-               const char* texLabel = skybox->skyboxPath.empty() ? "(None - Drop .dds)" : std::filesystem::path(skybox->skyboxPath).filename().string().c_str();
-               ImGui::Button(texLabel, ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
+               std::string texLabelStr = skybox->skyboxPath.empty() ? "(None - Drop .dds)" : std::filesystem::path(skybox->skyboxPath).filename().string() + "##TexSkybox";
+               ImGui::Button(texLabelStr.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
                if (ImGui::BeginDragDropTarget()) {
                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                        std::string droppedPath((const char*)payload->Data);
@@ -1076,7 +1078,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         }
 
         if (auto* skydome = e->GetComponent<SkydomeComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Skydome", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Skydome (スカイドーム)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<SkydomeComponent>(); };
                 ImGui::EndPopup();
@@ -1084,24 +1086,27 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = skydome->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Skydome", &enabled)) skydome->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##Skydome", &skydome->visible);
+               if (ImGui::Checkbox("Enabled (有効化)##Skydome", &enabled)) skydome->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##Skydome", &skydome->visible);
                ImGui::Text("Skydome Handle: %d", skydome->skydomeHandle);
                ImGui::Unindent(8.0f);
             }
             // ── Material セクション ──
-            if (ImGui::CollapsingHeader("Material##Skydome", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("Material (マテリアル)##Skydome", ImGuiTreeNodeFlags_DefaultOpen)) {
                ImGui::Indent(8.0f);
 
-               if (ImGui::ColorEdit4("Color##Skydome", &skydome->color.x)) {
+               if (ImGui::ColorEdit4("Color (色)##Skydome", &skydome->color.x)) {
+                   if (skydome->skydomeHandle < 0) {
+                       skydome->skydomeHandle = RC::GenerateSkydomeEx(-1);
+                   }
                    RC::SetSkydomeColor(skydome->skydomeHandle, skydome->color);
                }
 
                // -- Texture --
-               ImGui::Text("Texture");
+               ImGui::Text("Texture (テクスチャ)");
                ImGui::SameLine();
-               const char* texLabel = skydome->texturePath.empty() ? "(None)" : std::filesystem::path(skydome->texturePath).filename().string().c_str();
-               ImGui::Button(texLabel, ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
+               std::string texLabelStr = skydome->texturePath.empty() ? "(None)##TexSkydome" : std::filesystem::path(skydome->texturePath).filename().string() + "##TexSkydome";
+               ImGui::Button(texLabelStr.c_str(), ImVec2(ImGui::GetContentRegionAvail().x - 60.0f, 0));
                if (ImGui::BeginDragDropTarget()) {
                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                        std::string droppedPath((const char*)payload->Data);
@@ -1111,6 +1116,9 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                        if (ext == ".png" || ext == ".jpg" || ext == ".dds") {
                            skydome->texturePath = droppedPath;
                            skydome->texOverride = RC::LoadTex(droppedPath);
+                           if (skydome->skydomeHandle < 0) {
+                               skydome->skydomeHandle = RC::GenerateSkydomeEx(skydome->texOverride);
+                           }
                        }
                    }
                    ImGui::EndDragDropTarget();
@@ -1128,7 +1136,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         }
 
         if (auto* water = e->GetComponent<WaterComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Water", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Water (水面)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<WaterComponent>(); };
                 ImGui::EndPopup();
@@ -1136,10 +1144,10 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = water->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Water", &enabled)) water->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##Water", &water->visible);
+               if (ImGui::Checkbox("Enabled (有効化)##Water", &enabled)) water->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##Water", &water->visible);
                ImGui::Separator();
-               ImGui::Text("Wave Parameters");
+               ImGui::Text("Wave Parameters (波のパラメータ)");
                ImGui::DragFloat("Wave Height##W1", &water->waveHeight, 0.01f, 0.0f, 5.0f);
                ImGui::DragFloat("Wave Speed##W1", &water->waveSpeed, 0.05f, 0.0f, 10.0f);
                ImGui::DragFloat("Wave Freq##W1", &water->waveFreq, 0.05f, 0.0f, 5.0f);
@@ -1148,16 +1156,16 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                ImGui::DragFloat("Wave Freq 2##W2", &water->waveFreq2, 0.05f, 0.0f, 5.0f);
                ImGui::DragFloat("Steepness", &water->waveSteepness, 0.01f, 0.0f, 1.0f);
                ImGui::Separator();
-               ImGui::Text("Water Color");
-               ImGui::ColorEdit4("Shallow##Water", &water->shallowColor.x);
-               ImGui::ColorEdit4("Deep##Water", &water->deepColor.x);
+               ImGui::Text("Water Color (水の色)");
+               ImGui::ColorEdit4("Shallow (浅瀬)##Water", &water->shallowColor.x);
+               ImGui::ColorEdit4("Deep (深海)##Water", &water->deepColor.x);
                ImGui::Separator();
-               ImGui::Text("Material");
+               ImGui::Text("Material (マテリアル)");
                ImGui::DragFloat("Fresnel Power", &water->fresnelPower, 0.1f, 0.5f, 10.0f);
                ImGui::DragFloat("Specular Power", &water->specularPower, 1.0f, 1.0f, 512.0f);
                ImGui::DragFloat("Normal Scroll", &water->normalScrollSpeed, 0.001f, 0.0f, 0.5f);
                ImGui::DragFloat("Normal Strength", &water->normalStrength, 0.01f, 0.0f, 2.0f);
-               ImGui::DragFloat("Env Reflection##Water", &water->environmentCoeff, 0.01f, 0.0f, 1.0f);
+               ImGui::DragFloat("Env Reflection (環境反射)##Water", &water->environmentCoeff, 0.01f, 0.0f, 1.0f);
                ImGui::Separator();
                ImGui::Text("Mesh Handle: %d", water->meshHandle);
                ImGui::Unindent(8.0f);
@@ -1171,7 +1179,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         RC::Vector3 pos = tr ? tr->position : RC::Vector3{0, 0, 0};
 
         if (auto* dirLight = e->GetComponent<DirectionalLightComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Directional Light (平行光源)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<DirectionalLightComponent>(); };
                 ImGui::EndPopup();
@@ -1179,18 +1187,18 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = dirLight->IsEnabled();
-               if (ImGui::Checkbox("Enabled##DirLight", &enabled)) dirLight->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##DirLight", &dirLight->visible);
-               ImGui::ColorEdit4("Color##DirLight", &dirLight->color.x);
-               ImGui::DragFloat3("Direction##DirLight", &dirLight->direction.x, 0.05f);
-               ImGui::DragFloat("Intensity##DirLight", &dirLight->intensity, 0.1f, 0.0f, 100.0f);
+               if (ImGui::Checkbox("Enabled (有効化)##DirLight", &enabled)) dirLight->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##DirLight", &dirLight->visible);
+               ImGui::ColorEdit4("Color (色)##DirLight", &dirLight->color.x);
+               ImGui::DragFloat3("Direction (方向)##DirLight", &dirLight->direction.x, 0.05f);
+               ImGui::DragFloat("Intensity (強度)##DirLight", &dirLight->intensity, 0.1f, 0.0f, 100.0f);
                ImGui::Text("Handle: %d", dirLight->lightHandle);
                ImGui::Unindent(8.0f);
             }
         }
 
         if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Point Light (点光源)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<PointLightComponent>(); };
                 ImGui::EndPopup();
@@ -1198,19 +1206,19 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = ptLight->IsEnabled();
-               if (ImGui::Checkbox("Enabled##PtLight", &enabled)) ptLight->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##PtLight", &ptLight->visible);
-               ImGui::ColorEdit4("Color##PtLight", &ptLight->color.x);
-               ImGui::DragFloat("Intensity##PtLight", &ptLight->intensity, 0.1f, 0.0f, 100.0f);
-               ImGui::DragFloat("Radius##PtLight", &ptLight->radius, 0.5f, 0.0f, 1000.0f);
-               ImGui::DragFloat("Decay##PtLight", &ptLight->decay, 0.1f, 0.0f, 10.0f);
+               if (ImGui::Checkbox("Enabled (有効化)##PtLight", &enabled)) ptLight->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##PtLight", &ptLight->visible);
+               ImGui::ColorEdit4("Color (色)##PtLight", &ptLight->color.x);
+               ImGui::DragFloat("Intensity (強度)##PtLight", &ptLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Radius (半径)##PtLight", &ptLight->radius, 0.5f, 0.0f, 1000.0f);
+               ImGui::DragFloat("Decay (減衰)##PtLight", &ptLight->decay, 0.1f, 0.0f, 10.0f);
                ImGui::Text("Handle: %d", ptLight->lightHandle);
                ImGui::Unindent(8.0f);
             }
         }
 
         if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Spot Light", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Spot Light (スポットライト)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<SpotLightComponent>(); };
                 ImGui::EndPopup();
@@ -1218,21 +1226,21 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = spLight->IsEnabled();
-               if (ImGui::Checkbox("Enabled##SpLight", &enabled)) spLight->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##SpLight", &spLight->visible);
-               ImGui::ColorEdit4("Color##SpLight", &spLight->color.x);
-               ImGui::DragFloat3("Direction##SpLight", &spLight->direction.x, 0.05f);
-               ImGui::DragFloat("Intensity##SpLight", &spLight->intensity, 0.1f, 0.0f, 100.0f);
-               ImGui::DragFloat("Distance##SpLight", &spLight->distance, 0.5f, 0.0f, 1000.0f);
-               ImGui::DragFloat("Decay##SpLight", &spLight->decay, 0.1f, 0.0f, 10.0f);
-               ImGui::DragFloat("CosAngle##SpLight", &spLight->cosAngle, 0.01f, 0.0f, 1.0f);
+               if (ImGui::Checkbox("Enabled (有効化)##SpLight", &enabled)) spLight->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##SpLight", &spLight->visible);
+               ImGui::ColorEdit4("Color (色)##SpLight", &spLight->color.x);
+               ImGui::DragFloat3("Direction (方向)##SpLight", &spLight->direction.x, 0.05f);
+               ImGui::DragFloat("Intensity (強度)##SpLight", &spLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Distance (距離)##SpLight", &spLight->distance, 0.5f, 0.0f, 1000.0f);
+               ImGui::DragFloat("Decay (減衰)##SpLight", &spLight->decay, 0.1f, 0.0f, 10.0f);
+               ImGui::DragFloat("CosAngle (角度)##SpLight", &spLight->cosAngle, 0.01f, 0.0f, 1.0f);
                ImGui::Text("Handle: %d", spLight->lightHandle);
                ImGui::Unindent(8.0f);
             }
         }
 
         if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Area Light", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Area Light (エリアライト)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<AreaLightComponent>(); };
                 ImGui::EndPopup();
@@ -1240,16 +1248,16 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = arLight->IsEnabled();
-               if (ImGui::Checkbox("Enabled##ArLight", &enabled)) arLight->SetEnabled(enabled);
-               ImGui::Checkbox("Visible##ArLight", &arLight->visible);
-               ImGui::ColorEdit4("Color##ArLight", &arLight->color.x);
-               ImGui::DragFloat("Intensity##ArLight", &arLight->intensity, 0.1f, 0.0f, 100.0f);
-               ImGui::DragFloat("Range##ArLight", &arLight->range, 0.5f, 0.0f, 1000.0f);
-               ImGui::DragFloat("Decay##ArLight", &arLight->decay, 0.1f, 0.0f, 10.0f);
-               ImGui::DragFloat("Half Width##ArLight", &arLight->halfWidth, 0.1f, 0.0f, 100.0f);
-               ImGui::DragFloat("Half Height##ArLight", &arLight->halfHeight, 0.1f, 0.0f, 100.0f);
+               if (ImGui::Checkbox("Enabled (有効化)##ArLight", &enabled)) arLight->SetEnabled(enabled);
+               ImGui::Checkbox("Visible (表示)##ArLight", &arLight->visible);
+               ImGui::ColorEdit4("Color (色)##ArLight", &arLight->color.x);
+               ImGui::DragFloat("Intensity (強度)##ArLight", &arLight->intensity, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Range (範囲)##ArLight", &arLight->range, 0.5f, 0.0f, 1000.0f);
+               ImGui::DragFloat("Decay (減衰)##ArLight", &arLight->decay, 0.1f, 0.0f, 10.0f);
+               ImGui::DragFloat("Half Width (幅/2)##ArLight", &arLight->halfWidth, 0.1f, 0.0f, 100.0f);
+               ImGui::DragFloat("Half Height (高さ/2)##ArLight", &arLight->halfHeight, 0.1f, 0.0f, 100.0f);
                bool twoSided = arLight->twoSided;
-               if (ImGui::Checkbox("Two Sided##ArLight", &twoSided)) arLight->twoSided = twoSided;
+               if (ImGui::Checkbox("Two Sided (両面)##ArLight", &twoSided)) arLight->twoSided = twoSided;
                ImGui::Text("Handle: %d", arLight->lightHandle);
                ImGui::Unindent(8.0f);
             }
@@ -1259,7 +1267,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         // Camera
         // ============================================
         if (auto* cam = e->GetComponent<CameraComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Camera (カメラ)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<CameraComponent>(); };
                 ImGui::EndPopup();
@@ -1267,15 +1275,15 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = cam->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Cam", &enabled)) cam->SetEnabled(enabled);
-               ImGui::Checkbox("Main Camera", &cam->isMain);
+               if (ImGui::Checkbox("Enabled (有効化)##Cam", &enabled)) cam->SetEnabled(enabled);
+               ImGui::Checkbox("Main Camera (メインカメラ)", &cam->isMain);
                // FOV を度数で表示・編集
                float fovDeg = cam->fovY * 180.0f / 3.14159265f;
-               if (ImGui::SliderFloat("FOV (deg)", &fovDeg, 1.0f, 179.0f)) {
+               if (ImGui::SliderFloat("FOV (視野角) (deg)", &fovDeg, 1.0f, 179.0f)) {
                    cam->fovY = fovDeg * 3.14159265f / 180.0f;
                }
-               ImGui::DragFloat("Near Clip", &cam->nearZ, 0.01f, 0.001f, 100.0f);
-               ImGui::DragFloat("Far Clip", &cam->farZ, 1.0f, 0.1f, 10000.0f);
+               ImGui::DragFloat("Near Clip (近クリップ)", &cam->nearZ, 0.01f, 0.001f, 100.0f);
+               ImGui::DragFloat("Far Clip (遠クリップ)", &cam->farZ, 1.0f, 0.1f, 10000.0f);
                ImGui::Unindent(8.0f);
             }
         }
@@ -1284,7 +1292,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         // Collider
         // ============================================
         if (auto* col = e->GetComponent<ColliderComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Collider (当たり判定)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<ColliderComponent>(); };
                 ImGui::EndPopup();
@@ -1292,25 +1300,44 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                ImGui::Indent(8.0f);
                bool enabled = col->IsEnabled();
-               if (ImGui::Checkbox("Enabled##Col", &enabled)) col->SetEnabled(enabled);
+               if (ImGui::Checkbox("Enabled (有効化)##Col", &enabled)) col->SetEnabled(enabled);
+               ImGui::Checkbox("Is Trigger (物理反発しない)##Col", &col->isTrigger);
                static const char* colTypeNames[] = { "AABB", "Sphere", "Capsule" };
                int typeIdx = static_cast<int>(col->shape);
-               if (ImGui::Combo("Shape##Col", &typeIdx, colTypeNames, 3)) {
+               if (ImGui::Combo("Shape (形状)##Col", &typeIdx, colTypeNames, 3)) {
                    col->shape = static_cast<ColliderComponent::Shape>(typeIdx);
                }
                if (col->shape == ColliderComponent::Shape::AABB) {
-                   ImGui::DragFloat3("Center##Col", &col->center.x, 0.1f);
-                   ImGui::DragFloat3("Size##Col", &col->size.x, 0.1f);
+                   ImGui::DragFloat3("Center (中心)##Col", &col->center.x, 0.1f);
+                   ImGui::DragFloat3("Size (サイズ)##Col", &col->size.x, 0.1f);
                } else if (col->shape == ColliderComponent::Shape::Sphere) {
-                   ImGui::DragFloat3("Center##Col", &col->center.x, 0.1f);
-                   ImGui::DragFloat("Radius##Col", &col->radius, 0.1f);
+                   ImGui::DragFloat3("Center (中心)##Col", &col->center.x, 0.1f);
+                   ImGui::DragFloat("Radius (半径)##Col", &col->radius, 0.1f);
                }
                ImGui::Unindent(8.0f);
             }
         }
 
+        if (auto* rb = e->GetComponent<RigidbodyComponent>()) {
+            bool headerOpen = ImGui::CollapsingHeader("Rigidbody (物理演算)", ImGuiTreeNodeFlags_DefaultOpen);
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<RigidbodyComponent>(); };
+                ImGui::EndPopup();
+            }
+            if (headerOpen) {
+               ImGui::Indent(8.0f);
+               bool enabled = rb->IsEnabled();
+               if (ImGui::Checkbox("Enabled (有効化)##RB", &enabled)) rb->SetEnabled(enabled);
+               ImGui::Checkbox("Use Gravity (重力を使用)", &rb->useGravity);
+               ImGui::Checkbox("Is Kinematic (プログラムで動かす)", &rb->isKinematic);
+               ImGui::DragFloat("Mass (質量)", &rb->mass, 0.1f, 0.001f, 10000.0f);
+               ImGui::DragFloat3("Velocity (速度)", &rb->velocity.x, 0.1f);
+               ImGui::Unindent(8.0f);
+            }
+        }
+
         if (auto* script = e->GetComponent<NativeScriptComponent>()) {
-            bool headerOpen = ImGui::CollapsingHeader("Native Script", ImGuiTreeNodeFlags_DefaultOpen);
+            bool headerOpen = ImGui::CollapsingHeader("Native Script (自作スクリプト)", ImGuiTreeNodeFlags_DefaultOpen);
             if (ImGui::BeginPopupContextItem()) {
                 if (ImGui::MenuItem("Remove Component")) pendingRemove = [e](){ e->RemoveComponent<NativeScriptComponent>(); };
                 ImGui::EndPopup();
@@ -1318,8 +1345,8 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             if (headerOpen) {
                 ImGui::Indent(8.0f);
                 bool enabled = script->IsEnabled();
-                if (ImGui::Checkbox("Enabled##Script", &enabled)) script->SetEnabled(enabled);
-                ImGui::Text("Script Type:");
+                if (ImGui::Checkbox("Enabled (有効化)##Script", &enabled)) script->SetEnabled(enabled);
+                ImGui::Text("Script Type (スクリプト名):");
                 ImGui::SameLine();
                 const auto& names = ScriptRegistry::GetScriptNames();
                 std::string current = script->scriptTypeName.empty() ? "(None)" : script->scriptTypeName;
@@ -1344,19 +1371,9 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             ImGui::OpenPopup("AddComponentPopup");
         }
         if (ImGui::BeginPopup("AddComponentPopup")) {
-            if (ImGui::MenuItem("Model Renderer") && !e->GetComponent<ModelRendererComponent>()) e->AddComponent<ModelRendererComponent>();
-            if (ImGui::MenuItem("Primitive Mesh") && !e->GetComponent<PrimitiveMeshComponent>()) e->AddComponent<PrimitiveMeshComponent>();
-            if (ImGui::MenuItem("Sprite Renderer") && !e->GetComponent<SpriteRendererComponent>()) e->AddComponent<SpriteRendererComponent>();
-            if (ImGui::MenuItem("Animation") && !e->GetComponent<AnimationComponent>()) e->AddComponent<AnimationComponent>();
-            if (ImGui::MenuItem("Skybox") && !e->GetComponent<SkyboxComponent>()) e->AddComponent<SkyboxComponent>();
-            if (ImGui::MenuItem("Skydome") && !e->GetComponent<SkydomeComponent>()) e->AddComponent<SkydomeComponent>();
-            if (ImGui::MenuItem("Water") && !e->GetComponent<WaterComponent>()) e->AddComponent<WaterComponent>();
-            if (ImGui::MenuItem("Directional Light") && !e->GetComponent<DirectionalLightComponent>()) e->AddComponent<DirectionalLightComponent>();
-            if (ImGui::MenuItem("Point Light") && !e->GetComponent<PointLightComponent>()) e->AddComponent<PointLightComponent>();
-            if (ImGui::MenuItem("Spot Light") && !e->GetComponent<SpotLightComponent>()) e->AddComponent<SpotLightComponent>();
-            if (ImGui::MenuItem("Area Light") && !e->GetComponent<AreaLightComponent>()) e->AddComponent<AreaLightComponent>();
             if (ImGui::MenuItem("Camera") && !e->GetComponent<CameraComponent>()) e->AddComponent<CameraComponent>();
-            if (ImGui::MenuItem("Collider") && !e->GetComponent<ColliderComponent>()) e->AddComponent<ColliderComponent>();
+            if (ImGui::MenuItem("Collider (当たり判定)") && !e->GetComponent<ColliderComponent>()) e->AddComponent<ColliderComponent>();
+            if (ImGui::MenuItem("Rigidbody (物理演算)") && !e->GetComponent<RigidbodyComponent>()) e->AddComponent<RigidbodyComponent>();
             if (ImGui::MenuItem("Native Script") && !e->GetComponent<NativeScriptComponent>()) e->AddComponent<NativeScriptComponent>();
             ImGui::EndPopup();
         }

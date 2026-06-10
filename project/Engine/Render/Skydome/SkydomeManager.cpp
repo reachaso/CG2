@@ -104,9 +104,8 @@ void SkydomeManager::ApplyTexture(int handle, int overrideTexHandle) {
   const int useTex = (overrideTexHandle >= 0)
                          ? overrideTexHandle
                          : skydomes_[handle].defaultTexHandle;
-  if (useTex >= 0) {
-    skydomes_[handle].ptr->SetTexture(texman_->GetSrv(useTex));
-  }
+                         
+  skydomes_[handle].ptr->SetTexture(texman_->GetSrv(useTex));
 }
 
 } // namespace RC
