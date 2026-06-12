@@ -116,7 +116,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     float3 geoNormal = normalize(input.normal);
 
     // 波紋の法線計算
-    float2 waveUV = (input.worldPosition.xz / 20.0f) + 0.5f;
+    float2 waveUV = (input.worldPosition.xz / 100.0f) + 0.5f;
     float texelSize = 1.0f / 256.0f;
     float hL = gInteractiveWave.Sample(gSamplerClamp, waveUV + float2(-texelSize, 0));
     float hR = gInteractiveWave.Sample(gSamplerClamp, waveUV + float2(texelSize, 0));
@@ -126,7 +126,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     // ハイトマップに基づく法線 (Z/Y軸の方向に注意, D3D12は左手系 Y-up)
     // hR - hL => x方向の傾き
     // hU - hD => z方向の傾き (手前が-Z奥が+Z)
-    float3 interactiveNormal = normalize(float3(hL - hR, 2.0f * (20.0f * texelSize), hD - hU));
+    float3 interactiveNormal = normalize(float3(hL - hR, 2.0f * (100.0f * texelSize), hD - hU));
     
     // 既存法線に波紋の法線を合成（Y-upなので float3(0,1,0) が基準）
     geoNormal = normalize(geoNormal + interactiveNormal - float3(0, 1, 0));

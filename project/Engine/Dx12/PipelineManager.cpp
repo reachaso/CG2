@@ -732,6 +732,40 @@ void PipelineManager::RegisterDefaultPipelines() {
         objVsInst, glassPs, InputLayoutType::Object3D, opt);
   }
 
+  // ====================
+  // Water Ball Shader
+  // ====================
+  const std::wstring waterBallPs =
+      L"Resources/Shader/Object3d/Object3D_WaterBall.PS.hlsl";
+
+  // 表面描画 (BACKカリング)
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::Object3D;
+    opt.enableDepth = true;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = true;
+    opt.blendMode = kBlendModePremultiplied;
+    opt.cull = D3D12_CULL_MODE_BACK;
+
+    CreateFromFiles(MakeKey("object3d_water", kBlendModePremultiplied), objVs,
+                    waterBallPs, InputLayoutType::Object3D, opt);
+  }
+
+  // 背面描画 (FRONTカリング) - 2パス用
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::Object3D;
+    opt.enableDepth = true;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = true;
+    opt.blendMode = kBlendModePremultiplied;
+    opt.cull = D3D12_CULL_MODE_FRONT;
+
+    CreateFromFiles(MakeKey("object3d_water_front", kBlendModePremultiplied),
+                    objVs, waterBallPs, InputLayoutType::Object3D, opt);
+  }
+
   // ワイヤーフレーム用
   {
     for (int m = (int)kBlendModeNone; m <= (int)kBlendModePremultiplied; ++m) {

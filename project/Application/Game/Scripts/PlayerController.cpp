@@ -1,0 +1,260 @@
+#include "ECS/ScriptableEntity.h"
+#include "ECS/ScriptRegistry.h"
+#include "ECS/TransformComponent.h"
+#include "ECS/ColliderComponent.h"
+#include "ECS/NativeScriptComponent.h"
+#include "ECS/PrimitiveMeshComponent.h"
+#include "Input/Input.h"
+#include "Common/EngineConfig.h"
+#include "RenderCommon.h"
+#include "Render/Systems/RenderInteractiveWater.h"
+#include "Scene.h"
+#include <iostream>
+#include <cmath>
+
+#if RC_ENABLE_IMGUI
+#include "imgui/imgui.h"
+#endif
+
+/// @brief Player controller combining movement and shooting
+class PlayerController : public ScriptableEntity {
+public:
+    float speed = 5.0f;
+    int hp = 5;
+    int maxHp = 5;
+    float shootCooldown = 0.3f;
+    float bulletSpeed = 15.0f;
+    float invincibleTimer = 0.0f;
+    float invincibleDuration = 1.0f;
+    int score = 0;
+    bool isDead = false;
+
+protected:
+    void OnCreate() override {
+        std::cout << "[PlayerController] OnCreate\n";
+        shootTimer_ = 0.0f;
+    }
+
+    void OnUpdate(float deltaTime) override {
+        if (isDead) return;
+
+        auto* tr = GetComponent<TransformComponent>();
+        if (!tr) return;
+
+        // Process pending damage from tag system
+        Entity* self = GetEntity();
+        if (self) {
+            int dmg = self->GetTagInt("pending_damage", 0);
+            if (dmg > 0) {
+                self->ClearTag("pending_damage");
+                TakeDamage(dmg);
+            }
+            int scoreAdd = self->GetTagInt("score_add", 0);
+            if (scoreAdd > 0) {
+                self->ClearTag("score_add");
+                score += scoreAdd;
+            }
+        }
+
+        Input* input = Input::GetInstance();
+        if (!input) return;
+
+        // === Invincibility timer ===
+        if (invincibleTimer > 0.0f) {
+            invincibleTimer -= deltaTime;
+        }
+
+        // === Shoot cooldown ===
+        if (shootTimer_ > 0.0f) {
+            shootTimer_ -= deltaTime;
+        }
+
+        // === Movement ===
+        float moveX = 0.0f;
+        float moveZ = 0.0f;
+
+        if (input->IsKeyPressed(DIK_W) || input->IsKeyPressed(DIK_UP))    moveZ += 1.0f;
+        if (input->IsKeyPressed(DIK_S) || input->IsKeyPressed(DIK_DOWN))  moveZ -= 1.0f;
+        if (input->IsKeyPressed(DIK_D) || input->IsKeyPressed(DIK_RIGHT)) moveX += 1.0f;
+        if (input->IsKeyPressed(DIK_A) || input->IsKeyPressed(DIK_LEFT))  moveX -= 1.0f;
+
+        if (input->IsXInputConnected()) {
+            SHORT thumbX = input->GetXInputThumbLX();
+            SHORT thumbY = input->GetXInputThumbLY();
+            const float deadZone = 8000.0f;
+            if (abs(thumbX) > deadZone) moveX += static_cast<float>(thumbX) / 32767.0f;
+            if (abs(thumbY) > deadZone) moveZ += static_cast<float>(thumbY) / 32767.0f;
+
+            if (input->IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_UP))    moveZ += 1.0f;
+            if (input->IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_DOWN))  moveZ -= 1.0f;
+            if (input->IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_RIGHT)) moveX += 1.0f;
+            if (input->IsXInputButtonPressed(XINPUT_GAMEPAD_DPAD_LEFT))  moveX -= 1.0f;
+        }
+
+        if (moveX >  1.0f) moveX =  1.0f;
+        if (moveX < -1.0f) moveX = -1.0f;
+        if (moveZ >  1.0f) moveZ =  1.0f;
+        if (moveZ < -1.0f) moveZ = -1.0f;
+
+        tr->position.x += moveX * speed * deltaTime;
+        tr->position.z += moveZ * speed * deltaTime;
+
+        // Clamp to play area
+        const float areaLimit = 45.0f;
+        if (tr->position.x > areaLimit)  tr->position.x = areaLimit;
+        if (tr->position.x < -areaLimit) tr->position.x = -areaLimit;
+        if (tr->position.z > areaLimit)  tr->position.z = areaLimit;
+        if (tr->position.z < -areaLimit) tr->position.z = -areaLimit;
+
+        // Water wave interaction
+        if (moveX != 0.0f || moveZ != 0.0f) {
+            RC::WaveSource source;
+            source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
+            source.radius = 0.02f;
+            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
+            source.strength = velocity * 0.015f;
+            RC::AddWaveSource(source);
+        }
+
+        // Store facing direction for shooting
+        if (moveX != 0.0f || moveZ != 0.0f) {
+            float len = std::sqrt(moveX * moveX + moveZ * moveZ);
+            facingDir_ = { moveX / len, 0.0f, moveZ / len };
+        }
+
+        // === Shooting ===
+        bool wantShoot = input->IsKeyPressed(DIK_SPACE);
+        if (input->IsXInputConnected()) {
+            wantShoot = wantShoot || input->IsXInputButtonPressed(XINPUT_GAMEPAD_A);
+        }
+
+        if (wantShoot && shootTimer_ <= 0.0f) {
+            Shoot(tr->position);
+            shootTimer_ = shootCooldown;
+        }
+    }
+
+    void OnRender() override {
+        DrawHUD();
+    }
+
+    void OnDestroy() override {
+        std::cout << "[PlayerController] OnDestroy\n";
+    }
+
+public:
+    void OnImGui() override {
+#if RC_ENABLE_IMGUI
+        ImGui::DragFloat("Speed##PC", &speed, 0.1f, 0.1f, 50.0f);
+        ImGui::DragFloat("Shoot Cooldown##PC", &shootCooldown, 0.01f, 0.05f, 2.0f);
+        ImGui::DragFloat("Bullet Speed##PC", &bulletSpeed, 0.1f, 1.0f, 50.0f);
+        ImGui::DragInt("HP##PC", &hp, 1, 0, maxHp);
+        ImGui::Text("Score: %d", score);
+#endif
+    }
+
+    /// @brief Take damage from a bullet
+    void TakeDamage(int damage) {
+        if (invincibleTimer > 0.0f || isDead) return;
+        hp -= damage;
+        invincibleTimer = invincibleDuration;
+        if (hp <= 0) {
+            hp = 0;
+            isDead = true;
+            // タグでシーン側に死亡を通知
+            if (Entity* self = GetEntity()) {
+                self->SetTag("game_over", 1);
+            }
+        }
+    }
+
+    RC::Vector3 GetFacingDir() const { return facingDir_; }
+
+private:
+    float shootTimer_ = 0.0f;
+    RC::Vector3 facingDir_ = { 0.0f, 0.0f, 1.0f };
+
+    void Shoot(const RC::Vector3& origin) {
+        Scene* scene = GetScene();
+        if (!scene) return;
+
+        // Create bullet entity
+        auto bullet = scene->CreateEntity("PlayerBullet");
+
+        // Transform
+        auto& tr = bullet->AddComponent<TransformComponent>();
+        tr.position = { origin.x, origin.y + 0.5f, origin.z };
+        tr.scale = { 0.3f, 0.3f, 0.3f };
+
+        // PrimitiveMesh (sphere) for visual
+        auto& pm = bullet->AddComponent<PrimitiveMeshComponent>();
+        pm.type = PrimitiveType::Sphere;
+        pm.meshHandle = RC::GenerateSphere(0.3f);
+
+        // Collider (Sphere)
+        auto& col = bullet->AddComponent<ColliderComponent>();
+        col.shape = ColliderComponent::Shape::Sphere;
+        col.radius = 0.3f;
+        col.isTrigger = true;
+
+        // Script
+        auto& nsc = bullet->AddComponent<NativeScriptComponent>();
+        nsc.Bind("WaterBullet");
+        nsc.SetScene(scene);
+        if (GetSceneContext()) nsc.SetSceneContext(GetSceneContext());
+
+        // Set bullet color to water blue
+        if (pm.meshHandle >= 0) {
+            if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm.meshHandle)) {
+                mat->color = { 0.2f, 0.6f, 1.0f, 0.85f };
+            }
+        }
+
+        // Initialize runtime
+        scene->InitDynamicEntityRuntime(*bullet);
+    }
+
+    void DrawHUD() {
+        SceneContext* ctx = GetSceneContext();
+        if (!ctx) return;
+
+        float screenW = static_cast<float>(ctx->app->width);
+        float screenH = static_cast<float>(ctx->app->height);
+
+        // === Player HP Bar ===
+        float barX = 20.0f;
+        float barY = screenH - 50.0f;
+        float barW = 200.0f;
+        float barH = 20.0f;
+
+        // Background (dark red)
+        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
+                    { 0.3f, 0.05f, 0.05f, 0.8f });
+
+        // Foreground (green->red based on HP)
+        float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
+        RC::Vector4 hpColor = { 1.0f - hpRatio, hpRatio, 0.1f, 0.9f };
+        RC::DrawBox({ barX, barY }, { barX + barW * hpRatio, barY + barH }, hpColor);
+
+        // Border
+        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
+                    { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
+
+        // === Score display (tally circles) ===
+        float scoreX = screenW - 220.0f;
+        float scoreY = 30.0f;
+        for (int i = 0; i < score && i < 20; ++i) {
+            float cx = scoreX + (i % 10) * 20.0f;
+            float cy = scoreY + (i / 10) * 20.0f;
+            RC::DrawCircle({ cx, cy }, 7.0f, { 0.3f, 0.7f, 1.0f, 0.9f });
+        }
+
+        // === Game Over / Win overlay ===
+        if (isDead) {
+            RC::DrawBox({ 0.0f, screenH * 0.4f }, { screenW, screenH * 0.6f },
+                        { 0.8f, 0.1f, 0.1f, 0.7f });
+        }
+    }
+};
+
+REGISTER_SCRIPT(PlayerController)

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <random>
 #include <nlohmann/json.hpp>
+#include <any>
 
 /// @brief Lightweight entity class. Minimal container for holding components.
 /// Uses template-based AddComponent / GetComponent for type-safe component management.
@@ -141,6 +142,31 @@ public:
   /// @brief Set folder status
   void SetIsFolder(bool isFolder) { isFolder_ = isFolder; }
 
+  /// @brief Get entity name (alias for Name())
+  const std::string& GetName() const { return name_; }
+
+  /// @brief Get entity ID (alias for Id())
+  uint32_t GetId() const { return id_; }
+
+  // ================================================================
+  // Lightweight Tag System (for inter-script communication)
+  // ================================================================
+
+  /// @brief Set an integer tag
+  void SetTag(const std::string& key, int value) { intTags_[key] = value; }
+
+  /// @brief Get an integer tag
+  int GetTagInt(const std::string& key, int defaultValue = 0) const {
+      auto it = intTags_.find(key);
+      return (it != intTags_.end()) ? it->second : defaultValue;
+  }
+
+  /// @brief Clear a tag
+  void ClearTag(const std::string& key) { intTags_.erase(key); }
+
+  /// @brief Check if a tag exists
+  bool HasTag(const std::string& key) const { return intTags_.count(key) > 0; }
+
   /// @brief Serialize entity state to JSON
   nlohmann::json Serialize() const {
     nlohmann::json j;
@@ -229,6 +255,7 @@ private:
   bool isFolder_ = false;
 
   std::unordered_map<std::type_index, std::unique_ptr<IComponent>> components_;
+  std::unordered_map<std::string, int> intTags_; ///< Lightweight tag storage for inter-script communication
 
   /// @brief Generate next unique ID
   /// @return Generated ID

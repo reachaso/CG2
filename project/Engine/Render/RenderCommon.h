@@ -680,6 +680,11 @@ int GenerateCapsule(float radius = 0.5f, float height = 2.0f, int texHandle = -1
 /// @param texHandle 一時的に差し替えるテクスチャ（-1 なら生成時のテクスチャ）
 void DrawPrimitiveMesh(int meshHandle, int texHandle = -1);
 
+/// @brief プリミティブメッシュを水専用シェーダーで描画する
+/// @param meshHandle メッシュハンドル
+/// @param texHandle 適用するテクスチャハンドル（-1でデフォルト）
+void DrawPrimitiveMeshWater(int meshHandle, int texHandle = -1);
+
 /// @brief 汎用プリミティブメッシュを解放
 /// @param meshHandle メッシュハンドル
 void UnloadPrimitiveMesh(int meshHandle);

@@ -88,10 +88,49 @@ public:
 
   /// @brief 新しいエンティティを生成してシーンに追加する
   /// @param name エンティティの名前
+  /// @details UpdateEntities のループ中に呼び出しても安全。
+  ///          エンティティは pendingEntities_ に追加され、FlushPendingEntities() で
+  ///          entities_ にマージされる。
   std::shared_ptr<Entity> CreateEntity(const std::string& name) {
       auto e = std::make_shared<Entity>(name);
-      entities_.push_back(e);
+      pendingEntities_.push_back(e);
       return e;
+  }
+
+  /// @brief pendingEntities_ に溜まった新規エンティティを entities_ にマージする
+  /// @details UpdateEntities のループ完了後に呼ぶこと
+  void FlushPendingEntities() {
+      if (!pendingEntities_.empty()) {
+          entities_.insert(entities_.end(),
+                           std::make_move_iterator(pendingEntities_.begin()),
+                           std::make_move_iterator(pendingEntities_.end()));
+          pendingEntities_.clear();
+      }
+  }
+
+  /// @brief IDでエンティティを削除マーク（次フレームで除去）
+  /// @param entityId エンティティのID
+  void RemoveEntity(uint32_t entityId) {
+      for (auto& e : entities_) {
+          if (e && e->GetId() == entityId) {
+              e->Destroy();
+              break;
+          }
+      }
+  }
+
+  /// @brief 破棄マークされたエンティティを実際に除去する
+  void CleanupDestroyedEntities() {
+      entities_.erase(
+          std::remove_if(entities_.begin(), entities_.end(),
+              [this](const std::shared_ptr<Entity>& e) {
+                  if (e && e->IsPendingDestroy()) {
+                      ReleaseDynamicEntityRuntime(*e);
+                      return true;
+                  }
+                  return false;
+              }),
+          entities_.end());
   }
 
   /// @brief 選択中のライトエンティティのギズモ（ワイヤフレーム）を描画する
@@ -116,18 +155,37 @@ public:
   /// @brief GameModeの取得
   GameModeBase* GetGameMode() const { return gameMode_.get(); }
 
+  /// @brief 現在のSceneContextを取得する
+  SceneContext* GetContext() const { return currentContext_; }
+
+  /// @brief 動的に生成したエンティティのランタイムリソースを初期化する
+  /// @param e 初期化するエンティティ
+  /// @details 派生クラスでオーバーライドして、モデルロードやメッシュ生成を行う
+  virtual void InitDynamicEntityRuntime(Entity& e) {}
+
+  /// @brief 動的に生成したエンティティのランタイムリソースを解放する
+  /// @param e 解放するエンティティ
+  virtual void ReleaseDynamicEntityRuntime(Entity& e) {}
+
 protected:
   std::vector<std::shared_ptr<Entity>> entities_; ///< シーン内のエンティティ一覧
+  std::vector<std::shared_ptr<Entity>> pendingEntities_; ///< 更新ループ中に生成されたエンティティの一時バッファ
   uint32_t selectedEntityId_ = 0; ///< 選択中のエンティティID
   std::unique_ptr<GameModeBase> gameMode_ = std::make_unique<GameModeBase>(); ///< ゲームルールの管理
+  SceneContext* currentContext_ = nullptr; ///< 現在フレームのSceneContext
 
   /// @brief Update all active entities
+  /// @details インデックスベースループを使用し、ループ中の entities_ push_back による
+  ///          イテレータ無効化を回避する（新規エンティティは pendingEntities_ 経由で追加される）
   void UpdateEntities(float deltaTime) {
-    for (auto& e : entities_) {
+    const size_t count = entities_.size(); // ループ前にサイズを固定
+    for (size_t i = 0; i < count; ++i) {
+      auto& e = entities_[i];
       if (e && e->IsActive() && !e->IsPendingDestroy()) {
         e->UpdateAll(deltaTime);
       }
     }
+    FlushPendingEntities();
   }
 
   /// @brief Resolve physics collisions among entities

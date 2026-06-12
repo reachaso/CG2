@@ -1,12 +1,13 @@
 // WaveSimulation.CS.hlsl
 // 2D波動方程式を用いた波の伝播シミュレーション
+// 速度成分にのみ減衰をかけることで、波が通過した後に水面が元の高さに戻る
 
 cbuffer SimulationParams : register(b0)
 {
     float gAlpha;        // 波の伝播速度係数 (c^2 * dt^2 / dx^2)
-    float gDamping;      // 減衰係数 (例: 0.98 ～ 0.995)
+    float gDamping;      // 減衰係数 (速度にのみ適用, 例: 0.95 ～ 0.99)
     int   gSourceCount;  // 現在の波源の数
-    float gPadding;
+    float gResetFlag;    // 1.0 なら状態をゼロにリセットするフラグ
     
     // x, y = UV座標 (0.0 ～ 1.0)
     // z = 波源の半径 (UV空間での半径)
@@ -37,7 +38,14 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float h1 = gPrevHeight.Load(pos);
     float h2 = gPrevPrevHeight.Load(pos);
 
-    // 上下左右のピクセル値を取得（境界では自分自身をミラーリング・クランプ扱い）
+    // リセットフラグが立っている場合は強制的に0クリア
+    if (gResetFlag > 0.5f)
+    {
+        gOutHeight[DTid.xy] = 0.0f;
+        return;
+    }
+
+    // 上下左右のピクセル値を取得（境界では自分自身をクランプ扱い）
     int xLeft  = max((int)DTid.x - 1, 0);
     int xRight = min((int)DTid.x + 1, (int)width - 1);
     int yUp    = max((int)DTid.y - 1, 0);
@@ -48,10 +56,17 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float hUp    = gPrevHeight.Load(int3(DTid.x, yUp, 0));
     float hDown  = gPrevHeight.Load(int3(DTid.x, yDown, 0));
 
-    // 波動方程式の差分スキーム
-    // h_new = 2 * h1 - h2 + alpha * (hLeft + hRight + hUp + hDown - 4 * h1)
+    // 波動方程式（速度ベースの減衰）
+    // velocity = h1 - h2 (前フレームとの差が速度に相当)
+    // laplacian = 空間的な広がり
     float laplacian = hLeft + hRight + hUp + hDown - 4.0f * h1;
-    float hNew = (2.0f * h1 - h2 + gAlpha * laplacian) * gDamping;
+    
+    // 速度にのみ減衰をかける方式:
+    // h_new = h1 + damping * (h1 - h2) + alpha * laplacian
+    // これにより波のエネルギーは減衰するが、
+    // 静止時 (h1 == h2 == 0, laplacian == 0) → h_new = 0 に正しく収束する
+    float velocity = (h1 - h2) * gDamping;
+    float hNew = h1 + velocity + gAlpha * laplacian;
 
     // 波源（力）の加算
     float2 uv = float2((float)DTid.x / (float)(width - 1), (float)DTid.y / (float)(height - 1));
@@ -64,11 +79,16 @@ void main( uint3 DTid : SV_DispatchThreadID )
         float dist = distance(uv, sourceUV);
         if (dist < radius)
         {
-            // なだらかに力を加える (1 - (dist/radius)^2)^2 などのガウス関数的な減衰
-            float falloff = 1.0f - (dist / radius);
-            hNew += strength * falloff * falloff;
+            // スムーズな減衰関数
+            float t = dist / radius;
+            float falloff = (1.0f - t * t);
+            falloff *= falloff; // (1 - t²)² — なだらかに減衰
+            hNew += strength * falloff;
         }
     }
+
+    // 発散（NaN/Infinity）を防ぐためのクランプ
+    hNew = clamp(hNew, -0.5f, 0.5f);
 
     gOutHeight[DTid.xy] = hNew;
 }

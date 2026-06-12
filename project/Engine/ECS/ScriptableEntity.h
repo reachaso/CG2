@@ -1,6 +1,10 @@
 #pragma once
 #include "Entity.h"
 
+// Forward declarations
+class Scene;
+struct SceneContext;
+
 /// @brief Base class for native scripts attached to entities.
 /// Allows writing custom update logic similar to Unity's MonoBehaviour.
 class ScriptableEntity {
@@ -28,6 +32,16 @@ public:
   /// @brief Get the entity this script is attached to
   Entity* GetEntity() const { return entity_; }
 
+  /// @brief Get the scene this script belongs to
+  Scene* GetScene() const { return scene_; }
+
+  /// @brief Get the current scene context
+  SceneContext* GetSceneContext() const { return sceneContext_; }
+
+  /// @brief Called during the render phase (command list is open)
+  /// @details Use this for 2D drawing (DrawBox, DrawCircle, etc.)
+  virtual void OnRender() {}
+
 protected:
   /// @brief Called when the script is created
   virtual void OnCreate() {}
@@ -41,5 +55,7 @@ protected:
 
 private:
   Entity* entity_ = nullptr;
+  Scene* scene_ = nullptr;
+  SceneContext* sceneContext_ = nullptr;
   friend class NativeScriptComponent;
 };

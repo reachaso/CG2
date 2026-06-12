@@ -30,6 +30,7 @@ static WaveSimCB* s_simCBMapped = nullptr;
 
 static std::vector<WaveSource> s_pendingSources;
 static bool s_initialized = false;
+static int s_resetFrames = 3; // 最初の3フレームはテクスチャを0クリアする
 
 // ヘルパー: D3D12リソース作成
 static Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVTexture2D(ID3D12Device* device, int width, int height, DXGI_FORMAT format) {
@@ -58,7 +59,7 @@ static Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVTexture2D(ID3D12Device* d
       &heapProps,
       D3D12_HEAP_FLAG_NONE,
       &desc,
-      D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+      D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
       nullptr,
       IID_PPV_ARGS(&res));
   if (FAILED(hr)) return nullptr;
@@ -90,6 +91,7 @@ void InitInteractiveWater() {
   }
 
   s_currIdx = 0;
+  s_resetFrames = 3; // 初期化時にリセットカウンタを設定
   s_initialized = true;
   Log::Print("[RenderInteractiveWater] Initialized");
 }
@@ -135,8 +137,17 @@ void UpdateInteractiveWater() {
 
   // CBの更新
   if (s_simCBMapped) {
-    s_simCBMapped->alpha = 0.45f;
-    s_simCBMapped->damping = 0.985f;
+    s_simCBMapped->alpha = 0.15f;   // 波の伝播速度（穏やかな広がり）
+    s_simCBMapped->damping = 0.95f; // 速度減衰（0.95^60≈0.05、約1秒でほぼ消滅）
+    
+    // リセット処理
+    if (s_resetFrames > 0) {
+        s_simCBMapped->padding = 1.0f;
+        s_resetFrames--;
+    } else {
+        s_simCBMapped->padding = 0.0f;
+    }
+
     int count = std::min(16, (int)s_pendingSources.size());
     s_simCBMapped->sourceCount = count;
     for (int i = 0; i < count; ++i) {
@@ -154,7 +165,7 @@ void UpdateInteractiveWater() {
   barrierToUAV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
   barrierToUAV.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
   barrierToUAV.Transition.pResource = s_heightMaps[nextIdx].Get();
-  barrierToUAV.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+  barrierToUAV.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
   barrierToUAV.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
   barrierToUAV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
   cl->ResourceBarrier(1, &barrierToUAV);
@@ -199,7 +210,7 @@ void UpdateInteractiveWater() {
   barrierToSRV.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
   barrierToSRV.Transition.pResource = s_heightMaps[nextIdx].Get();
   barrierToSRV.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-  barrierToSRV.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+  barrierToSRV.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
   barrierToSRV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
   cl->ResourceBarrier(1, &barrierToSRV);
 

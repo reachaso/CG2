@@ -144,8 +144,8 @@ VertexShaderOutput main(VertexShaderInput input)
     GerstnerResult wave = ComputeGerstnerWave(worldPos.xyz, gTime);
 
     // インタラクティブ波紋のサンプリング
-    // 20x20 の領域を対象とする
-    float2 waveUV = (worldPos.xz / 20.0f) + 0.5f;
+    // WaterPlaneのワールドサイズ(100x100)に合わせたUV変換
+    float2 waveUV = (worldPos.xz / 100.0f) + 0.5f;
     float interactiveHeight = gInteractiveWave.SampleLevel(gSamplerClamp, waveUV, 0);
 
     // 波紋の法線計算のための有限差分
@@ -156,10 +156,10 @@ VertexShaderOutput main(VertexShaderInput input)
     float hD = gInteractiveWave.SampleLevel(gSamplerClamp, waveUV + float2(0, texel), 0);
     
     // Y変位に対するX/Z方向の傾き
-    // WorldPos = (x, y, z), scale is 20m, uv range 0~1.
-    // dx = 20.0f * 2.0f * texel, dy = hR - hL
-    float3 dX = float3(40.0f * texel, hR - hL, 0);
-    float3 dZ = float3(0, hD - hU, 40.0f * texel);
+    // WorldPos = (x, y, z), scale is 100m, uv range 0~1.
+    // dx = 100.0f * 2.0f * texel, dy = hR - hL
+    float3 dX = float3(200.0f * texel, hR - hL, 0);
+    float3 dZ = float3(0, hD - hU, 200.0f * texel);
     float3 interactiveNormal = normalize(cross(dZ, dX));
 
     // 変位適用

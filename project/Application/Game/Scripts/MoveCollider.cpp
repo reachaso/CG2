@@ -86,11 +86,11 @@ protected:
         // 水面シミュレーションへの波源追加
         if (moveX != 0.0f || moveZ != 0.0f) {
             RC::WaveSource source;
-            // シェーダーと同じスケール(20m幅)でワールド座標からUVへ変換
-            source.uv = RC::Vector2((tr->position.x / 20.0f) + 0.5f, (tr->position.z / 20.0f) + 0.5f);
-            source.radius = 0.04f; 
+            // WaterPlaneのワールドサイズ(100m幅)でワールド座標からUVへ変換
+            source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
+            source.radius = 0.02f; // UV空間での半径 (100m平面上で2m程度の範囲)
             float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
-            source.strength = velocity * 0.5f; // 強さを調整 (強調)
+            source.strength = velocity * 0.015f; // 繊細な波紋
             RC::AddWaveSource(source);
         }
     }

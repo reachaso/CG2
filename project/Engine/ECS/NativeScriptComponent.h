@@ -52,13 +52,24 @@ public:
     }
   }
 
+  /// @brief Set the scene reference for the script
+  void SetScene(class Scene* scene) { scene_ = scene; }
+
+  /// @brief Set the scene context reference for the script
+  void SetSceneContext(SceneContext* ctx) { sceneContext_ = ctx; }
+
   void Update(float deltaTime) override {
     if (!instance && InstantiateScript) {
       instance = InstantiateScript();
       instance->entity_ = GetEntity();
+      instance->scene_ = scene_;
+      instance->sceneContext_ = sceneContext_;
       instance->OnCreate();
     }
     if (instance) {
+      // Update context each frame (may change between frames)
+      instance->scene_ = scene_;
+      instance->sceneContext_ = sceneContext_;
       instance->OnUpdate(deltaTime);
     }
   }
@@ -80,4 +91,8 @@ public:
       Bind(name);
     }
   }
+
+private:
+  class Scene* scene_ = nullptr;
+  SceneContext* sceneContext_ = nullptr;
 };

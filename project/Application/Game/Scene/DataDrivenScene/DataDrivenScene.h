@@ -20,6 +20,7 @@
 #include "ECS/SkydomeComponent.h"
 #include "ECS/WaterComponent.h"
 #include "ECS/RigidbodyComponent.h"
+#include "ECS/NativeScriptComponent.h"
 // Light sources for Dereferencing
 #include "Graphics/Light/Directional/DirectionalLightSource.h"
 #include "Graphics/Light/Point/PointLightSource.h"
@@ -48,6 +49,8 @@ public:
   /// @brief Load entities from JSON on scene enter
   void OnEnter(SceneContext& ctx) override {
     Load();
+    resultTriggered_ = false;
+    resultDelayTimer_ = 0.0f;
     // Initialize runtime handles for all loaded components
     for (auto& e : entities_) {
         InitializeRuntimeResources(*e, ctx);
@@ -60,10 +63,20 @@ public:
         ReleaseRuntimeResources(*e);
     }
     entities_.clear();
+    pendingEntities_.clear();
   }
 
   void Update(SceneManager& sm, SceneContext& ctx) override {
     (void)sm;
+    currentContext_ = &ctx;
+
+    // NativeScriptComponent に Scene/Context 参照を設定
+    for (auto& e : entities_) {
+        if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {
+            nsc->SetScene(this);
+            nsc->SetSceneContext(&ctx);
+        }
+    }
     
     // === AnimationComponent の更新（Transform同期より前に実行）===
     for (auto& e : entities_) {
@@ -219,6 +232,47 @@ public:
     ResolveCollisions();
     RemoveDeadEntities();
 
+    // === ゲーム結果判定（プレイ中のみ） ===
+    if (ctx.isPlaying() && !resultTriggered_) {
+        // プレイヤー死亡チェック
+        for (auto& e : entities_) {
+            if (e && e->GetName() == "player" && e->HasTag("game_over")) {
+                resultTriggered_ = true;
+                resultTarget_ = "GameOver";
+                resultDelayTimer_ = 0.0f;
+                break;
+            }
+        }
+        // 全エネミー撃破チェック（プレイヤーが生きている場合のみ）
+        if (!resultTriggered_) {
+            bool hasEnemy = false;
+            bool allDefeated = true;
+            for (auto& e : entities_) {
+                if (e && e->GetName() == "Enemy") {
+                    hasEnemy = true;
+                    if (!e->HasTag("enemy_defeated")) {
+                        allDefeated = false;
+                        break;
+                    }
+                }
+            }
+            if (hasEnemy && allDefeated) {
+                resultTriggered_ = true;
+                resultTarget_ = "Result";
+                resultDelayTimer_ = 0.0f;
+            }
+        }
+    }
+
+    // シーン遷移ディレイ処理
+    if (resultTriggered_ && ctx.isPlaying()) {
+        resultDelayTimer_ += ctx.deltaTime;
+        if (resultDelayTimer_ >= kResultDelay_) {
+            sm.RequestChange(resultTarget_);
+            resultTriggered_ = false; // 二重リクエスト防止
+        }
+    }
+
     // === Play/Editor カメラ切り替え ===
     for (auto& e : entities_) {
         auto* camComp = e->GetComponent<CameraComponent>();
@@ -275,7 +329,12 @@ public:
         }
         if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
             if (pm->HasMesh() && pm->visible && pm->IsEnabled()) {
-                RC::DrawPrimitiveMesh(pm->meshHandle, pm->texOverride);
+                std::string name = e->GetName();
+                if (name == "PlayerBullet" || name == "EnemyBullet" || name == "Splash") {
+                    RC::DrawPrimitiveMeshWater(pm->meshHandle, pm->texOverride);
+                } else {
+                    RC::DrawPrimitiveMesh(pm->meshHandle, pm->texOverride);
+                }
             }
         }
         if (auto* water = e->GetComponent<WaterComponent>()) {
@@ -303,6 +362,18 @@ public:
         if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
             if (spr->HasSprite() && spr->visible && spr->IsEnabled()) {
                 RC::DrawSprite(spr->spriteHandle);
+            }
+        }
+    }
+
+    // NativeScript の OnRender（HUD描画など、コマンドリストが開いた状態で実行）
+    if (ctx.isPlaying()) {
+        for (auto& e : entities_) {
+            if (!e || e->IsPendingDestroy() || !e->IsActive()) continue;
+            if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {
+                if (nsc->instance) {
+                    nsc->instance->OnRender();
+                }
             }
         }
     }
@@ -402,6 +473,7 @@ public:
           ReleaseRuntimeResources(*e);
       }
       entities_.clear();
+      pendingEntities_.clear();
       gameMode_ = std::make_unique<GameModeBase>(); // GameModeのリセット
 
       for (auto& ej : backupJson_) {
@@ -413,6 +485,20 @@ public:
       for (auto& e : entities_) {
           InitializeRuntimeResources(*e, ctx);
       }
+      resultTriggered_ = false;
+      resultDelayTimer_ = 0.0f;
+  }
+
+  /// @brief 動的に生成したエンティティのランタイムリソースを初期化する
+  void InitDynamicEntityRuntime(Entity& e) override {
+      if (currentContext_) {
+          InitializeRuntimeResources(e, *currentContext_);
+      }
+  }
+
+  /// @brief 動的に生成したエンティティのランタイムリソースを解放する
+  void ReleaseDynamicEntityRuntime(Entity& e) override {
+      ReleaseRuntimeResources(e);
   }
 
 private:
@@ -420,6 +506,12 @@ private:
   std::string filePath_;
   float waterTime_ = 0.0f; ///< 水面アニメーション用累積時間
   nlohmann::json backupJson_; ///< メモリ上へのバックアップ用
+
+  // ゲーム結果判定用
+  bool resultTriggered_ = false;      ///< 結果判定がトリガーされたか
+  float resultDelayTimer_ = 0.0f;     ///< 遷移までのディレイタイマー
+  std::string resultTarget_;          ///< 遷移先シーン名
+  static constexpr float kResultDelay_ = 2.5f; ///< 結果確定からシーン遷移までの待機時間（秒）
 
   /// @brief Register all components to ComponentFactory (called once)
   static void RegisterAllComponents() {
@@ -438,6 +530,7 @@ private:
     Entity::ComponentFactory::Register<SkydomeComponent>("SkydomeComponent");
     Entity::ComponentFactory::Register<WaterComponent>("WaterComponent");
     Entity::ComponentFactory::Register<RigidbodyComponent>("RigidbodyComponent");
+    Entity::ComponentFactory::Register<NativeScriptComponent>("NativeScriptComponent");
   }
 
   void InitializeRuntimeResources(Entity& e, SceneContext& ctx) {
