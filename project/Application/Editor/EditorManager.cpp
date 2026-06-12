@@ -443,11 +443,26 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                   
                   if (auto* col = e->GetComponent<ColliderComponent>()) {
                       if (col->IsEnabled()) {
-                          RC::Vector3 worldCenter = ::Add(tr->position, col->center);
+                          RC::Vector3 scaledCenter = {
+                              col->center.x * tr->scale.x,
+                              col->center.y * tr->scale.y,
+                              col->center.z * tr->scale.z
+                          };
+                          RC::Vector3 worldCenter = {
+                              tr->position.x + scaledCenter.x,
+                              tr->position.y + scaledCenter.y,
+                              tr->position.z + scaledCenter.z
+                          };
                           if (col->shape == ColliderComponent::Shape::Sphere) {
-                              hit = RC::IntersectRaySphere(ray, worldCenter, col->radius, dist);
+                              float maxScale = (std::max)((std::max)(std::abs(tr->scale.x), std::abs(tr->scale.y)), std::abs(tr->scale.z));
+                              hit = RC::IntersectRaySphere(ray, worldCenter, col->radius * maxScale, dist);
                           } else if (col->shape == ColliderComponent::Shape::AABB) {
-                              RC::Vector3 halfSize = ::Multiply(col->size, 0.5f);
+                              RC::Vector3 scaledSize = {
+                                  std::abs(col->size.x * tr->scale.x),
+                                  std::abs(col->size.y * tr->scale.y),
+                                  std::abs(col->size.z * tr->scale.z)
+                              };
+                              RC::Vector3 halfSize = { scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f };
                               hit = RC::IntersectRayAABB(ray, ::Subtract(worldCenter, halfSize), ::Add(worldCenter, halfSize), dist);
                           }
                       }
@@ -528,6 +543,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                   
                   if (ext == ".gltf" || ext == ".obj") {
                       auto& ren = e->AddComponent<ModelRendererComponent>();
+                      ren.modelPath = droppedPath;
                       ren.modelHandle = RC::LoadModel(p.string());
                   } else if (ext == ".png" || ext == ".jpg" || ext == ".dds") {
                       // Note: SpriteRendererComponent requires SceneContext to load correctly, so we skip auto-loading for now.
@@ -1360,6 +1376,10 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                         }
                     }
                     ImGui::EndCombo();
+                }
+                if (script->instance) {
+                    ImGui::Separator();
+                    script->instance->OnImGui();
                 }
                 ImGui::Unindent(8.0f);
             }

@@ -204,4 +204,114 @@ inline bool IntersectRaySphere(const Ray& ray, const Vector3& center, float radi
     return true;
 }
 
+/// @brief 衝突解決のための結果を格納する構造体
+struct CollisionResult {
+    bool hit = false;
+    Vector3 normal = {0,0,0}; // 衝突法線（オブジェクトAからBを押し出す方向、またはBからAへの方向。関数によって定義）
+    float depth = 0.0f;       // めり込み量
+};
+
+/// @brief 球と球の交差判定と押し出しベクトルの計算
+/// @param centerA 球Aの中心
+/// @param radiusA 球Aの半径
+/// @param centerB 球Bの中心
+/// @param radiusB 球Bの半径
+/// @return hitがtrueなら、normalはAからBへの方向（Bを押し出す方向）、depthはめり込み量
+inline CollisionResult CheckCollisionSphereSphere(const Vector3& centerA, float radiusA, const Vector3& centerB, float radiusB) {
+    CollisionResult result;
+    Vector3 diff = Sub(centerB, centerA);
+    float distSq = LengthSq(diff);
+    float radSum = radiusA + radiusB;
+    if (distSq > 0.000001f && distSq < radSum * radSum) {
+        float dist = std::sqrt(distSq);
+        result.hit = true;
+        result.normal = Mul(diff, 1.0f / dist);
+        result.depth = radSum - dist;
+    } else if (distSq <= 0.000001f) {
+        // 完全に重なっている場合
+        result.hit = true;
+        result.normal = {0.0f, 1.0f, 0.0f}; // 適当に上方向に押し出す
+        result.depth = radSum;
+    }
+    return result;
+}
+
+/// @brief AABBとAABBの交差判定と押し出しベクトルの計算
+/// @param minA AABB_Aの最小座標
+/// @param maxA AABB_Aの最大座標
+/// @param minB AABB_Bの最小座標
+/// @param maxB AABB_Bの最大座標
+/// @return hitがtrueなら、normalはAからBへの方向、depthはめり込み量
+inline CollisionResult CheckCollisionAabbAabb(const Vector3& minA, const Vector3& maxA, const Vector3& minB, const Vector3& maxB) {
+    CollisionResult result;
+    
+    float overlapX = (std::min)(maxA.x, maxB.x) - (std::max)(minA.x, minB.x);
+    float overlapY = (std::min)(maxA.y, maxB.y) - (std::max)(minA.y, minB.y);
+    float overlapZ = (std::min)(maxA.z, maxB.z) - (std::max)(minA.z, minB.z);
+
+    if (overlapX > 0 && overlapY > 0 && overlapZ > 0) {
+        result.hit = true;
+        
+        // 最小のめり込み軸を探す
+        if (overlapX < overlapY && overlapX < overlapZ) {
+            result.depth = overlapX;
+            float centerA_x = (minA.x + maxA.x) * 0.5f;
+            float centerB_x = (minB.x + maxB.x) * 0.5f;
+            result.normal = {centerB_x > centerA_x ? 1.0f : -1.0f, 0.0f, 0.0f};
+        } else if (overlapY < overlapZ) {
+            result.depth = overlapY;
+            float centerA_y = (minA.y + maxA.y) * 0.5f;
+            float centerB_y = (minB.y + maxB.y) * 0.5f;
+            result.normal = {0.0f, centerB_y > centerA_y ? 1.0f : -1.0f, 0.0f};
+        } else {
+            result.depth = overlapZ;
+            float centerA_z = (minA.z + maxA.z) * 0.5f;
+            float centerB_z = (minB.z + maxB.z) * 0.5f;
+            result.normal = {0.0f, 0.0f, centerB_z > centerA_z ? 1.0f : -1.0f};
+        }
+    }
+    return result;
+}
+
+/// @brief 球とAABBの交差判定と押し出しベクトルの計算
+/// @param centerA 球Aの中心
+/// @param radiusA 球Aの半径
+/// @param minB AABB_Bの最小座標
+/// @param maxB AABB_Bの最大座標
+/// @return hitがtrueなら、normalは球からAABBへの方向（AABBを押し出す方向）、depthはめり込み量
+inline CollisionResult CheckCollisionSphereAabb(const Vector3& centerA, float radiusA, const Vector3& minB, const Vector3& maxB) {
+    CollisionResult result;
+    
+    // AABB上の、球の中心に最も近い点を探す
+    float closestX = (std::max)(minB.x, (std::min)(centerA.x, maxB.x));
+    float closestY = (std::max)(minB.y, (std::min)(centerA.y, maxB.y));
+    float closestZ = (std::max)(minB.z, (std::min)(centerA.z, maxB.z));
+    
+    Vector3 closestPt = {closestX, closestY, closestZ};
+    Vector3 diff = Sub(closestPt, centerA);
+    float distSq = LengthSq(diff);
+    
+    if (distSq > 0.0f && distSq < radiusA * radiusA) {
+        float dist = std::sqrt(distSq);
+        result.hit = true;
+        result.depth = radiusA - dist;
+        result.normal = Mul(diff, 1.0f / dist); // 球からAABBの最近傍点への方向
+    } else if (distSq == 0.0f) {
+        // 球の中心がAABBの内部にある場合
+        // AABBの中心から球の中心への方向などを計算する
+        Vector3 centerB = { (minB.x + maxB.x)*0.5f, (minB.y + maxB.y)*0.5f, (minB.z + maxB.z)*0.5f };
+        Vector3 internalDiff = Sub(centerB, centerA);
+        float inDistSq = LengthSq(internalDiff);
+        if (inDistSq > 0.000001f) {
+            float inDist = std::sqrt(inDistSq);
+            result.normal = Mul(internalDiff, 1.0f / inDist);
+        } else {
+            result.normal = {0.0f, 1.0f, 0.0f};
+        }
+        result.hit = true;
+        result.depth = radiusA; // 近似。正確にはAABBの境界までの距離を足す必要があるが、通常これに陥る前に弾かれる
+    }
+    return result;
+}
+
 } // namespace RC

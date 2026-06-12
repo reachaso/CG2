@@ -153,7 +153,12 @@ public:
     /// @param label ウィンドウラベル
     void ControllerImGui(const char* label = "コントローラー");
 
+    /// @brief Inputインスタンスを取得する（シングルトンアクセス用）
+    /// @return Input ポインタ
+    static Input* GetInstance() { return instance_; }
+
 private:
+    static Input* instance_;                 ///< シングルトン用インスタンスポインタ
     Microsoft::WRL::ComPtr<IDirectInput8> directInput_; ///< DirectInput インターフェース
 
     std::unique_ptr<Keyboard> keyboard_;     ///< キーボード

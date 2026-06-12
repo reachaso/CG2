@@ -166,7 +166,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <!-- Game -->
     <ClCompile Include="..\\Application\\Game\\Game.cpp" />
     <ClCompile Include="..\Application\Game\Framework\GameModeBase.cpp" />
-    <ClCompile Include="..\\Application\\Game\\Scripts\\TestRotatorScript.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\TestRotatorScript.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\MoveCollider.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Scene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\SceneManager.cpp" />

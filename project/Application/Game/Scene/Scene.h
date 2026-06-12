@@ -130,6 +130,9 @@ protected:
     }
   }
 
+  /// @brief Resolve physics collisions among entities
+  void ResolveCollisions();
+
   /// @brief Remove entities marked for destruction
   void RemoveDeadEntities() {
     entities_.erase(

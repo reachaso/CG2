@@ -7,6 +7,9 @@ class ScriptableEntity {
 public:
   virtual ~ScriptableEntity() = default;
 
+  /// @brief Called for drawing custom ImGui UI in the editor
+  virtual void OnImGui() {}
+
   /// @brief Get a component attached to the same entity
   template <typename T> T* GetComponent() {
     return entity_->GetComponent<T>();

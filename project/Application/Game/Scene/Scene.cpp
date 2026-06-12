@@ -4,6 +4,8 @@
 #include "ECS/LightComponent.h"
 #include "ECS/CameraComponent.h"
 #include "ECS/ColliderComponent.h"
+#include "ECS/RigidbodyComponent.h"
+#include "Common/Math/MathUtils.h"
 #include "RenderCommon.h"
 #include <cmath>
 
@@ -219,20 +221,145 @@ void Scene::DrawColliderGizmos(uint32_t selectedEntityId) {
     if (!tr || !col || !col->IsEnabled()) continue;
 
     RC::Vector4 colColor = {0.2f, 1.0f, 0.2f, 1.0f}; // 黄緑色
+    RC::Vector3 scaledCenter = {
+      col->center.x * tr->scale.x,
+      col->center.y * tr->scale.y,
+      col->center.z * tr->scale.z
+    };
     RC::Vector3 worldCenter = {
-      tr->position.x + col->center.x,
-      tr->position.y + col->center.y,
-      tr->position.z + col->center.z
+      tr->position.x + scaledCenter.x,
+      tr->position.y + scaledCenter.y,
+      tr->position.z + scaledCenter.z
     };
 
     if (col->shape == ColliderComponent::Shape::Sphere) {
-        RC::DrawSphereRings3D(worldCenter, col->radius, colColor, 16, true);
+        float maxScale = (std::max)((std::max)(std::abs(tr->scale.x), std::abs(tr->scale.y)), std::abs(tr->scale.z));
+        RC::DrawSphereRings3D(worldCenter, col->radius * maxScale, colColor, 16, true);
     } else if (col->shape == ColliderComponent::Shape::AABB) {
-        RC::Vector3 halfSize = { col->size.x * 0.5f, col->size.y * 0.5f, col->size.z * 0.5f };
+        RC::Vector3 scaledSize = {
+            std::abs(col->size.x * tr->scale.x),
+            std::abs(col->size.y * tr->scale.y),
+            std::abs(col->size.z * tr->scale.z)
+        };
+        RC::Vector3 halfSize = { scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f };
         RC::Vector3 minPos = { worldCenter.x - halfSize.x, worldCenter.y - halfSize.y, worldCenter.z - halfSize.z };
         RC::Vector3 maxPos = { worldCenter.x + halfSize.x, worldCenter.y + halfSize.y, worldCenter.z + halfSize.z };
         RC::DrawAABB3D(minPos, maxPos, colColor, true);
     }
   }
 #endif
+}
+
+void Scene::ResolveCollisions() {
+    for (size_t i = 0; i < entities_.size(); ++i) {
+        auto& e1 = entities_[i];
+        if (!e1 || !e1->IsActive() || e1->IsPendingDestroy()) continue;
+        auto* tr1 = e1->GetComponent<TransformComponent>();
+        auto* col1 = e1->GetComponent<ColliderComponent>();
+        if (!tr1 || !col1 || !col1->IsEnabled() || col1->isTrigger) continue;
+
+        for (size_t j = i + 1; j < entities_.size(); ++j) {
+            auto& e2 = entities_[j];
+            if (!e2 || !e2->IsActive() || e2->IsPendingDestroy()) continue;
+            auto* tr2 = e2->GetComponent<TransformComponent>();
+            auto* col2 = e2->GetComponent<ColliderComponent>();
+            if (!tr2 || !col2 || !col2->IsEnabled() || col2->isTrigger) continue;
+
+            auto* rb1 = e1->GetComponent<RigidbodyComponent>();
+            auto* rb2 = e2->GetComponent<RigidbodyComponent>();
+
+            // 両方とも動かない場合は衝突解決をスキップ
+            bool isDynamic1 = (rb1 && !rb1->isKinematic);
+            bool isDynamic2 = (rb2 && !rb2->isKinematic);
+            if (!isDynamic1 && !isDynamic2) continue;
+
+            // e1 の情報計算
+            RC::Vector3 scaledCenter1 = {
+                col1->center.x * tr1->scale.x,
+                col1->center.y * tr1->scale.y,
+                col1->center.z * tr1->scale.z
+            };
+            RC::Vector3 center1 = RC::Add(tr1->position, scaledCenter1);
+
+            // e2 の情報計算
+            RC::Vector3 scaledCenter2 = {
+                col2->center.x * tr2->scale.x,
+                col2->center.y * tr2->scale.y,
+                col2->center.z * tr2->scale.z
+            };
+            RC::Vector3 center2 = RC::Add(tr2->position, scaledCenter2);
+
+            RC::CollisionResult result;
+            bool reverseNormal = false;
+
+            if (col1->shape == ColliderComponent::Shape::Sphere && col2->shape == ColliderComponent::Shape::Sphere) {
+                float r1 = col1->radius * (std::max)((std::max)(std::abs(tr1->scale.x), std::abs(tr1->scale.y)), std::abs(tr1->scale.z));
+                float r2 = col2->radius * (std::max)((std::max)(std::abs(tr2->scale.x), std::abs(tr2->scale.y)), std::abs(tr2->scale.z));
+                result = RC::CheckCollisionSphereSphere(center1, r1, center2, r2);
+            } else if (col1->shape == ColliderComponent::Shape::AABB && col2->shape == ColliderComponent::Shape::AABB) {
+                RC::Vector3 h1 = { std::abs(col1->size.x * tr1->scale.x * 0.5f), std::abs(col1->size.y * tr1->scale.y * 0.5f), std::abs(col1->size.z * tr1->scale.z * 0.5f) };
+                RC::Vector3 h2 = { std::abs(col2->size.x * tr2->scale.x * 0.5f), std::abs(col2->size.y * tr2->scale.y * 0.5f), std::abs(col2->size.z * tr2->scale.z * 0.5f) };
+                RC::Vector3 min1 = RC::Sub(center1, h1); RC::Vector3 max1 = RC::Add(center1, h1);
+                RC::Vector3 min2 = RC::Sub(center2, h2); RC::Vector3 max2 = RC::Add(center2, h2);
+                result = RC::CheckCollisionAabbAabb(min1, max1, min2, max2);
+            } else if (col1->shape == ColliderComponent::Shape::Sphere && col2->shape == ColliderComponent::Shape::AABB) {
+                float r1 = col1->radius * (std::max)((std::max)(std::abs(tr1->scale.x), std::abs(tr1->scale.y)), std::abs(tr1->scale.z));
+                RC::Vector3 h2 = { std::abs(col2->size.x * tr2->scale.x * 0.5f), std::abs(col2->size.y * tr2->scale.y * 0.5f), std::abs(col2->size.z * tr2->scale.z * 0.5f) };
+                RC::Vector3 min2 = RC::Sub(center2, h2); RC::Vector3 max2 = RC::Add(center2, h2);
+                result = RC::CheckCollisionSphereAabb(center1, r1, min2, max2);
+            } else if (col1->shape == ColliderComponent::Shape::AABB && col2->shape == ColliderComponent::Shape::Sphere) {
+                float r2 = col2->radius * (std::max)((std::max)(std::abs(tr2->scale.x), std::abs(tr2->scale.y)), std::abs(tr2->scale.z));
+                RC::Vector3 h1 = { std::abs(col1->size.x * tr1->scale.x * 0.5f), std::abs(col1->size.y * tr1->scale.y * 0.5f), std::abs(col1->size.z * tr1->scale.z * 0.5f) };
+                RC::Vector3 min1 = RC::Sub(center1, h1); RC::Vector3 max1 = RC::Add(center1, h1);
+                result = RC::CheckCollisionSphereAabb(center2, r2, min1, max1);
+                reverseNormal = true; // normal is from sphere to AABB, so from 2 to 1.
+            }
+
+            if (result.hit) {
+                // result.normal direction is from 1 to 2
+                RC::Vector3 normal = reverseNormal ? RC::Mul(result.normal, -1.0f) : result.normal;
+
+                // Calculate push ratios
+                float m1 = rb1 ? rb1->mass : 1.0f;
+                float m2 = rb2 ? rb2->mass : 1.0f;
+                float ratio1 = 0.0f;
+                float ratio2 = 0.0f;
+
+                if (isDynamic1 && isDynamic2) {
+                    if (m1 + m2 > 0.0f) {
+                        ratio1 = m2 / (m1 + m2);
+                        ratio2 = m1 / (m1 + m2);
+                    } else {
+                        ratio1 = 0.5f; ratio2 = 0.5f;
+                    }
+                } else if (isDynamic1) {
+                    ratio1 = 1.0f; ratio2 = 0.0f;
+                } else if (isDynamic2) {
+                    ratio1 = 0.0f; ratio2 = 1.0f;
+                }
+
+                RC::Vector3 push1 = RC::Mul(normal, -result.depth * ratio1);
+                RC::Vector3 push2 = RC::Mul(normal, result.depth * ratio2);
+
+                if (isDynamic1) {
+                    tr1->position = RC::Add(tr1->position, push1);
+                    // Cancel velocity along normal
+                    float vDotN = RC::Dot(rb1->velocity, normal);
+                    if (vDotN > 0.0f) { // e1 is moving towards e2
+                        RC::Vector3 vNormal = RC::Mul(normal, vDotN);
+                        rb1->velocity = RC::Sub(rb1->velocity, vNormal);
+                    }
+                }
+                if (isDynamic2) {
+                    tr2->position = RC::Add(tr2->position, push2);
+                    // Cancel velocity along normal
+                    float vDotN = RC::Dot(rb2->velocity, normal);
+                    if (vDotN < 0.0f) { // e2 is moving towards e1 (normal is from 1 to 2)
+                        RC::Vector3 vNormal = RC::Mul(normal, vDotN);
+                        rb2->velocity = RC::Sub(rb2->velocity, vNormal);
+                    }
+                }
+            }
+        }
+    }
 }

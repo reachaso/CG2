@@ -216,6 +216,7 @@ public:
     }
 
     UpdateEntities(updateDt);
+    ResolveCollisions();
     RemoveDeadEntities();
 
     // === Play/Editor カメラ切り替え ===

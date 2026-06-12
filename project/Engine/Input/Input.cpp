@@ -4,7 +4,10 @@
 #include "Controller/Controller.h"
 #include <cassert>
 
+Input* Input::instance_ = nullptr;
+
 Input::Input(HWND hwnd) {
+    instance_ = this;
     HRESULT hr = DirectInput8Create(
         GetModuleHandle(nullptr), DIRECTINPUT_HEADER_VERSION,
         IID_IDirectInput8, (void**)directInput_.GetAddressOf(), nullptr);
@@ -18,6 +21,7 @@ Input::Input(HWND hwnd) {
 
 Input::~Input() {
     // 各デバイスのデストラクタが呼ばれる
+    instance_ = nullptr;
 }
 
 void Input::Update() {

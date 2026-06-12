@@ -135,6 +135,29 @@ std::string ScreenCapture::SaveScreenshot(ID3D12Device* device, ID3D12CommandQue
 
     hr = DirectX::SaveToWICFile(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), wFileName.c_str());
     
+    // クリップボードへコピー (DIB形式)
+    DirectX::Blob blob;
+    HRESULT hrBlob = DirectX::SaveToWICMemory(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_BMP), blob);
+    if (SUCCEEDED(hrBlob)) {
+        if (OpenClipboard(nullptr)) {
+            EmptyClipboard();
+            // BMPファイルのヘッダ (BITMAPFILEHEADER 14バイト) をスキップしてDIB部分をコピー
+            size_t dibSize = blob.GetBufferSize() - sizeof(BITMAPFILEHEADER);
+            HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, dibSize);
+            if (hMem) {
+                void* pMem = GlobalLock(hMem);
+                if (pMem) {
+                    memcpy(pMem, (uint8_t*)blob.GetBufferPointer() + sizeof(BITMAPFILEHEADER), dibSize);
+                    GlobalUnlock(hMem);
+                    SetClipboardData(CF_DIB, hMem);
+                } else {
+                    GlobalFree(hMem);
+                }
+            }
+            CloseClipboard();
+        }
+    }
+
     readbackResource->Unmap(0, nullptr);
 
     if (FAILED(hr)) {
