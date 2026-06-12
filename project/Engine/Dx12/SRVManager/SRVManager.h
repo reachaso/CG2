@@ -64,6 +64,12 @@ public:
   Handle CreateTextureCube(ID3D12Resource *res, DXGI_FORMAT fmt, UINT mipLevels,
                            UINT mostDetailedMip = 0);
 
+  /// @brief 2Dテクスチャ用のUAVを作成する
+  /// @param res 対象リソース
+  /// @param fmt フォーマット
+  /// @return 作成されたUAVのハンドル
+  Handle CreateTexture2DUAV(ID3D12Resource *res, DXGI_FORMAT fmt);
+
   /// @brief ストラクチャードバッファ用のSRVを作成する
   /// @param res 対象リソース
   /// @param elementCount 要素数

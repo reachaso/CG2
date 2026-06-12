@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -187,6 +187,7 @@
     <ClCompile Include="..\Engine\Render\Systems\RenderSkydome.cpp" />
     <ClCompile Include="..\Engine\Render\Systems\RenderPrimitiveMesh.cpp" />
     <ClCompile Include="..\Engine\Render\Systems\RenderWater.cpp" />
+    <ClCompile Include="..\Engine\Render\Systems\RenderInteractiveWater.cpp" />
     <ClCompile Include="..\Engine\Render\Systems\RenderSprite.cpp" />
     <ClCompile Include="..\Engine\Render\Skydome\SkydomeManager.cpp" />
     <ClCompile Include="..\Engine\Render\Skybox\SkyboxManager.cpp" />
@@ -272,6 +273,7 @@
     <ClInclude Include="..\Engine\Render\Light\Spot\SpotLightManager.h" />
     <ClInclude Include="..\Engine\Render\Model\ModelManager.h" />
     <ClInclude Include="..\Engine\Render\RenderCommon.h" />
+    <ClInclude Include="..\Engine\Render\Systems\RenderInteractiveWater.h" />
     <ClInclude Include="..\Engine\Render\RenderContext.h" />
     <ClInclude Include="..\Engine\Render\RenderQueue.h" />
     <ClInclude Include="..\Engine\Render\FrameResource.h" />

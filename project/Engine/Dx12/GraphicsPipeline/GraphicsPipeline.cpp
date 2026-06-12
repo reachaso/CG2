@@ -248,7 +248,7 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // 既存ルートシグネチャ解放
   root_.Reset();
 
-  D3D12_ROOT_PARAMETER params[12] = {};
+  D3D12_ROOT_PARAMETER params[14] = {};
   D3D12_DESCRIPTOR_RANGE ranges[6] = {}; // t0(Tex), t1(EnvMap), t1(Depth), t1(SkinMat)等
   UINT paramCount = 0;
 
@@ -823,7 +823,60 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     params[11].Descriptor.ShaderRegister = 6;
 
-    paramCount = 12;
+    // 12: SRV table t4 (VS, PS) InteractiveWave HeightMap
+    ranges[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[4].BaseShaderRegister = 4; // t4
+    ranges[4].NumDescriptors = 1;
+    ranges[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[12].DescriptorTable.NumDescriptorRanges = 1;
+    params[12].DescriptorTable.pDescriptorRanges = &ranges[4];
+
+    paramCount = 13;
+    break;
+
+  case RootSignatureType::WaveSimulationCS:
+    // 0: CBV b0 (ALL) SimulationParams
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].Descriptor.ShaderRegister = 0;
+
+    // 1: SRV table t0 (ALL) gPrevHeight
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[0].BaseShaderRegister = 0;
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].DescriptorTable.NumDescriptorRanges = 1;
+    params[1].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 2: SRV table t1 (ALL) gPrevPrevHeight
+    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[1].BaseShaderRegister = 1;
+    ranges[1].NumDescriptors = 1;
+    ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[1];
+
+    // 3: UAV table u0 (ALL) gOutHeight
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[2].BaseShaderRegister = 0;
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[3].DescriptorTable.NumDescriptorRanges = 1;
+    params[3].DescriptorTable.pDescriptorRanges = &ranges[2];
+
+    paramCount = 4;
     break;
   }
 
@@ -857,20 +910,20 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   samplers[2].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
   samplers[2].MaxLOD = D3D12_FLOAT32_MAX;
   samplers[2].ShaderRegister = 2;
-  samplers[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+  samplers[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
   // ====================
   // Serialize
   // ====================
   // ルートシグネチャ作成
   D3D12_ROOT_SIGNATURE_DESC desc{};
-  desc.Flags = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS)
+  desc.Flags = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS || type == RootSignatureType::WaveSimulationCS)
       ? D3D12_ROOT_SIGNATURE_FLAG_NONE
       : D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
   desc.pParameters = params;
   desc.NumParameters = paramCount;
   desc.pStaticSamplers = samplers;
-  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS) ? 0u : 3u;
+  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS || type == RootSignatureType::WaveSimulationCS) ? 0u : 3u;
 
   Microsoft::WRL::ComPtr<ID3DBlob> sig;
   Microsoft::WRL::ComPtr<ID3DBlob> err;

@@ -18,6 +18,7 @@
 
 #include "RenderCommon.h"
 #include "RenderContext.h"
+#include "RenderInteractiveWater.h"
 
 #include "Dx12/Dx12Core.h"
 #include "PipelineManager.h"
@@ -38,9 +39,15 @@ namespace RC {
 // Init / Term
 // ============================================================================
 
-void Init(SceneContext &ctx) { RenderContext::GetInstance().Init(ctx); }
+void Init(SceneContext &ctx) { 
+  RenderContext::GetInstance().Init(ctx); 
+  InitInteractiveWater();
+}
 
-void Term() { RenderContext::GetInstance().Term(); }
+void Term() { 
+  TermInteractiveWater();
+  RenderContext::GetInstance().Term(); 
+}
 
 // ============================================================================
 // Camera
@@ -56,6 +63,7 @@ void SetCamera(const Matrix4x4 &view, const Matrix4x4 &proj,
 // ============================================================================
 
 void PreDraw3D(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
+  UpdateInteractiveWater();
   RenderContext::GetInstance().PreDraw3D(ctx, cl);
 }
 

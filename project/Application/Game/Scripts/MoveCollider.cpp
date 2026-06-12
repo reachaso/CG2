@@ -7,6 +7,7 @@
 #include "imgui/imgui.h"
 #endif
 #include <iostream>
+#include "Render/Systems/RenderInteractiveWater.h"
 
 /// @brief プレイヤー移動用スクリプト
 /// WASD、矢印キー、またはコントローラーで移動を行う
@@ -81,6 +82,17 @@ protected:
         // 移動適用
         tr->position.x += moveX * speed * deltaTime;
         tr->position.z += moveZ * speed * deltaTime;
+
+        // 水面シミュレーションへの波源追加
+        if (moveX != 0.0f || moveZ != 0.0f) {
+            RC::WaveSource source;
+            // シェーダーと同じスケール(20m幅)でワールド座標からUVへ変換
+            source.uv = RC::Vector2((tr->position.x / 20.0f) + 0.5f, (tr->position.z / 20.0f) + 0.5f);
+            source.radius = 0.04f; 
+            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
+            source.strength = velocity * 0.5f; // 強さを調整 (強調)
+            RC::AddWaveSource(source);
+        }
     }
 
     void OnDestroy() override {

@@ -414,6 +414,9 @@
     <ClCompile Include="..\Engine\Render\Systems\RenderSprite.cpp">
       <Filter>Render\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="..\Engine\Render\Systems\RenderInteractiveWater.cpp">
+      <Filter>Render\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="..\Engine\Render\Skydome\SkydomeManager.cpp">
       <Filter>Render\Skydome</Filter>
     </ClCompile>
@@ -658,6 +661,9 @@
     </ClInclude>
     <ClInclude Include="..\Engine\Render\RenderCommon.h">
       <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Engine\Render\Systems\RenderInteractiveWater.h">
+      <Filter>Render\Systems</Filter>
     </ClInclude>
     <ClInclude Include="..\Engine\Render\RenderContext.h">
       <Filter>Render</Filter>

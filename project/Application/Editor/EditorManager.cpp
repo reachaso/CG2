@@ -380,6 +380,177 @@ void EditorManager::SetupDockingLayout() {
 #endif
 }
 
+void EditorManager::DrawEntityNode(std::shared_ptr<Entity> e, Scene* currentScene, const std::unordered_map<uint64_t, std::vector<std::shared_ptr<Entity>>>& childrenMap) {
+#if RC_ENABLE_IMGUI
+    if (!e || e->IsPendingDestroy()) return;
+
+    ImGui::PushID(e->Id());
+
+    // --- 目アイコン（可視切り替え） ---
+    {
+      int texId = e->IsVisible() ? eyeVisibleTex_ : eyeHiddenTex_;
+      auto srv = RC::GetRenderContext().Textures().GetSrv(texId);
+      ImVec4 tint = e->IsVisible() ? ImVec4(1,1,1,1) : ImVec4(0.7f,0.7f,0.7f,0.9f);
+      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f,0.3f,0.3f,0.5f));
+      ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
+      if (srv.ptr) {
+        if (ImGui::ImageButton("##vis", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
+          e->SetVisible(!e->IsVisible());
+        }
+      } else {
+        if (ImGui::SmallButton(e->IsVisible() ? "V" : "-")) {
+          e->SetVisible(!e->IsVisible());
+        }
+      }
+      ImGui::PopStyleColor(3);
+    }
+    ImGui::SameLine(0, 2);
+
+    // --- 鍵アイコン（ロック切り替え） ---
+    {
+      int texId = e->IsLocked() ? lockLockedTex_ : lockUnlockedTex_;
+      auto srv = RC::GetRenderContext().Textures().GetSrv(texId);
+      ImVec4 tint = e->IsLocked() ? ImVec4(1,0.8f,0.2f,1) : ImVec4(0.7f,0.7f,0.7f,0.9f);
+      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f,0.3f,0.3f,0.5f));
+      ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
+      if (srv.ptr) {
+        if (ImGui::ImageButton("##lock", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
+          e->SetLocked(!e->IsLocked());
+        }
+      } else {
+        if (ImGui::SmallButton(e->IsLocked() ? "L" : "U")) {
+          e->SetLocked(!e->IsLocked());
+        }
+      }
+      ImGui::PopStyleColor(3);
+    }
+    ImGui::SameLine(0, 4);
+
+    // フォルダアイコンの表示（isFolderの場合）
+    if (e->IsFolder()) {
+        auto srv = RC::GetRenderContext().Textures().GetSrv(folderIconTex_);
+        if (srv.ptr) {
+            ImGui::Image((ImTextureID)srv.ptr, ImVec2(16, 16));
+            ImGui::SameLine(0, 4);
+        }
+    }
+
+    auto it = childrenMap.find(e->Guid());
+    bool hasChildren = (it != childrenMap.end() && !it->second.empty());
+
+    // --- エンティティ名（垂直中央揃え） ---
+    ImGui::AlignTextToFramePadding();
+    bool isOpen = false;
+
+    if (renamingEntityId_ == e->Id()) {
+        char nameBuf[256];
+        strncpy_s(nameBuf, sizeof(nameBuf), e->Name().c_str(), _TRUNCATE);
+        
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (focusRename_) {
+            ImGui::SetKeyboardFocusHere();
+            focusRename_ = false;
+        }
+        if (ImGui::InputText("##rename", nameBuf, sizeof(nameBuf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+            e->SetName(nameBuf);
+            renamingEntityId_ = 0;
+        } else if (ImGui::IsItemDeactivated()) {
+            e->SetName(nameBuf);
+            renamingEntityId_ = 0;
+        }
+    } else {
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (!hasChildren) {
+            flags |= ImGuiTreeNodeFlags_Leaf;
+        }
+        if (selectedEntity_.lock() == e) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        
+        // フォルダの場合はデフォルトで開く
+        if (e->IsFolder()) flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+        isOpen = ImGui::TreeNodeEx("##node", flags, "%s", e->Name().c_str());
+
+        // ドラッグ元
+        if (ImGui::BeginDragDropSource()) {
+            uint64_t dragGuid = e->Guid();
+            ImGui::SetDragDropPayload("HIERARCHY_ENTITY", &dragGuid, sizeof(uint64_t));
+            ImGui::Text("Move %s", e->Name().c_str());
+            ImGui::EndDragDropSource();
+        }
+
+        // ドロップ先 (フォルダの場合のみ)
+        if (e->IsFolder()) {
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_ENTITY")) {
+                    uint64_t draggedGuid = *(const uint64_t*)payload->Data;
+                    auto draggedE = currentScene->FindEntityByGuid(draggedGuid);
+                    if (draggedE && draggedE != e) {
+                        // 循環参照チェック (自分がドラッグされた要素の子孫でないか)
+                        bool isDescendant = false;
+                        auto curr = e;
+                        while (curr && curr->ParentGuid() != 0) {
+                            if (curr->ParentGuid() == draggedGuid) { isDescendant = true; break; }
+                            curr = currentScene->FindEntityByGuid(curr->ParentGuid());
+                        }
+                        if (!isDescendant) {
+                            draggedE->SetParentGuid(e->Guid());
+                        }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+        }
+
+        if (ImGui::IsItemClicked(0) && !e->IsLocked()) {
+            selectedEntity_ = e;
+        }
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0) && !e->IsLocked()) {
+            renamingEntityId_ = e->Id();
+            focusRename_ = true;
+        }
+        
+        // 右クリックメニュー (Delete, Rename, Create Folder)
+        if (!e->IsLocked()) {
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Rename")) {
+                    renamingEntityId_ = e->Id();
+                    focusRename_ = true;
+                }
+                if (e->IsFolder() || true) {
+                    if (ImGui::MenuItem("Create Folder inside")) {
+                        auto folder = currentScene->CreateEntity("New Folder");
+                        folder->SetIsFolder(true);
+                        folder->SetParentGuid(e->Guid());
+                    }
+                }
+                if (ImGui::MenuItem("Delete")) {
+                    currentScene->DestroyEntityRecursive(e);
+                    if (selectedEntity_.lock() == e) {
+                        selectedEntity_.reset();
+                    }
+                }
+                ImGui::EndPopup();
+            }
+        }
+    }
+
+    if (isOpen) {
+        if (hasChildren) {
+            for (auto& child : it->second) {
+                DrawEntityNode(child, currentScene, childrenMap);
+            }
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopID();
+#endif
+}
+
 void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, float deltaTime, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
 
@@ -584,108 +755,47 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
   // Hierarchy パネル
   if (ImGui::Begin("Hierarchy")) {
     if (currentScene) {
+      // 親子関係のマップを構築
+      std::unordered_map<uint64_t, std::vector<std::shared_ptr<Entity>>> childrenMap;
+      std::vector<std::shared_ptr<Entity>> rootEntities;
+      
       for (const auto& e : currentScene->GetEntities()) {
-        ImGui::PushID(e->Id());
-
-        // --- 目アイコン（可視切り替え） ---
-        {
-          int texId = e->IsVisible() ? eyeVisibleTex_ : eyeHiddenTex_;
-          auto srv = RC::GetRenderContext().Textures().GetSrv(texId);
-          ImVec4 tint = e->IsVisible() ? ImVec4(1,1,1,1) : ImVec4(0.7f,0.7f,0.7f,0.9f);
-          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
-          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f,0.3f,0.3f,0.5f));
-          ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
-          if (srv.ptr) {
-            if (ImGui::ImageButton("##vis", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
-              e->SetVisible(!e->IsVisible());
-            }
-          } else {
-            if (ImGui::SmallButton(e->IsVisible() ? "V" : "-")) {
-              e->SetVisible(!e->IsVisible());
-            }
-          }
-          ImGui::PopStyleColor(3);
-        }
-        ImGui::SameLine(0, 2);
-
-        // --- 鍵アイコン（ロック切り替え） ---
-        {
-          int texId = e->IsLocked() ? lockLockedTex_ : lockUnlockedTex_;
-          auto srv = RC::GetRenderContext().Textures().GetSrv(texId);
-          ImVec4 tint = e->IsLocked() ? ImVec4(1,0.8f,0.2f,1) : ImVec4(0.7f,0.7f,0.7f,0.9f);
-          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
-          ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f,0.3f,0.3f,0.5f));
-          ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
-          if (srv.ptr) {
-            if (ImGui::ImageButton("##lock", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
-              e->SetLocked(!e->IsLocked());
-            }
-          } else {
-            if (ImGui::SmallButton(e->IsLocked() ? "L" : "U")) {
-              e->SetLocked(!e->IsLocked());
-            }
-          }
-          ImGui::PopStyleColor(3);
-        }
-        ImGui::SameLine(0, 4);
-
-        // --- エンティティ名（垂直中央揃え） ---
-        ImGui::AlignTextToFramePadding();
-        if (renamingEntityId_ == e->Id()) {
-            char nameBuf[256];
-            strncpy_s(nameBuf, sizeof(nameBuf), e->Name().c_str(), _TRUNCATE);
-            
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if (focusRename_) {
-                ImGui::SetKeyboardFocusHere();
-                focusRename_ = false;
-            }
-            if (ImGui::InputText("##rename", nameBuf, sizeof(nameBuf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
-                e->SetName(nameBuf);
-                renamingEntityId_ = 0;
-            } else if (ImGui::IsItemDeactivated()) {
-                e->SetName(nameBuf);
-                renamingEntityId_ = 0;
-            }
+        if (!e || e->IsPendingDestroy()) continue;
+        if (e->ParentGuid() == 0 || currentScene->FindEntityByGuid(e->ParentGuid()) == nullptr) {
+            rootEntities.push_back(e);
         } else {
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
-            if (selectedEntity_.lock() == e) {
-                flags |= ImGuiTreeNodeFlags_Selected;
-            }
-            if (ImGui::TreeNodeEx("##node", flags, "%s", e->Name().c_str())) {
-                if (ImGui::IsItemClicked() && !e->IsLocked()) {
-                    selectedEntity_ = e;
-                }
-                
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0) && !e->IsLocked()) {
-                    renamingEntityId_ = e->Id();
-                    focusRename_ = true;
-                }
-                
-                // 右クリックメニュー (Delete, Rename) - ロックされていない場合のみ
-                if (!e->IsLocked()) {
-                    if (ImGui::BeginPopupContextItem()) {
-                        if (ImGui::MenuItem("Rename")) {
-                            renamingEntityId_ = e->Id();
-                            focusRename_ = true;
-                        }
-                        if (ImGui::MenuItem("Delete")) {
-                            e->Destroy();
-                            if (selectedEntity_.lock() == e) {
-                                selectedEntity_.reset();
-                            }
-                        }
-                        ImGui::EndPopup();
-                    }
-                }
-
-                ImGui::TreePop();
-            }
+            childrenMap[e->ParentGuid()].push_back(e);
         }
-
-        ImGui::PopID();
-        ImGui::Separator();
       }
+
+      ImGui::BeginChild("HierarchyList", ImVec2(0, 0), false);
+      for (const auto& e : rootEntities) {
+          DrawEntityNode(e, currentScene, childrenMap);
+      }
+
+      // 何もない領域での右クリックメニュー（新規フォルダ作成など）
+      if (ImGui::BeginPopupContextWindow("HierarchyBgContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+          if (ImGui::MenuItem("Create Folder")) {
+              auto folder = currentScene->CreateEntity("New Folder");
+              folder->SetIsFolder(true);
+              folder->SetParentGuid(0);
+          }
+          ImGui::EndPopup();
+      }
+
+      // ルート領域へのドロップ対応（ルート階層に移動）
+      ImGui::Dummy(ImGui::GetContentRegionAvail());
+      if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_ENTITY")) {
+              uint64_t draggedGuid = *(const uint64_t*)payload->Data;
+              auto draggedE = currentScene->FindEntityByGuid(draggedGuid);
+              if (draggedE) {
+                  draggedE->SetParentGuid(0); // ルートに移動
+              }
+          }
+          ImGui::EndDragDropTarget();
+      }
+      ImGui::EndChild();
     }
   }
   ImGui::End();

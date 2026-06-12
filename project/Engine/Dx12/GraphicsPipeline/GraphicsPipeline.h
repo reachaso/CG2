@@ -31,6 +31,7 @@ enum class RootSignatureType {
   UpdateParticleCS,   ///< GPU Particle 更新 CS 用
   EmitParticleCS,     ///< GPU Particle 射出 CS 用
   Water,              ///< 水面シェーダー用（Object3D + WaterParams b6）
+  WaveSimulationCS,   ///< 波のシミュレーションCS用
 };
 
 /// @brief パイプライン構築時のオプション設定構造体

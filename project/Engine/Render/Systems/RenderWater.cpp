@@ -3,6 +3,7 @@
 #include "Mesh/PrimitiveMesh.h"
 #include "Mesh/MeshGenerator.h"
 #include "function/function.h"
+#include "RenderInteractiveWater.h"
 
 namespace RC {
 
@@ -91,6 +92,12 @@ void DrawWater(int meshHandle, int normalMapHandle) {
       // Object3D と同じパラメータ (0〜10) を使用し、11番目に WaterParams を配置する
       if (waterCBAddr) {
         cl->SetGraphicsRootConstantBufferView(11, waterCBAddr);
+      }
+
+      // t4: InteractiveWave HeightMap をバインド (RootParameter 12)
+      D3D12_GPU_DESCRIPTOR_HANDLE interactiveSrv = GetInteractiveWaterHeightMap();
+      if (interactiveSrv.ptr != 0) {
+        cl->SetGraphicsRootDescriptorTable(12, interactiveSrv);
       }
 
       ctx.PrimitiveMeshes().ApplyTexture(meshHandle, normalMapHandle);

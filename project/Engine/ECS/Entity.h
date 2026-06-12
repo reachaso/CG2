@@ -6,18 +6,27 @@
 #include <string>
 #include <typeindex>
 #include <unordered_map>
+#include <random>
 #include <nlohmann/json.hpp>
 
 /// @brief Lightweight entity class. Minimal container for holding components.
 /// Uses template-based AddComponent / GetComponent for type-safe component management.
 class Entity {
 public:
+  /// @brief Generate a unique GUID
+  static uint64_t GenerateGUID() {
+    static std::random_device rd;
+    static std::mt19937_64 gen(rd());
+    static std::uniform_int_distribution<uint64_t> dis(1, UINT64_MAX);
+    return dis(gen);
+  }
+
   /// @brief Constructor. Internal ID is auto-assigned.
-  Entity() : id_(NextId()) {}
+  Entity() : id_(NextId()), guid_(GenerateGUID()) {}
   
   /// @brief Named constructor
   /// @param name Entity name
-  explicit Entity(const std::string &name) : id_(NextId()), name_(name) {}
+  explicit Entity(const std::string &name) : id_(NextId()), name_(name), guid_(GenerateGUID()) {}
 
   /// @brief Add a component
   /// @tparam T Component type (must derive from IComponent)
@@ -117,6 +126,21 @@ public:
   /// @brief Set lock state
   void SetLocked(bool l) { locked_ = l; }
 
+  /// @brief Get GUID
+  uint64_t Guid() const { return guid_; }
+  /// @brief Set GUID (usually used during deserialization)
+  void SetGuid(uint64_t guid) { guid_ = guid; }
+
+  /// @brief Get Parent GUID
+  uint64_t ParentGuid() const { return parentGuid_; }
+  /// @brief Set Parent GUID
+  void SetParentGuid(uint64_t parentGuid) { parentGuid_ = parentGuid; }
+
+  /// @brief Check if this entity is marked as a UI folder
+  bool IsFolder() const { return isFolder_; }
+  /// @brief Set folder status
+  void SetIsFolder(bool isFolder) { isFolder_ = isFolder; }
+
   /// @brief Serialize entity state to JSON
   nlohmann::json Serialize() const {
     nlohmann::json j;
@@ -124,6 +148,9 @@ public:
     j["active"] = active_;
     j["visible"] = visible_;
     j["locked"] = locked_;
+    j["guid"] = guid_;
+    j["parentGuid"] = parentGuid_;
+    j["isFolder"] = isFolder_;
     nlohmann::json comps = nlohmann::json::array();
     for (auto& [type, comp] : components_) {
       if (comp) {
@@ -145,6 +172,9 @@ public:
     if (j.contains("active")) active_ = j["active"].get<bool>();
     if (j.contains("visible")) visible_ = j["visible"].get<bool>();
     if (j.contains("locked")) locked_ = j["locked"].get<bool>();
+    if (j.contains("guid")) guid_ = j["guid"].get<uint64_t>();
+    if (j.contains("parentGuid")) parentGuid_ = j["parentGuid"].get<uint64_t>();
+    if (j.contains("isFolder")) isFolder_ = j["isFolder"].get<bool>();
     if (j.contains("components")) {
       for (auto& cj : j["components"]) {
         std::string typeName = cj["type"].get<std::string>();
@@ -194,6 +224,9 @@ private:
   bool visible_ = true;
   bool locked_ = false;
   bool pendingDestroy_ = false;
+  uint64_t guid_;
+  uint64_t parentGuid_ = 0;
+  bool isFolder_ = false;
 
   std::unordered_map<std::type_index, std::unique_ptr<IComponent>> components_;
 

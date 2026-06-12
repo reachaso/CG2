@@ -60,8 +60,11 @@
           "type": "WaterComponent"
         }
       ],
+      "guid": 15696101900784297463,
+      "isFolder": false,
       "locked": false,
       "name": "Water",
+      "parentGuid": 710271550770534429,
       "visible": true
     },
     {
@@ -99,8 +102,11 @@
           "type": "CameraComponent"
         }
       ],
+      "guid": 3900624422716039383,
+      "isFolder": false,
       "locked": false,
       "name": "Camera",
+      "parentGuid": 0,
       "visible": true
     },
     {
@@ -142,13 +148,43 @@
           "type": "SkyboxComponent"
         }
       ],
+      "guid": 4213701670981280437,
+      "isFolder": false,
       "locked": false,
       "name": "Skybox",
+      "parentGuid": 710271550770534429,
       "visible": true
     },
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "scriptTypeName": "MoveCollider"
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
         {
           "data": {
             "position": [
@@ -190,13 +226,36 @@
           "type": "ModelRendererComponent"
         }
       ],
+      "guid": 15833185702217050271,
+      "isFolder": false,
       "locked": false,
       "name": "player",
+      "parentGuid": 0,
       "visible": true
     },
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
         {
           "data": {
             "position": [
@@ -238,8 +297,72 @@
           "type": "ModelRendererComponent"
         }
       ],
+      "guid": 2989546450025243194,
+      "isFolder": false,
       "locked": false,
       "name": "Enemy",
+      "parentGuid": 0,
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              10.0,
+              -15.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.0
+            ],
+            "intensity": 1.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "DirectionalLightComponent"
+        }
+      ],
+      "guid": 11442260546156002958,
+      "isFolder": false,
+      "locked": false,
+      "name": "Directional Light",
+      "parentGuid": 710271550770534429,
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [],
+      "guid": 710271550770534429,
+      "isFolder": true,
+      "locked": false,
+      "name": "Field",
+      "parentGuid": 0,
       "visible": true
     }
   ],

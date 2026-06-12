@@ -1087,6 +1087,11 @@ void PipelineManager::RegisterDefaultPipelines() {
 
   // キャッシュ保存
   SaveCache("Resources/Shader/pso_cache.bin");
+
+  // ============================================================
+  // Compute Pipelines
+  // ============================================================
+  CreateCompute("wave_simulation", L"Resources/Shader/Water/WaveSimulation.CS.hlsl", RootSignatureType::WaveSimulationCS);
 }
 
 // ============================================================================
@@ -1153,7 +1158,7 @@ void PipelineManager::CreateCompute(const std::string &key,
     params[3].Descriptor.ShaderRegister = 0;
 
     paramCount = 4;
-  } else {
+  } else if (rootType == RootSignatureType::SkinningCS) {
     // SkinningCS: SRV t0, SRV t1, UAV u0, CBV b0
     // 0: SRV t0 MatrixPalette
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
@@ -1180,6 +1185,47 @@ void PipelineManager::CreateCompute(const std::string &key,
     params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     params[3].Descriptor.ShaderRegister = 0;
+
+    paramCount = 4;
+  } else if (rootType == RootSignatureType::WaveSimulationCS) {
+    // WaveSimulationCS: CBV b0, SRV t0 (table), SRV t1 (table), UAV u0 (table)
+    // 0: CBV b0 SimulationParams
+    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[0].Descriptor.ShaderRegister = 0;
+
+    // 1: SRV table t0 gPrevHeight
+    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[0].BaseShaderRegister = 0;
+    ranges[0].NumDescriptors = 1;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].DescriptorTable.NumDescriptorRanges = 1;
+    params[1].DescriptorTable.pDescriptorRanges = &ranges[0];
+
+    // 2: SRV table t1 gPrevPrevHeight
+    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[1].BaseShaderRegister = 1;
+    ranges[1].NumDescriptors = 1;
+    ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[1];
+
+    // 3: UAV table u0 gOutHeight
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[2].BaseShaderRegister = 0;
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[3].DescriptorTable.NumDescriptorRanges = 1;
+    params[3].DescriptorTable.pDescriptorRanges = &ranges[2];
 
     paramCount = 4;
   }

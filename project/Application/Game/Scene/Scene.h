@@ -169,4 +169,32 @@ protected:
     }
     return nullptr;
   }
+
+public:
+  /// @brief Find entity by ID
+  std::shared_ptr<Entity> FindEntityById(uint32_t id) {
+    for (auto& e : entities_) {
+      if (e && e->Id() == id) return e;
+    }
+    return nullptr;
+  }
+
+  /// @brief Find entity by GUID
+  std::shared_ptr<Entity> FindEntityByGuid(uint64_t guid) {
+    for (auto& e : entities_) {
+      if (e && e->Guid() == guid) return e;
+    }
+    return nullptr;
+  }
+
+  /// @brief Destroy an entity and all its children recursively
+  void DestroyEntityRecursive(std::shared_ptr<Entity> entity) {
+    if (!entity) return;
+    entity->Destroy();
+    for (auto& child : entities_) {
+      if (child && child->ParentGuid() == entity->Guid()) {
+        DestroyEntityRecursive(child);
+      }
+    }
+  }
 };

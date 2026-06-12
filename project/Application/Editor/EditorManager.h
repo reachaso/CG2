@@ -52,6 +52,9 @@ private:
   /// @brief 初回起動時やリセット時にデフォルトのドッキングレイアウトを構築する
   void SetupDockingLayout();
 
+  /// @brief ツリーノードとしてエンティティを描画する（再帰）
+  void DrawEntityNode(std::shared_ptr<Entity> e, Scene* currentScene, const std::unordered_map<uint64_t, std::vector<std::shared_ptr<Entity>>>& childrenMap);
+
 private:
   bool firstLayout_ = true; ///< 初回レイアウト構築フラグ
   bool resetLayout_ = false; ///< レイアウトリセット要求フラグ
