@@ -631,29 +631,56 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
 
         // --- エンティティ名（垂直中央揃え） ---
         ImGui::AlignTextToFramePadding();
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
-        if (selectedEntity_.lock() == e) {
-            flags |= ImGuiTreeNodeFlags_Selected;
-        }
-        if (ImGui::TreeNodeEx("##node", flags, "%s", e->Name().c_str())) {
-            if (ImGui::IsItemClicked() && !e->IsLocked()) {
-                selectedEntity_ = e;
-            }
+        if (renamingEntityId_ == e->Id()) {
+            char nameBuf[256];
+            strncpy_s(nameBuf, sizeof(nameBuf), e->Name().c_str(), _TRUNCATE);
             
-            // 右クリックメニュー (Delete) - ロックされていない場合のみ
-            if (!e->IsLocked()) {
-                if (ImGui::BeginPopupContextItem()) {
-                    if (ImGui::MenuItem("Delete")) {
-                        e->Destroy();
-                        if (selectedEntity_.lock() == e) {
-                            selectedEntity_.reset();
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (focusRename_) {
+                ImGui::SetKeyboardFocusHere();
+                focusRename_ = false;
             }
+            if (ImGui::InputText("##rename", nameBuf, sizeof(nameBuf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+                e->SetName(nameBuf);
+                renamingEntityId_ = 0;
+            } else if (ImGui::IsItemDeactivated()) {
+                e->SetName(nameBuf);
+                renamingEntityId_ = 0;
+            }
+        } else {
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_Leaf;
+            if (selectedEntity_.lock() == e) {
+                flags |= ImGuiTreeNodeFlags_Selected;
+            }
+            if (ImGui::TreeNodeEx("##node", flags, "%s", e->Name().c_str())) {
+                if (ImGui::IsItemClicked() && !e->IsLocked()) {
+                    selectedEntity_ = e;
+                }
+                
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0) && !e->IsLocked()) {
+                    renamingEntityId_ = e->Id();
+                    focusRename_ = true;
+                }
+                
+                // 右クリックメニュー (Delete, Rename) - ロックされていない場合のみ
+                if (!e->IsLocked()) {
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::MenuItem("Rename")) {
+                            renamingEntityId_ = e->Id();
+                            focusRename_ = true;
+                        }
+                        if (ImGui::MenuItem("Delete")) {
+                            e->Destroy();
+                            if (selectedEntity_.lock() == e) {
+                                selectedEntity_.reset();
+                            }
+                        }
+                        ImGui::EndPopup();
+                    }
+                }
 
-            ImGui::TreePop();
+                ImGui::TreePop();
+            }
         }
 
         ImGui::PopID();
@@ -667,7 +694,16 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
   if (ImGui::Begin("Inspector")) {
     if (auto e = selectedEntity_.lock()) {
         std::function<void()> pendingRemove;
-        ImGui::Text("Entity: %s", e->Name().c_str());
+        char nameBuf[256];
+        strncpy_s(nameBuf, sizeof(nameBuf), e->Name().c_str(), _TRUNCATE);
+        ImGui::Text("Entity:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText("##InspectorRename", nameBuf, sizeof(nameBuf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+            e->SetName(nameBuf);
+        } else if (ImGui::IsItemDeactivatedAfterEdit()) {
+            e->SetName(nameBuf);
+        }
         ImGui::Separator();
 
         if (auto* tr = e->GetComponent<TransformComponent>()) {

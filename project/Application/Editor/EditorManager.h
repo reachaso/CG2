@@ -79,5 +79,7 @@ private:
   int fileFontTex_ = -1;
 
   std::weak_ptr<Entity> selectedEntity_; ///< Inspector表示用の選択エンティティ
+  uint32_t renamingEntityId_ = 0; ///< 名前変更中のエンティティID
+  bool focusRename_ = false; ///< 名前変更用のフォーカスフラグ
   std::filesystem::path currentDirectory_ = "Resources"; ///< コンテンツブラウザの現在ディレクトリ
 };

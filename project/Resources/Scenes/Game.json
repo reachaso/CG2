@@ -193,6 +193,54 @@
       "locked": false,
       "name": "player",
       "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.5,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/cube/cube.obj",
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        }
+      ],
+      "locked": false,
+      "name": "Enemy",
+      "visible": true
     }
   ],
   "sceneName": "Game"

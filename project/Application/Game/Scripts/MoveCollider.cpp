@@ -2,7 +2,10 @@
 #include "ECS/ScriptRegistry.h"
 #include "ECS/TransformComponent.h"
 #include "Input/Input.h"
+#include "Common/EngineConfig.h"
+#if RC_ENABLE_IMGUI
 #include "imgui/imgui.h"
+#endif
 #include <iostream>
 
 /// @brief プレイヤー移動用スクリプト
@@ -86,8 +89,10 @@ protected:
 
 public:
     void OnImGui() override {
+#if RC_ENABLE_IMGUI
         // エディタ（インスペクタ）上で速度を調整できるようにする
         ImGui::DragFloat("Move Speed (移動速度)##MoveCollider", &speed, 0.1f, 0.1f, 100.0f);
+#endif
     }
 };
 
