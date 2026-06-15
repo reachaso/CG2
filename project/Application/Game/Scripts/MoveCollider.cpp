@@ -8,6 +8,11 @@
 #endif
 #include <iostream>
 #include "Render/Systems/RenderInteractiveWater.h"
+#include "Scene.h"
+#include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/NativeScriptComponent.h"
+#include "RenderCommon.h"
+#include <cstdlib>
 
 /// @brief プレイヤー移動用スクリプト
 /// WASD、矢印キー、またはコントローラーで移動を行う
@@ -85,14 +90,29 @@ protected:
 
         // 水面シミュレーションへの波源追加
         if (moveX != 0.0f || moveZ != 0.0f) {
+            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
+
+            if (!firstUpdate_) {
+                // 1フレーム前の位置にマイナスの波源（へこみ）を追加
+                RC::WaveSource sourcePrev;
+                sourcePrev.uv = RC::Vector2((prevPosition_.x / 100.0f) + 0.5f, (prevPosition_.z / 100.0f) + 0.5f);
+                sourcePrev.radius = 0.03f;
+                sourcePrev.strength = -velocity * 0.03f; 
+                RC::AddWaveSource(sourcePrev);
+            }
+
+            // 現在位置にプラスの波源（押し上げ）を追加
             RC::WaveSource source;
             // WaterPlaneのワールドサイズ(100m幅)でワールド座標からUVへ変換
             source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
-            source.radius = 0.02f; // UV空間での半径 (100m平面上で2m程度の範囲)
-            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
-            source.strength = velocity * 0.015f; // 繊細な波紋
+            source.radius = 0.03f; // UV空間での半径 (100m平面上で3m程度の範囲)
+            source.strength = velocity * 0.03f; // 波紋の強さを倍増
             RC::AddWaveSource(source);
+
         }
+        
+        prevPosition_ = tr->position;
+        firstUpdate_ = false;
     }
 
     void OnDestroy() override {
@@ -106,6 +126,10 @@ public:
         ImGui::DragFloat("Move Speed (移動速度)##MoveCollider", &speed, 0.1f, 0.1f, 100.0f);
 #endif
     }
+
+private:
+    RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
+    bool firstUpdate_ = true;
 };
 
 REGISTER_SCRIPT(MoveCollider)

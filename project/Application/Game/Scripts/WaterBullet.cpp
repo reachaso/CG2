@@ -91,7 +91,7 @@ protected:
             float dy = eTr->position.y - tr->position.y;
             float dz = eTr->position.z - tr->position.z;
             float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
-            float hitRadius = 1.5f; // Generous hit radius
+            float hitRadius = 1.0f; // Adjusted hit radius based on user feedback
 
             if (dist < hitRadius) {
                 // Use tag system to communicate damage
@@ -182,13 +182,13 @@ private:
         RC::AddWaveSource(source);
 
         // Spawn visual splash particles
-        const int splashCount = 8;
+        const int splashCount = 12;
         for (int i = 0; i < splashCount; ++i) {
             auto splash = scene->CreateEntity("Splash");
 
             auto& tr = splash->AddComponent<TransformComponent>();
             tr.position = pos;
-            float s = 0.06f + (i % 3) * 0.03f;
+            float s = 0.15f + (i % 4) * 0.05f;
             tr.scale = { s, s, s };
 
             auto& pm = splash->AddComponent<PrimitiveMeshComponent>();
@@ -209,6 +209,15 @@ private:
             if (GetSceneContext()) nsc.SetSceneContext(GetSceneContext());
 
             scene->InitDynamicEntityRuntime(*splash);
+
+            // 即座に PrimitiveMesh の Transform を同期して原点でのチラつきを防ぐ
+            if (pm.meshHandle >= 0) {
+                if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
+                    pmTr->scale = tr.scale;
+                    pmTr->rotation = tr.rotation;
+                    pmTr->translation = tr.position;
+                }
+            }
         }
     }
 };

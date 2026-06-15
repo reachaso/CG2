@@ -12,7 +12,7 @@ cbuffer SimulationParams : register(b0)
     // x, y = UV座標 (0.0 ～ 1.0)
     // z = 波源の半径 (UV空間での半径)
     // w = 波源の強さ (高さの加算値)
-    float4 gSources[16]; 
+    float4 gSources[64]; 
 };
 
 // t0: 1フレーム前のハイトマップ
@@ -61,12 +61,10 @@ void main( uint3 DTid : SV_DispatchThreadID )
     // laplacian = 空間的な広がり
     float laplacian = hLeft + hRight + hUp + hDown - 4.0f * h1;
     
-    // 速度にのみ減衰をかける方式:
-    // h_new = h1 + damping * (h1 - h2) + alpha * laplacian
-    // これにより波のエネルギーは減衰するが、
-    // 静止時 (h1 == h2 == 0, laplacian == 0) → h_new = 0 に正しく収束する
-    float velocity = (h1 - h2) * gDamping;
-    float hNew = h1 + velocity + gAlpha * laplacian;
+    // 1. Verlet積分に基づく波動方程式（局所的な速度減衰 gDamping を適用）
+    float hNew = h1 + (h1 - h2) * gDamping + gAlpha * laplacian;
+    // 2. 水面全体が自然に0（平坦）に戻るように、全体に微小な減衰をかける
+    hNew *= 0.99f;
 
     // 波源（力）の加算
     float2 uv = float2((float)DTid.x / (float)(width - 1), (float)DTid.y / (float)(height - 1));

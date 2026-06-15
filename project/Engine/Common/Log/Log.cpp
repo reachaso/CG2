@@ -7,6 +7,34 @@
 #include <format>
 #include <string>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
+
+namespace {
+  LONG WINAPI UnhandledExceptionFilterFunc(EXCEPTION_POINTERS* exceptionPointers) {
+    std::stringstream ss;
+    ss << "========================================\n";
+    ss << "Fatal Error: Unhandled Exception\n";
+    ss << "Exception Code: 0x" << std::hex << std::uppercase << exceptionPointers->ExceptionRecord->ExceptionCode << "\n";
+    ss << "Exception Address: 0x" << exceptionPointers->ExceptionRecord->ExceptionAddress << "\n";
+
+    if (exceptionPointers->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
+      ss << "Access Violation: ";
+      if (exceptionPointers->ExceptionRecord->NumberParameters >= 2) {
+        ss << (exceptionPointers->ExceptionRecord->ExceptionInformation[0] ? "Write" : "Read");
+        ss << " at address 0x" << exceptionPointers->ExceptionRecord->ExceptionInformation[1] << "\n";
+      }
+    }
+    ss << "========================================\n";
+
+    Log::Print(ss.str());
+
+    // 強制的にフラッシュ・クローズしてログを確実に書き込む
+    Log::Finalize();
+
+    return EXCEPTION_EXECUTE_HANDLER; // プロセスを終了させる
+  }
+}
 
 // 静的メンバの定義
 std::ofstream Log::sLogFile_;
@@ -32,6 +60,8 @@ void Log::ClearHistory() {
 }
 
 void Log::Initialize() {
+  // 例外フィルターを登録
+  SetUnhandledExceptionFilter(UnhandledExceptionFilterFunc);
 
   // ログのディレクトリを用意
   std::filesystem::create_directory("../logs");

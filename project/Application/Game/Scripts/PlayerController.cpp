@@ -108,13 +108,26 @@ protected:
 
         // Water wave interaction
         if (moveX != 0.0f || moveZ != 0.0f) {
+            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
+
+            if (!firstUpdate_) {
+                RC::WaveSource sourcePrev;
+                sourcePrev.uv = RC::Vector2((prevPosition_.x / 100.0f) + 0.5f, (prevPosition_.z / 100.0f) + 0.5f);
+                sourcePrev.radius = 0.03f;
+                sourcePrev.strength = -velocity * 0.03f;
+                RC::AddWaveSource(sourcePrev);
+            }
+
             RC::WaveSource source;
             source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
-            source.radius = 0.02f;
-            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) * speed;
-            source.strength = velocity * 0.015f;
+            source.radius = 0.03f;
+            source.strength = velocity * 0.03f;
             RC::AddWaveSource(source);
+
         }
+        
+        prevPosition_ = tr->position;
+        firstUpdate_ = false;
 
         // Store facing direction for shooting
         if (moveX != 0.0f || moveZ != 0.0f) {
@@ -173,6 +186,8 @@ public:
 private:
     float shootTimer_ = 0.0f;
     RC::Vector3 facingDir_ = { 0.0f, 0.0f, 1.0f };
+    RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
+    bool firstUpdate_ = true;
 
     void Shoot(const RC::Vector3& origin) {
         Scene* scene = GetScene();
@@ -194,7 +209,7 @@ private:
         // Collider (Sphere)
         auto& col = bullet->AddComponent<ColliderComponent>();
         col.shape = ColliderComponent::Shape::Sphere;
-        col.radius = 0.3f;
+        col.radius = 1.0f;
         col.isTrigger = true;
 
         // Script
@@ -212,6 +227,15 @@ private:
 
         // Initialize runtime
         scene->InitDynamicEntityRuntime(*bullet);
+
+        // 即座に PrimitiveMesh の Transform を同期して原点でのチラつきを防ぐ
+        if (pm.meshHandle >= 0) {
+            if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
+                pmTr->scale = tr.scale;
+                pmTr->rotation = tr.rotation;
+                pmTr->translation = tr.position;
+            }
+        }
     }
 
     void DrawHUD() {

@@ -16,7 +16,7 @@ struct WaveSimCB {
   float damping;
   int sourceCount;
   float padding;
-  Vector4 sources[16];
+  Vector4 sources[64];
 };
 
 static constexpr int TEX_SIZE = 256;
@@ -119,7 +119,7 @@ void TermInteractiveWater() {
 }
 
 void AddWaveSource(const WaveSource& source) {
-  if (s_pendingSources.size() < 16) {
+  if (s_pendingSources.size() < 64) {
     s_pendingSources.push_back(source);
   }
 }
@@ -128,10 +128,13 @@ void UpdateInteractiveWater() {
   if (!s_initialized) return;
   auto& ctx = GetRenderContext();
 
-  // インデックスのローテーション (prevPrev -> prev -> curr(出力先))
-  int prevPrevIdx = s_currIdx;
-  int prevIdx = (s_currIdx + 1) % 3;
-  int nextIdx = (s_currIdx + 2) % 3;
+  // インデックスのローテーション
+  // s_currIdx は前フレームでレンダリングした「最新(h1)」のテクスチャ
+  int h1Idx = s_currIdx;
+  // 2フレーム前の「古い(h2)」テクスチャ
+  int h2Idx = (s_currIdx + 2) % 3;
+  // 今回レンダリングする「次(out)」のテクスチャ
+  int nextIdx = (s_currIdx + 1) % 3;
 
   // CBの更新
   if (s_simCBMapped) {
@@ -146,7 +149,7 @@ void UpdateInteractiveWater() {
         s_simCBMapped->padding = 0.0f;
     }
 
-    int count = std::min(16, (int)s_pendingSources.size());
+    int count = std::min(64, (int)s_pendingSources.size());
     s_simCBMapped->sourceCount = count;
     for (int i = 0; i < count; ++i) {
       s_simCBMapped->sources[i] = Vector4(
@@ -159,7 +162,7 @@ void UpdateInteractiveWater() {
   s_pendingSources.clear();
 
   // リソースバリアから先のGPUコマンドをキューイング (SortKey=0で最初に処理させる)
-  ctx.PushCommand3D(0, [prevIdx, prevPrevIdx, nextIdx](ID3D12GraphicsCommandList* cl) {
+  ctx.PushCommand3D(0, [h1Idx, h2Idx, nextIdx](ID3D12GraphicsCommandList* cl) {
     auto& renderCtx = GetRenderContext();
     if (!cl) return;
 
@@ -188,10 +191,10 @@ void UpdateInteractiveWater() {
       // b0
       cl->SetComputeRootConstantBufferView(0, s_simCB->GetGPUVirtualAddress());
 
-      // t0 (prev)
-      cl->SetComputeRootDescriptorTable(1, s_srvs[prevIdx].gpu);
-      // t1 (prevPrev)
-      cl->SetComputeRootDescriptorTable(2, s_srvs[prevPrevIdx].gpu);
+      // t0 (h1: 最新のハイトマップ)
+      cl->SetComputeRootDescriptorTable(1, s_srvs[h1Idx].gpu);
+      // t1 (h2: 1つ前のハイトマップ)
+      cl->SetComputeRootDescriptorTable(2, s_srvs[h2Idx].gpu);
       // u0 (next)
       cl->SetComputeRootDescriptorTable(3, s_uavs[nextIdx].gpu);
 

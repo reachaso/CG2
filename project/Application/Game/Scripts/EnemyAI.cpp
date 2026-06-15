@@ -107,13 +107,25 @@ protected:
 
             // Water wave interaction
             if (std::abs(moveX) > 0.001f || std::abs(moveZ) > 0.001f) {
+                float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) / deltaTime;
+
+                if (!firstUpdate_) {
+                    RC::WaveSource sourcePrev;
+                    sourcePrev.uv = RC::Vector2((prevPosition_.x / 100.0f) + 0.5f, (prevPosition_.z / 100.0f) + 0.5f);
+                    sourcePrev.radius = 0.035f;
+                    sourcePrev.strength = -velocity * 0.02f;
+                    RC::AddWaveSource(sourcePrev);
+                }
+
                 RC::WaveSource source;
                 source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
-                source.radius = 0.025f;
-                float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) / deltaTime;
-                source.strength = velocity * 0.01f;
+                source.radius = 0.035f;
+                source.strength = velocity * 0.02f;
                 RC::AddWaveSource(source);
+
             }
+            prevPosition_ = tr->position;
+            firstUpdate_ = false;
 
             // Face toward player
             tr->rotation.y = std::atan2(dirToPlayer.x, dirToPlayer.z);
@@ -164,6 +176,8 @@ public:
 private:
     float shootTimer_ = 0.0f;
     float strafeAngle_ = 0.0f;
+    RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
+    bool firstUpdate_ = true;
 
     void ShootAt(const RC::Vector3& origin, const RC::Vector3& target) {
         Scene* scene = GetScene();
@@ -193,7 +207,7 @@ private:
 
         auto& col = bullet->AddComponent<ColliderComponent>();
         col.shape = ColliderComponent::Shape::Sphere;
-        col.radius = 0.25f;
+        col.radius = 1.0f;
         col.isTrigger = true;
 
         auto& nsc = bullet->AddComponent<NativeScriptComponent>();
@@ -209,6 +223,15 @@ private:
         }
 
         scene->InitDynamicEntityRuntime(*bullet);
+
+        // 即座に PrimitiveMesh の Transform を同期して原点でのチラつきを防ぐ
+        if (pm.meshHandle >= 0) {
+            if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
+                pmTr->scale = tr.scale;
+                pmTr->rotation = tr.rotation;
+                pmTr->translation = tr.position;
+            }
+        }
     }
 
     void DrawEnemyHPBar() {
