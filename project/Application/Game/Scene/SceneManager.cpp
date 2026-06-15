@@ -8,6 +8,7 @@
 #include <chrono>
 #include <format>
 #include <cstdlib>
+#include "Render/RenderContext.h"
 
 namespace RC { class CameraController; }
 
@@ -265,6 +266,9 @@ void Scene::SceneManager::ChangeImmediately(const std::string &name,
 
   // 新しいシーンでのテクスチャログ出力を許可するためにリセット
   RC::ClearTextureLogHistory();
+
+  // シーン切り替え直後のフレームで描画コマンドの順序をダンプする
+  RC::GetRenderContext().RequestDumpCommandOrder();
 }
 
 void Scene::SceneManager::ReloadCurrentScene(SceneContext &ctx) {

@@ -28,6 +28,8 @@ class PipelineManager;  // 前方宣言
 
 namespace RC {
 
+class FrameResource; // 前方宣言
+
 /// @brief モデルリソースと描画オブジェクトを一括管理するマネージャクラス
 /// モデルをハンドル(int)で管理し、同一ファイルのメッシュ共有や非同期ロードをサポートします。
 class ModelManager {
@@ -115,6 +117,11 @@ public:
   /// @brief 管理している全モデルのバッチカーソルをリセットする
   /// 毎フレームの描画開始前に呼び出すことを想定しています。
   void ResetAllBatchCursors();
+
+  /// @brief 管理している全モデルのうち、CSスキニングが有効かつ未実行のものを一括でDispatchする
+  /// @param cl コマンドリスト
+  /// @param frame フレームリソース
+  void DispatchAllSkinning(ID3D12GraphicsCommandList* cl, RC::FrameResource& frame);
 
 private:
   /// @brief モデルオブジェクト保持用スロット

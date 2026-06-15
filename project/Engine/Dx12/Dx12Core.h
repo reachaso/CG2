@@ -38,9 +38,18 @@ public:
   /// @brief 終了処理
   void Term();
 
+  /// @brief ウィンドウリサイズ対応
+  void Resize(UINT width, UINT height);
+
   /// @brief FPS固定機能の有効/無効切り替え
   /// @param enable 有効にするならtrue
   void EnableFixFps(bool enable = true);
+
+  /// @brief 目標FPSを設定
+  void SetTargetFps(float fps);
+
+  /// @brief 現在の目標FPSを取得
+  float GetTargetFps() const { return targetFps_; }
 
   /// @brief フレーム開始処理
   /// コマンドアロケータやリストのリセット、バックバッファの取得を行います。
@@ -193,4 +202,5 @@ private:
   bool requestScreenshot_ = false; ///< スクリーンショット撮影要求フラグ
   std::string latestScreenshotPath_; ///< 最新のスクリーンショットパス
   VideoRecorder videoRecorder_;    ///< ビデオ録画管理
+  float targetFps_ = 60.0f;        ///< 目標FPS
 };

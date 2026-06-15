@@ -45,6 +45,15 @@ public:
   /// @brief アプリケーションの終了処理
   void Term();
 
+  /// @brief ウィンドウの解像度とフルスクリーン設定を動的に変更する
+  void ResizeWindow(int width, int height, bool fullscreen);
+
+  /// @brief アプリケーション設定をファイルから読み込む
+  void LoadAppConfig();
+
+  /// @brief アプリケーション設定をファイルへ保存する
+  void SaveAppConfig();
+
 private:
   /// @brief フレーム更新処理
   void Update();

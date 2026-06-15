@@ -12,6 +12,11 @@ public:
   /// Presentおよびフェンス待ちの直後に毎フレーム呼び出してください。
   void Update();
 
+  /// @brief 目標FPSを設定します。
+  void SetTargetFps(float fps) { targetFps_ = fps; }
+  float GetTargetFps() const { return targetFps_; }
+
 private:
   std::chrono::steady_clock::time_point reference_; ///< フレーム開始時の基準時間
+  float targetFps_ = 60.0f;                         ///< 目標フレームレート
 };

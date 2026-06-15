@@ -26,6 +26,13 @@ Window::~Window() {
 LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam,
                                     LPARAM lparam) {
 
+  // Alt + 左クリックでボーダーレスウィンドウをドラッグ移動できるようにする
+  if (msg == WM_NCHITTEST) {
+    if (GetAsyncKeyState(VK_MENU) & 0x8000) {
+      return HTCAPTION;
+    }
+  }
+
   #if RC_ENABLE_IMGUI
   if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
     return true; // ImGuiが処理した場合はtrueを返す
@@ -84,14 +91,27 @@ void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
 
   // ウィンドウクラスを登録
   RegisterClass(&wc);
-
+  // ウィンドウスタイルを設定
+#if defined(_DEBUG) || defined(RC_DEVELOPMENT)
+  DWORD style = WS_POPUP | WS_VISIBLE;
+#else
   DWORD style = fullscreen ? (WS_POPUP | WS_VISIBLE) : WS_OVERLAPPEDWINDOW;
+#endif
 
-  wrc = {0, 0, kClientWidth, kClientHeight};
+  RECT wrc = {0, 0, kClientWidth, kClientHeight};
   AdjustWindowRect(&wrc, style, false);
 
-  int x = fullscreen ? 0 : CW_USEDEFAULT;
-  int y = fullscreen ? 0 : CW_USEDEFAULT;
+  int windowW = wrc.right - wrc.left;
+  int windowH = wrc.bottom - wrc.top;
+  
+  int x = 0;
+  int y = 0;
+  if (!fullscreen) {
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+    x = (screenW - windowW) / 2;
+    y = (screenH - windowH) / 2;
+  }
 
   // ウィンドウを作成
   hwnd = CreateWindow(wc.lpszClassName,     // 利用するクラス名
@@ -99,8 +119,8 @@ void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
                       style,                // ウィンドウスタイル
                       x,                    // x座標
                       y,                    // y座標
-                      wrc.right - wrc.left, // 幅
-                      wrc.bottom - wrc.top, // 高さ
+                      windowW,              // 幅
+                      windowH,              // 高さ
                       nullptr,              // 親ウィンドウハンドル
                       nullptr,              // メニューハンドル
                       wc.hInstance,         // インスタンスハンドル
@@ -111,6 +131,40 @@ void Window::Initialize(const char *windowTitle, const int32_t kClientWidth,
   ShowWindow(hwnd, SW_SHOW);
 
   Log::Print(std::format("[Window] Created: \"{}\" ({}x{})", windowTitle, kClientWidth, kClientHeight));
+}
+
+void Window::Resize(int& outWidth, int& outHeight, bool fullscreen) {
+  if (!hwnd) return;
+
+#if defined(_DEBUG) || defined(RC_DEVELOPMENT)
+  DWORD style = WS_POPUP | WS_VISIBLE;
+#else
+  DWORD style = fullscreen ? (WS_POPUP | WS_VISIBLE) : WS_OVERLAPPEDWINDOW;
+#endif
+  
+  SetWindowLongPtr(hwnd, GWL_STYLE, style);
+
+  if (fullscreen) {
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+    SetWindowPos(hwnd, HWND_TOP, 0, 0, screenW, screenH, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    outWidth = screenW;
+    outHeight = screenH;
+  } else {
+    RECT wrc = {0, 0, outWidth, outHeight};
+    AdjustWindowRect(&wrc, style, false);
+    
+    // ウィンドウをプライマリモニタの中央に配置する
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+    int windowW = wrc.right - wrc.left;
+    int windowH = wrc.bottom - wrc.top;
+    int x = (screenW - windowW) / 2;
+    int y = (screenH - windowH) / 2;
+    
+    SetWindowPos(hwnd, HWND_TOP, x, y, windowW, windowH, SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+  }
+  Log::Print(std::format("[Window] Resized: ({}x{}) Fullscreen:{}", outWidth, outHeight, fullscreen));
 }
 
 static std::wstring Utf8ToWStringImpl(const char *s) {

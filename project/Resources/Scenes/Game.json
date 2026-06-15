@@ -160,10 +160,24 @@
       "components": [
         {
           "data": {
-            "scriptTypeName": "PlayerController"
+            "position": [
+              0.0,
+              0.30000001192092896,
+              -40.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
           },
           "enabled": true,
-          "type": "NativeScriptComponent"
+          "type": "TransformComponent"
         },
         {
           "data": {
@@ -187,24 +201,10 @@
         },
         {
           "data": {
-            "position": [
-              0.0,
-              0.30000001192092896,
-              -40.0
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
+            "scriptTypeName": "PlayerController"
           },
           "enabled": true,
-          "type": "TransformComponent"
+          "type": "NativeScriptComponent"
         },
         {
           "data": {
@@ -238,6 +238,34 @@
       "components": [
         {
           "data": {
+            "scriptTypeName": "EnemyAI"
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.5,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              3.1415927410125732,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -258,27 +286,6 @@
         },
         {
           "data": {
-            "position": [
-              0.0,
-              0.5,
-              0.0
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
-        },
-        {
-          "data": {
             "blendMode": 0,
             "color": [
               1.0,
@@ -295,13 +302,6 @@
           },
           "enabled": true,
           "type": "ModelRendererComponent"
-        },
-        {
-          "data": {
-            "scriptTypeName": "EnemyAI"
-          },
-          "enabled": true,
-          "type": "NativeScriptComponent"
         }
       ],
       "guid": 2989546450025243194,

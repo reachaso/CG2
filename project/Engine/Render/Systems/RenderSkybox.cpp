@@ -63,7 +63,7 @@ void DrawSkyBox(int skyboxHandle) {
     r.BindPipeline("object3d");
     r.BindCameraCB();
     r.BindAllLightCBs();
-  });
+  }, "Skybox", skyboxHandle);
 }
 
 void SetEnvironmentMap(int skyboxHandle) {

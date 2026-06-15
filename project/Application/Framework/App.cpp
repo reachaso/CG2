@@ -4,6 +4,8 @@
 #include <cassert>
 #include <chrono>
 #include <format>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -37,6 +39,9 @@ bool App::Init() {
 #endif
 
   auto stepStart = std::chrono::high_resolution_clock::now();
+
+  // 設定のロード
+  LoadAppConfig();
 
   // Window
   window_ = std::make_unique<Window>();
@@ -128,6 +133,15 @@ int App::Run() {
       TranslateMessage(&msg_);
       DispatchMessage(&msg_);
     } else {
+#if RC_ENABLE_IMGUI
+      // 解像度変更のリクエストを処理（GPUとコマンドリストが安全な状態で行う）
+      auto resizeReq = editorManager_.GetResizeRequest();
+      if (resizeReq.pending) {
+          ResizeWindow(resizeReq.width, resizeReq.height, resizeReq.fullscreen);
+          editorManager_.ClearResizeRequest();
+      }
+#endif
+
       auto currentTime = std::chrono::high_resolution_clock::now();
       sceneCtx_.deltaTime = std::chrono::duration<float>(currentTime - prevTime).count();
       if (sceneCtx_.deltaTime > 0.1f) sceneCtx_.deltaTime = 0.1f; // clamp delta time
@@ -159,6 +173,7 @@ int App::Run() {
           sceneCtx_.playState = currentPlayState;
       }
 #endif
+
       // 更新
       Update();
 
@@ -213,7 +228,7 @@ int App::Run() {
 
       // エディタの各パネル描画（Viewport含む）
       editorManager_.DrawUI(viewportTexture_.GetSRVGPU(), &core_, sceneCtx_.deltaTime, game_.GetCurrentScene());
-      
+
       // ImGui 描画
       imgui_.Render(cl_);
 #endif
@@ -258,6 +273,11 @@ void App::Render() {
 }
 
 void App::Term() {
+#if RC_ENABLE_IMGUI
+  // エディタ設定の保存
+  editorManager_.SaveConfig();
+#endif
+
   // ====================
   // GPU Wait
   // ====================
@@ -304,4 +324,73 @@ void App::Term() {
   window_.reset();
 
   ReportLiveObjectsDbg("FINAL Report at the end of App::Term");
+}
+
+void App::LoadAppConfig() {
+  std::ifstream ifs("../project/AppConfig.json");
+  if (ifs) {
+    try {
+      nlohmann::json j;
+      ifs >> j;
+      if (j.contains("width")) appConfig_.width = j["width"];
+      if (j.contains("height")) appConfig_.height = j["height"];
+      if (j.contains("fullscreen")) appConfig_.fullscreen = j["fullscreen"];
+      Log::Print(std::format("[App] Loaded AppConfig: {}x{} Fullscreen:{}", appConfig_.width, appConfig_.height, appConfig_.fullscreen));
+      return;
+    } catch (...) {
+      Log::Print("[App] Failed to parse AppConfig.json");
+    }
+  }
+
+  // デフォルト設定：モニタ解像度に合わせたボーダーレスフルスクリーン
+  appConfig_.fullscreen = true;
+  appConfig_.width = GetSystemMetrics(SM_CXSCREEN);
+  appConfig_.height = GetSystemMetrics(SM_CYSCREEN);
+  Log::Print(std::format("[App] Default AppConfig: {}x{} Fullscreen:{}", appConfig_.width, appConfig_.height, appConfig_.fullscreen));
+}
+
+void App::SaveAppConfig() {
+  nlohmann::json j;
+  j["width"] = appConfig_.width;
+  j["height"] = appConfig_.height;
+  j["fullscreen"] = appConfig_.fullscreen;
+
+  std::ofstream ofs("../project/AppConfig.json");
+  if (ofs) {
+    ofs << j.dump(4);
+    Log::Print("[App] Saved AppConfig.json");
+  }
+}
+
+void App::ResizeWindow(int width, int height, bool fullscreen) {
+  if (appConfig_.width == width && appConfig_.height == height && appConfig_.fullscreen == fullscreen) {
+    return;
+  }
+
+  appConfig_.width = width;
+  appConfig_.height = height;
+  appConfig_.fullscreen = fullscreen;
+
+  // GPU Wait
+  core_.WaitForGPU();
+
+  // 1. Window Resize
+  window_->Resize(appConfig_.width, appConfig_.height, appConfig_.fullscreen);
+
+  // 2. Save Config
+  SaveAppConfig();
+
+  // 3. Core Resize
+  coreDesc_.width = appConfig_.width;
+  coreDesc_.height = appConfig_.height;
+  core_.Resize(appConfig_.width, appConfig_.height);
+
+  // 4. RenderTexture Resize (ディスクリプタを再利用して再初期化)
+  renderTexture_.Initialize(&core_, appConfig_.width, appConfig_.height, coreDesc_.rtvFormat);
+  viewportTexture_.Initialize(&core_, appConfig_.width, appConfig_.height, coreDesc_.rtvFormat);
+
+  // 5. PostProcess Resize
+  if (postProcess_) {
+    postProcess_->Resize(appConfig_.width, appConfig_.height);
+  }
 }

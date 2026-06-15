@@ -32,6 +32,7 @@ void DrawSprite(int spriteHandle) {
     return;
   }
 
+  ctx.AddCommandHistory("Sprite", spriteHandle);
   ctx.Sprites().Draw(spriteHandle, ctx.CL());
 }
 
@@ -46,6 +47,7 @@ void DrawSpriteRect(int spriteHandle, float srcX, float srcY, float srcW,
     return;
   }
 
+  ctx.AddCommandHistory("SpriteRect", spriteHandle);
   ctx.Sprites().DrawRect(spriteHandle, srcX, srcY, srcW, srcH, texW, texH,
                          insetPx, ctx.CL());
 }
@@ -61,6 +63,7 @@ void DrawSpriteRectUV(int spriteHandle, float u0, float v0, float u1,
     return;
   }
 
+  ctx.AddCommandHistory("SpriteRectUV", spriteHandle);
   ctx.Sprites().DrawRectUV(spriteHandle, u0, v0, u1, v1, ctx.CL());
 }
 

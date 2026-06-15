@@ -203,6 +203,18 @@ public:
   /// @param task futureオブジェクト
   void AddLoadingTask(std::future<void> &&task);
 
+  /// @brief 描画コマンドの履歴保存用構造体
+  struct RenderCommandHistory {
+    std::string debugName;
+    int debugIndex;
+    uint64_t sortKey;
+  };
+
+  /// @brief 描画履歴にコマンドを追加する
+  void AddCommandHistory(const char* name, int index, uint64_t sortKey = 0) {
+    currentCommandHistory_.push_back({name, index, sortKey});
+  }
+
   /// @brief 3D描画用コマンドの構造体
   struct RenderCommand3D {
     enum Type {
@@ -217,26 +229,37 @@ public:
     bool primDepth = false;
     uint32_t primStart = 0;
     uint32_t primCount = 0;
+
+    const char* debugName = "Unknown"; ///< デバッグ用コマンド名
+    int debugIndex = -1; ///< デバッグ用ハンドル番号(Index)
   };
 
   /// @brief 3D描画コマンドをキューに追加する
   /// @param func 実行する関数
-  void PushCommand3D(std::function<void(ID3D12GraphicsCommandList *)> func) {
+  /// @param debugName デバッグ用コマンド名
+  /// @param debugIndex デバッグ用ハンドル番号
+  void PushCommand3D(std::function<void(ID3D12GraphicsCommandList *)> func, const char* debugName = "Unknown", int debugIndex = -1) {
     RenderCommand3D cmd;
     cmd.type = RenderCommand3D::Other;
     cmd.func = std::move(func);
+    cmd.debugName = debugName;
+    cmd.debugIndex = debugIndex;
     commandQueue3D_.push_back(std::move(cmd));
   }
 
   /// @brief ソートキーを指定して3D描画コマンドをキューに追加する
   /// @param sortKey ソート順序
   /// @param func 実行する関数
+  /// @param debugName デバッグ用コマンド名
+  /// @param debugIndex デバッグ用ハンドル番号
   void PushCommand3D(uint64_t sortKey,
-                     std::function<void(ID3D12GraphicsCommandList *)> func) {
+                     std::function<void(ID3D12GraphicsCommandList *)> func, const char* debugName = "Unknown", int debugIndex = -1) {
     RenderCommand3D cmd;
     cmd.type = RenderCommand3D::Other;
     cmd.sortKey = sortKey;
     cmd.func = std::move(func);
+    cmd.debugName = debugName;
+    cmd.debugIndex = debugIndex;
     commandQueue3D_.push_back(std::move(cmd));
   }
 
@@ -244,9 +267,15 @@ public:
   void PushPrimitive3DCommand(bool depth, uint32_t start, uint32_t count,
                               uint64_t sortKey = 0);
   
+  /// @brief 次のフレームの Execute3DCommands 時にコマンドの実行順序をログ出力するよう要求する
+  void RequestDumpCommandOrder() { dumpCommandOrder_ = true; }
+
   /// @brief キューに積まれた全3D描画コマンドを実行する
   void Execute3DCommands();
   
+  /// @brief 直前のフレームで実行された描画コマンド(3D/2D)のリストを取得する（デバッグ用）
+  const std::vector<RenderCommandHistory>& GetLastCommandHistory() const { return lastCommandHistory_; }
+
   /// @brief 3D描画コマンドキューをクリアする
   void Clear3DCommands() { commandQueue3D_.clear(); }
 
@@ -277,6 +306,7 @@ public:
 private:
   bool initialized_ = false; ///< 初期化フラグ
   bool overlayMode_ = false; ///< オーバーレイモード（ギズモ用）
+  bool dumpCommandOrder_ = false; ///< 1フレームだけコマンド実行順をダンプするフラグ
 
   Microsoft::WRL::ComPtr<ID3D12Device> device_;    ///< デバイス
   DescriptorHeap *srvHeap_ = nullptr;              ///< SRVヒープ
@@ -329,6 +359,8 @@ private:
   std::unique_ptr<Primitive3D> prim3D_;             ///< 3Dプリミティブ描画器
 
   std::vector<RenderCommand3D> commandQueue3D_;    ///< 3D描画コマンドキュー
+  std::vector<RenderCommandHistory> currentCommandHistory_; ///< 現在フレームの描画キュー履歴
+  std::vector<RenderCommandHistory> lastCommandHistory_;    ///< デバッグ表示用の前フレーム描画キュー履歴
 
   std::array<FrameResource, FrameResource::kFrameCount> frameResources_; ///< フレーム別リソース
   uint32_t frameIndex_ = 0;                         ///< 現在のフレームリソースインデックス

@@ -127,8 +127,6 @@ void AddWaveSource(const WaveSource& source) {
 void UpdateInteractiveWater() {
   if (!s_initialized) return;
   auto& ctx = GetRenderContext();
-  auto cl = ctx.CL();
-  if (!cl) return;
 
   // インデックスのローテーション (prevPrev -> prev -> curr(出力先))
   int prevPrevIdx = s_currIdx;
@@ -160,59 +158,64 @@ void UpdateInteractiveWater() {
   }
   s_pendingSources.clear();
 
-  // リソースバリアの設定 (nextIdx を UAV に)
-  D3D12_RESOURCE_BARRIER barrierToUAV = {};
-  barrierToUAV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-  barrierToUAV.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-  barrierToUAV.Transition.pResource = s_heightMaps[nextIdx].Get();
-  barrierToUAV.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-  barrierToUAV.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-  barrierToUAV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-  cl->ResourceBarrier(1, &barrierToUAV);
+  // リソースバリアから先のGPUコマンドをキューイング (SortKey=0で最初に処理させる)
+  ctx.PushCommand3D(0, [prevIdx, prevPrevIdx, nextIdx](ID3D12GraphicsCommandList* cl) {
+    auto& renderCtx = GetRenderContext();
+    if (!cl) return;
 
-  // Compute Shaderのディスパッチ
-  ID3D12PipelineState* pso = nullptr;
-  ID3D12RootSignature* root = nullptr;
-  if (ctx.Ctx() && ctx.Ctx()->pipelineManager) {
-    pso = ctx.Ctx()->pipelineManager->GetComputePSO("wave_simulation");
-    root = ctx.Ctx()->pipelineManager->GetComputeRoot("wave_simulation");
-  }
+    // リソースバリアの設定 (nextIdx を UAV に)
+    D3D12_RESOURCE_BARRIER barrierToUAV = {};
+    barrierToUAV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrierToUAV.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrierToUAV.Transition.pResource = s_heightMaps[nextIdx].Get();
+    barrierToUAV.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    barrierToUAV.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    barrierToUAV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cl->ResourceBarrier(1, &barrierToUAV);
 
-  if (pso && root) {
-    cl->SetPipelineState(pso);
-    cl->SetComputeRootSignature(root);
+    // Compute Shaderのディスパッチ
+    ID3D12PipelineState* pso = nullptr;
+    ID3D12RootSignature* root = nullptr;
+    if (renderCtx.Ctx() && renderCtx.Ctx()->pipelineManager) {
+      pso = renderCtx.Ctx()->pipelineManager->GetComputePSO("wave_simulation");
+      root = renderCtx.Ctx()->pipelineManager->GetComputeRoot("wave_simulation");
+    }
 
-    // b0
-    cl->SetComputeRootConstantBufferView(0, s_simCB->GetGPUVirtualAddress());
+    if (pso && root) {
+      cl->SetPipelineState(pso);
+      cl->SetComputeRootSignature(root);
 
-    // デスクリプタヒープのセットは呼び出し元 (RenderContext等) で済んでいる前提
-    // t0 (prev)
-    cl->SetComputeRootDescriptorTable(1, s_srvs[prevIdx].gpu);
-    // t1 (prevPrev)
-    cl->SetComputeRootDescriptorTable(2, s_srvs[prevPrevIdx].gpu);
-    // u0 (next)
-    cl->SetComputeRootDescriptorTable(3, s_uavs[nextIdx].gpu);
+      // b0
+      cl->SetComputeRootConstantBufferView(0, s_simCB->GetGPUVirtualAddress());
 
-    // Dispatch (256x256のテクスチャで16x16のスレッドグループ)
-    cl->Dispatch(TEX_SIZE / 16, TEX_SIZE / 16, 1);
-  }
+      // t0 (prev)
+      cl->SetComputeRootDescriptorTable(1, s_srvs[prevIdx].gpu);
+      // t1 (prevPrev)
+      cl->SetComputeRootDescriptorTable(2, s_srvs[prevPrevIdx].gpu);
+      // u0 (next)
+      cl->SetComputeRootDescriptorTable(3, s_uavs[nextIdx].gpu);
 
-  // UAVバリアで完了待ち
-  D3D12_RESOURCE_BARRIER uavBarrier = {};
-  uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-  uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-  uavBarrier.UAV.pResource = s_heightMaps[nextIdx].Get();
-  cl->ResourceBarrier(1, &uavBarrier);
+      // Dispatch (256x256のテクスチャで16x16のスレッドグループ)
+      cl->Dispatch(TEX_SIZE / 16, TEX_SIZE / 16, 1);
+    }
 
-  // リソースバリアの復元 (nextIdx を SRV に戻す)
-  D3D12_RESOURCE_BARRIER barrierToSRV = {};
-  barrierToSRV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-  barrierToSRV.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-  barrierToSRV.Transition.pResource = s_heightMaps[nextIdx].Get();
-  barrierToSRV.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-  barrierToSRV.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-  barrierToSRV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-  cl->ResourceBarrier(1, &barrierToSRV);
+    // UAVバリアで完了待ち
+    D3D12_RESOURCE_BARRIER uavBarrier = {};
+    uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    uavBarrier.UAV.pResource = s_heightMaps[nextIdx].Get();
+    cl->ResourceBarrier(1, &uavBarrier);
+
+    // リソースバリアの復元 (nextIdx を SRV に戻す)
+    D3D12_RESOURCE_BARRIER barrierToSRV = {};
+    barrierToSRV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrierToSRV.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrierToSRV.Transition.pResource = s_heightMaps[nextIdx].Get();
+    barrierToSRV.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    barrierToSRV.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    barrierToSRV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cl->ResourceBarrier(1, &barrierToSRV);
+  }, "InteractiveWater_WaveSim");
 
   // 更新されたものを次回の s_currIdx とする
   s_currIdx = nextIdx;

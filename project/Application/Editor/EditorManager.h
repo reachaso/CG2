@@ -35,6 +35,13 @@ public:
 
   /// @brief Viewportウィンドウがホバーされているか取得する
   bool IsViewportHovered() const { return isViewportHovered_; }
+  void SetViewportHovered(bool hovered) { isViewportHovered_ = hovered; }
+
+  /// @brief 現在のRender Queueの状態をテキストダンプとして出力する
+  void ExportRenderQueueDump();
+
+  void SaveConfig();
+  void LoadConfig();
 
   /// @brief 現在の再生状態を取得する
   PlayState GetPlayState() const;
@@ -44,6 +51,17 @@ public:
 
   /// @brief 選択中のエンティティIDを取得する（未選択なら0）
   uint32_t GetSelectedEntityId() const;
+
+  struct ResizeRequest {
+    bool pending = false;
+    int width = 0;
+    int height = 0;
+    bool fullscreen = false;
+  };
+
+  /// @brief ウィンドウリサイズの要求を取得
+  const ResizeRequest& GetResizeRequest() const { return resizeRequest_; }
+  void ClearResizeRequest() { resizeRequest_.pending = false; }
 
 private:
   /// @brief ダークテーマを適用する
@@ -60,6 +78,7 @@ private:
   bool resetLayout_ = false; ///< レイアウトリセット要求フラグ
   bool showDemoWindow_ = false; ///< ImGuiデモウィンドウの表示フラグ
   bool showPerfWindow_ = false; ///< パフォーマンス（FPS）ウィンドウの表示フラグ
+  bool showRenderQueue_ = false; ///< Render Queue デバッグウィンドウの表示フラグ
   bool isViewportHovered_ = false; ///< Viewportウィンドウがホバーされているか
   
   PlayState playState_; ///< エディタ上での現在の再生状態
@@ -85,4 +104,6 @@ private:
   uint32_t renamingEntityId_ = 0; ///< 名前変更中のエンティティID
   bool focusRename_ = false; ///< 名前変更用のフォーカスフラグ
   std::filesystem::path currentDirectory_ = "Resources"; ///< コンテンツブラウザの現在ディレクトリ
+
+  ResizeRequest resizeRequest_; ///< ウィンドウリサイズ要求
 };

@@ -29,7 +29,11 @@
 #include "ECS/ScriptRegistry.h"
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <chrono>
+#include <format>
 #include <memory>
+#include <nlohmann/json.hpp>
 
 void EditorManager::Initialize() {
 #if RC_ENABLE_IMGUI
@@ -53,6 +57,9 @@ void EditorManager::Initialize() {
   fileFontTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/file_font.png");
 
   ApplyDarkTheme();
+
+  // 設定のロード
+  LoadConfig();
 #endif
 }
 
@@ -133,6 +140,7 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
     if (ImGui::BeginMenu("Window")) {
       ImGui::MenuItem("ImGui Demo", nullptr, &showDemoWindow_);
       ImGui::MenuItem("Performance (FPS)", nullptr, &showPerfWindow_);
+      ImGui::MenuItem("Render Queue", nullptr, &showRenderQueue_);
       if (ImGui::MenuItem("Reset Layout")) {
         resetLayout_ = true;
       }
@@ -297,6 +305,8 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
       playState_ = PlayState::Stopped;
     }
     ImGui::PopStyleColor();
+
+    ImGui::SameLine();
 
     // ----------------------------
     // 右上のウィンドウコントロールボタン
@@ -563,9 +573,215 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
   if (showPerfWindow_) {
     if (ImGui::Begin("Performance", &showPerfWindow_)) {
       ImGuiIO &io = ImGui::GetIO();
+      io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
       const float fps = io.Framerate;
-      ImGui::Text("FPS: %.1f", fps);
-      ImGui::Text("Frame: %.3f ms", 1000.0f / (fps > 0.0f ? fps : 1.0f));
+      const float frameTime = 1000.0f / (fps > 0.0f ? fps : 1.0f);
+
+      // フレームタイム・FPSの履歴バッファ
+      static float fpsHistory[120] = {0};
+      static float msHistory[120] = {0};
+      static int historyIdx = 0;
+      
+      fpsHistory[historyIdx] = fps;
+      msHistory[historyIdx] = frameTime;
+      historyIdx = (historyIdx + 1) % 120;
+
+      if (ImGui::CollapsingHeader("Timing & Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
+          ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "FPS: %.1f", fps);
+          ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Frame Time: %.3f ms", frameTime);
+          
+          ImGui::Separator();
+          
+          char overlayFps[32];
+          sprintf_s(overlayFps, "Avg FPS: %.1f", fps);
+          ImGui::PlotLines("##FPS", fpsHistory, 120, historyIdx, overlayFps, 0.0f, 120.0f, ImVec2(ImGui::GetContentRegionAvail().x, 60.0f));
+
+          char overlayMs[32];
+          sprintf_s(overlayMs, "Avg %.2f ms", frameTime);
+          ImGui::PlotLines("##MS", msHistory, 120, historyIdx, overlayMs, 0.0f, 33.0f, ImVec2(ImGui::GetContentRegionAvail().x, 60.0f));
+      }
+      
+      if (core) {
+          if (ImGui::CollapsingHeader("Graphics Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+              ImGui::Text("Viewport: %.0f x %.0f", core->Viewport().Width, core->Viewport().Height);
+              ImGui::Text("Frame Buffer Count: %u", core->FrameCount());
+              ImGui::Text("Completed Fence: %llu", core->GetCompletedFenceValue());
+          }
+      }
+
+      if (ImGui::CollapsingHeader("Editor Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+          if (core) {
+              float currentFps = core->GetTargetFps();
+              bool isFixed = currentFps > 0.0f;
+              
+              const char* fpsOptions[] = { "30 FPS", "60 FPS", "120 FPS", "144 FPS", "Uncapped" };
+              float fpsValues[] = { 30.0f, 60.0f, 120.0f, 144.0f, 0.0f };
+              
+              int currentItem = 1; // default to 60 FPS
+              if (!isFixed) {
+                  currentItem = 4;
+              } else {
+                  for (int i = 0; i < 4; ++i) {
+                      if (std::abs(fpsValues[i] - currentFps) < 0.1f) {
+                          currentItem = i;
+                          break;
+                      }
+                  }
+              }
+
+              if (ImGui::Combo("Target FPS", &currentItem, fpsOptions, 5)) {
+                  float newFps = fpsValues[currentItem];
+                  core->SetTargetFps(newFps);
+                  core->EnableFixFps(newFps > 0.0f);
+              }
+
+              ImGui::Separator();
+              
+              // Resolution Settings
+#if defined(_DEBUG) || defined(RC_DEVELOPMENT)
+              const char* resOptions[] = {
+                  "Borderless Fullscreen",
+                  "1920 x 1080 (Borderless)",
+                  "1600 x 900 (Borderless)",
+                  "1280 x 720 (Borderless)"
+              };
+#else
+              const char* resOptions[] = {
+                  "Borderless Fullscreen",
+                  "1920 x 1080 (Windowed)",
+                  "1600 x 900 (Windowed)",
+                  "1280 x 720 (Windowed)"
+              };
+#endif
+              
+              int currentResItem = 0;
+              float w = core->Viewport().Width;
+              float h = core->Viewport().Height;
+              
+              int screenW = GetSystemMetrics(SM_CXSCREEN);
+              int screenH = GetSystemMetrics(SM_CYSCREEN);
+              
+              if (w == screenW && h == screenH) currentResItem = 0;
+              else if (w == 1920 && h == 1080) currentResItem = 1;
+              else if (w == 1600 && h == 900) currentResItem = 2;
+              else if (w == 1280 && h == 720) currentResItem = 3;
+              else currentResItem = 0; // fallback
+
+              if (ImGui::Combo("Window Resolution", &currentResItem, resOptions, 4)) {
+                  resizeRequest_.pending = true;
+                  if (currentResItem == 0) {
+                      resizeRequest_.width = screenW;
+                      resizeRequest_.height = screenH;
+                      resizeRequest_.fullscreen = true;
+                  } else if (currentResItem == 1) {
+                      resizeRequest_.width = 1920;
+                      resizeRequest_.height = 1080;
+                      resizeRequest_.fullscreen = false;
+                  } else if (currentResItem == 2) {
+                      resizeRequest_.width = 1600;
+                      resizeRequest_.height = 900;
+                      resizeRequest_.fullscreen = false;
+                  } else if (currentResItem == 3) {
+                      resizeRequest_.width = 1280;
+                      resizeRequest_.height = 720;
+                      resizeRequest_.fullscreen = false;
+                  }
+              }
+              ImGui::Separator();
+          }
+
+          if (ImGui::Button("Save Window Layout")) { SaveConfig(); }
+          ImGui::SameLine();
+          if (ImGui::Button("Load Window Layout")) { LoadConfig(); }
+      }
+    }
+    ImGui::End();
+  }
+
+  // Render Queue パネル
+  if (showRenderQueue_) {
+    if (ImGui::Begin("Render Queue", &showRenderQueue_)) {
+      const auto& queue = RC::GetRenderContext().GetLastCommandHistory();
+      ImGui::Text("Total Commands: %zu", queue.size());
+      
+      ImGui::SameLine();
+      if (ImGui::Button("Export Dump to File")) {
+        ExportRenderQueueDump();
+      }
+
+      ImGui::Separator();
+      if (ImGui::CollapsingHeader("Command Execution Order (3D + 2D)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::BeginTable("RenderQueueTable", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+          ImGui::TableSetupColumn("Order", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+          ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+          ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+          ImGui::TableSetupColumn("SortKey", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+          ImGui::TableHeadersRow();
+
+          for (size_t i = 0; i < queue.size(); ++i) {
+            const auto& cmd = queue[i];
+            
+            std::string displayName = cmd.debugName;
+            if (cmd.debugIndex >= 0) {
+              std::string resourceName = "";
+              if (cmd.debugName.find("Model") != std::string::npos) {
+                if (auto* m = RC::GetRenderContext().Models().Get(cmd.debugIndex)) {
+                  resourceName = std::filesystem::path(m->GetFilePath()).filename().string();
+                }
+              } else if (cmd.debugName.find("Sprite") != std::string::npos) {
+                if (auto* s = RC::GetRenderContext().Sprites().Get(cmd.debugIndex)) {
+                  resourceName = std::filesystem::path(s->GetFilePath()).filename().string();
+                }
+              }
+              
+              if (!resourceName.empty()) {
+                displayName += " [" + resourceName + "]";
+              }
+            }
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("[%zu]", i);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%s", displayName.c_str());
+            ImGui::TableSetColumnIndex(2);
+            if (cmd.debugIndex >= 0) {
+              ImGui::Text("%d", cmd.debugIndex);
+            } else {
+              ImGui::Text("-");
+            }
+            ImGui::TableSetColumnIndex(3);
+            if (cmd.sortKey != 0) {
+              ImGui::Text("%016llX", cmd.sortKey);
+            } else {
+              ImGui::Text("-");
+            }
+            ImGui::TableSetColumnIndex(4);
+            if (cmd.sortKey != 0) {
+              uint8_t layer = static_cast<uint8_t>(cmd.sortKey >> 56);
+              std::string layerStr = (layer == 0) ? "Opaque" : (layer == 1) ? "Alpha" : (layer == 2) ? "Glass" : (layer == 3) ? "Overlay" : "?";
+              ImGui::Text("%d(%s)", layer, layerStr.c_str());
+            } else { ImGui::Text("-"); }
+            ImGui::TableSetColumnIndex(5);
+            if (cmd.sortKey != 0) {
+              uint32_t depth24 = static_cast<uint32_t>(cmd.sortKey & 0x00FFFFFF);
+              ImGui::Text("%u", depth24);
+            } else { ImGui::Text("-"); }
+            ImGui::TableSetColumnIndex(6);
+            if (cmd.sortKey != 0) {
+              uint16_t psoHash = static_cast<uint16_t>((cmd.sortKey >> 40) & 0xFFFF);
+              ImGui::Text("%04X", psoHash);
+            } else { ImGui::Text("-"); }
+            ImGui::TableSetColumnIndex(7);
+            if (cmd.sortKey != 0) {
+              uint16_t texHash = static_cast<uint16_t>((cmd.sortKey >> 24) & 0xFFFF);
+              ImGui::Text("%04X", texHash);
+            } else { ImGui::Text("-"); }
+          }
+          ImGui::EndTable();
+        }
+      }
     }
     ImGui::End();
   }
@@ -1661,4 +1877,82 @@ PlayState EditorManager::GetPlayState() const {
 
 void EditorManager::SetPlayState(PlayState state) {
   playState_ = state;
+}
+
+void EditorManager::ExportRenderQueueDump() {
+  const auto& queue = RC::GetRenderContext().GetLastCommandHistory();
+  auto now = std::chrono::system_clock::now();
+  std::string timeStr = std::format("{:%Y-%m-%d_%H-%M-%S}", std::chrono::current_zone()->to_local(now));
+  
+  std::error_code ec;
+  std::filesystem::create_directories("../logs/render_queue", ec);
+  
+  std::string filename = "../logs/render_queue/dump_" + timeStr + ".txt";
+  std::ofstream ofs(filename);
+  if (ofs) {
+    ofs << "--- Render Queue Dump ---\n";
+    ofs << "Total Commands: " << queue.size() << "\n\n";
+    for (size_t i = 0; i < queue.size(); ++i) {
+      const auto& cmd = queue[i];
+      std::string displayName = cmd.debugName;
+      if (cmd.debugIndex >= 0) {
+        std::string resourceName = "";
+        if (cmd.debugName.find("Model") != std::string::npos) {
+          if (auto* m = RC::GetRenderContext().Models().Get(cmd.debugIndex)) {
+            resourceName = std::filesystem::path(m->GetFilePath()).filename().string();
+          }
+        } else if (cmd.debugName.find("Sprite") != std::string::npos) {
+          if (auto* s = RC::GetRenderContext().Sprites().Get(cmd.debugIndex)) {
+            resourceName = std::filesystem::path(s->GetFilePath()).filename().string();
+          }
+        }
+        if (!resourceName.empty()) {
+          displayName += " [" + resourceName + "]";
+        }
+      }
+
+      if (cmd.sortKey == 0) {
+        ofs << std::format("[{}] {} (Index: {})\n", i, displayName, cmd.debugIndex);
+      } else {
+        uint8_t layer = static_cast<uint8_t>(cmd.sortKey >> 56);
+        std::string layerStr = (layer == 0) ? "Opaque" : (layer == 1) ? "Alpha" : (layer == 2) ? "Glass" : (layer == 3) ? "Overlay" : "?";
+        uint32_t depth24 = static_cast<uint32_t>(cmd.sortKey & 0x00FFFFFF);
+        uint16_t psoHash = static_cast<uint16_t>((cmd.sortKey >> 40) & 0xFFFF);
+        uint16_t texHash = static_cast<uint16_t>((cmd.sortKey >> 24) & 0xFFFF);
+        
+        ofs << std::format("[{}] {} (Index: {}) - Layer: {}({}), Depth24: {}, PSO: {:04X}, Tex: {:04X}, SortKey: {:016X}\n",
+          i, displayName, cmd.debugIndex, layer, layerStr, depth24, psoHash, texHash, cmd.sortKey);
+      }
+    }
+    Log::Print("[Editor] Exported Render Queue to: " + filename);
+  } else {
+    Log::Print("[Editor] Failed to open file for export: " + filename);
+  }
+}
+
+void EditorManager::SaveConfig() {
+  nlohmann::json j;
+  j["showPerfWindow"] = showPerfWindow_;
+  j["showRenderQueue"] = showRenderQueue_;
+  j["showDemoWindow"] = showDemoWindow_;
+  
+  std::ofstream ofs("../project/EditorConfig.json");
+  if (ofs) {
+    ofs << j.dump(4);
+  }
+}
+
+void EditorManager::LoadConfig() {
+  std::ifstream ifs("../project/EditorConfig.json");
+  if (ifs) {
+    try {
+      nlohmann::json j;
+      ifs >> j;
+      if (j.contains("showPerfWindow")) showPerfWindow_ = j["showPerfWindow"];
+      if (j.contains("showRenderQueue")) showRenderQueue_ = j["showRenderQueue"];
+      if (j.contains("showDemoWindow")) showDemoWindow_ = j["showDemoWindow"];
+    } catch (...) {
+      Log::Print("[Editor] Failed to parse EditorConfig.json");
+    }
+  }
 }

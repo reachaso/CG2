@@ -209,11 +209,6 @@ void DrawModel(int modelHandle, int texHandle) {
     const bool useCSSkinning = skinned && m->Resource().HasCSSkinning();
     const std::string_view pipelinePrefix = (skinned && !useCSSkinning) ? "object3d_skin" : "object3d";
 
-    // CS スキニング: Graphics パイプラインバインド前に Dispatch を実行
-    if (useCSSkinning && !m->Resource().IsSkinningDispatched()) {
-      m->Resource().DispatchSkinning(cl, m->GetSkinMatrices(), ctx.CurrentFrame());
-    }
-
     if (IsDebugShadingMode_(shadingMode)) {
       DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned && !useCSSkinning);
     } else {
@@ -230,7 +225,7 @@ void DrawModel(int modelHandle, int texHandle) {
       }
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "Model(Opaque)", modelHandle);
 }
 
 void DrawModel(int modelHandle) { DrawModel(modelHandle, -1); }
@@ -268,11 +263,6 @@ void DrawModelNoCull(int modelHandle, int texHandle) {
     const bool skinned = m->HasSkinData();
     const bool useCSSkinning = skinned && m->Resource().HasCSSkinning();
 
-    // CS スキニング: Graphics パイプラインバインド前に Dispatch を実行
-    if (useCSSkinning && !m->Resource().IsSkinningDispatched()) {
-      m->Resource().DispatchSkinning(cl, m->GetSkinMatrices(), ctx.CurrentFrame());
-    }
-
     if (IsDebugShadingMode_(shadingMode)) {
       DrawDebugSingle_(ctx, m, cl, world, shadingMode, skinned && !useCSSkinning);
     } else {
@@ -290,7 +280,7 @@ void DrawModelNoCull(int modelHandle, int texHandle) {
       }
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "Model(NoCull)", modelHandle);
 }
 
 // ============================================================================
@@ -342,7 +332,7 @@ void DrawModelBatch(int modelHandle, const std::vector<Transform> &instances,
       }
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "Model(Batch)", modelHandle);
 }
 
 void DrawModelBatchColored(int modelHandle,
@@ -392,7 +382,7 @@ void DrawModelBatchColored(int modelHandle,
       }
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "Model(BatchColored)", modelHandle);
 }
 
 // ============================================================================
@@ -447,7 +437,7 @@ void DrawModelGlass(int modelHandle, int texHandle) {
           }
         }
         ctx.SetBlendMode(saved);
-      });
+      }, "Model(Glass)", modelHandle);
 }
 
 void DrawModelGlassBatch(int modelHandle,
@@ -496,7 +486,7 @@ void DrawModelGlassBatch(int modelHandle,
           }
         }
         ctx.SetBlendMode(saved);
-      });
+      }, "Model(GlassBatch)", modelHandle);
 }
 
 void DrawModelGlassBatchColored(int modelHandle,
@@ -546,7 +536,7 @@ void DrawModelGlassBatchColored(int modelHandle,
           }
         }
         ctx.SetBlendMode(saved);
-      });
+      }, "Model(GlassBatchColored)", modelHandle);
 }
 
 
@@ -613,7 +603,7 @@ void DrawModelGlassTwoPass(int modelHandle, int texHandle) {
         }
 
         ctx.SetBlendMode(saved);
-      });
+      }, "Model(GlassTwoPass)", modelHandle);
 }
 
 void DrawModelGlassTwoPassBatch(int modelHandle,
@@ -666,7 +656,7 @@ void DrawModelGlassTwoPassBatch(int modelHandle,
         }
 
         ctx.SetBlendMode(saved);
-      });
+      }, "Model(GlassTwoPassBatch)", modelHandle);
 }
 
 void DrawModelGlassTwoPassBatchColored(int modelHandle,
@@ -719,7 +709,7 @@ void DrawModelGlassTwoPassBatchColored(int modelHandle,
     }
 
     ctx.SetBlendMode(saved);
-  });
+  }, "Model(GlassTwoPassBatchColored)", modelHandle);
 }
 
 

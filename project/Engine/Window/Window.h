@@ -22,6 +22,9 @@ public:
                   const int32_t kClientHeight = kDefaultHeight,
                   bool fullscreen = false);
 
+  /// @brief ウィンドウのサイズとフルスクリーン設定を動的に変更する
+  void Resize(int& outWidth, int& outHeight, bool fullscreen);
+
   void SetTitleUTF8(const char *utf8);
 
   // クリア色の設定＆クリア実行

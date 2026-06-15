@@ -104,7 +104,7 @@ void DrawWater(int meshHandle, int normalMapHandle) {
       m->Draw(cl, world);
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "InteractiveWater", meshHandle);
 }
 
 void UnloadWater(int meshHandle) {

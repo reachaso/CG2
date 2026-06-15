@@ -165,6 +165,10 @@ void RenderContext::SetCamera(const Matrix4x4 &view, const Matrix4x4 &proj,
 // ============================================================================
 
 void RenderContext::PreDraw3D(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
+  // 前フレームの履歴を保存して今フレーム用をクリア
+  lastCommandHistory_ = std::move(currentCommandHistory_);
+  currentCommandHistory_.clear();
+
   cl_ = cl;
   ctxRef_ = &ctx;
   currentBlendMode_ = kBlendModeNone;
@@ -188,6 +192,9 @@ void RenderContext::PreDraw3D(SceneContext &ctx, ID3D12GraphicsCommandList *cl) 
   // FrameResource: フレームインデックスを進めてリセット
   AdvanceFrame();
   CurrentFrame().Reset();
+
+  // CS スキニングの一括Dispatch
+  modelMan_.DispatchAllSkinning(cl, CurrentFrame());
 
   if (auto *prim = EnsurePrimitive3D()) {
     prim->BeginFrame(view_, proj_, kBlendModeNone);
@@ -414,11 +421,68 @@ void RenderContext::Execute3DCommands() {
     return;
   }
 
+  // 最初の1フレームだけ自動でダンプを要求する
+  static bool s_firstDump = false;
+  if (!s_firstDump) {
+    dumpCommandOrder_ = true;
+    s_firstDump = true;
+  }
+
   // 0) ソートキーで安定ソート（sortKey==0 は push 順を維持）
   std::stable_sort(commandQueue3D_.begin(), commandQueue3D_.end(),
                    [](const RenderCommand3D &a, const RenderCommand3D &b) {
                      return a.sortKey < b.sortKey;
                    });
+
+  if (dumpCommandOrder_) {
+    Log::Print("[RenderContext] --- Execute3DCommands Order Dump ---");
+    for (size_t i = 0; i < commandQueue3D_.size(); ++i) {
+      const auto& cmd = commandQueue3D_[i];
+      uint8_t layer = static_cast<uint8_t>(cmd.sortKey >> 56);
+      uint16_t psoHash = static_cast<uint16_t>((cmd.sortKey >> 40) & 0xFFFF);
+      uint16_t texHash = static_cast<uint16_t>((cmd.sortKey >> 24) & 0xFFFF);
+      uint32_t depth24 = static_cast<uint32_t>(cmd.sortKey & 0x00FFFFFF);
+      std::string layerStr = (layer == 0) ? "Opaque" : (layer == 1) ? "Translucent" : (layer == 2) ? "Glass" : (layer == 3) ? "Overlay" : "Unknown";
+
+      if (cmd.type == RenderCommand3D::Primitive) {
+        Log::Print(std::format("  [{}] Primitive (Depth:{}) - Layer: {}({}), Depth24: {}, PSO: {:04X}, Tex: {:04X}", 
+            i, cmd.primDepth, layer, layerStr, depth24, psoHash, texHash));
+      } else {
+        std::string displayName = cmd.debugName ? cmd.debugName : "Unknown";
+        if (cmd.debugIndex >= 0) {
+          std::string resourceName = "";
+          if (displayName.find("Model") != std::string::npos) {
+            if (auto* m = modelMan_.Get(cmd.debugIndex)) {
+              resourceName = std::filesystem::path(m->GetFilePath()).filename().string();
+            }
+          } else if (displayName.find("Sprite") != std::string::npos) {
+            if (auto* s = spriteMan_.Get(cmd.debugIndex)) {
+              resourceName = std::filesystem::path(s->GetFilePath()).filename().string();
+            }
+          }
+          if (!resourceName.empty()) {
+            displayName += " [" + resourceName + "]";
+          }
+          
+          if (cmd.sortKey == 0) {
+            Log::Print(std::format("  [{}] {} [{}]", i, displayName, cmd.debugIndex));
+          } else {
+            Log::Print(std::format("  [{}] {} [{}] - Layer: {}({}), Depth24: {}, PSO: {:04X}, Tex: {:04X}", 
+              i, displayName, cmd.debugIndex, layer, layerStr, depth24, psoHash, texHash));
+          }
+        } else {
+          if (cmd.sortKey == 0) {
+            Log::Print(std::format("  [{}] {}", i, displayName));
+          } else {
+            Log::Print(std::format("  [{}] {} - Layer: {}({}), Depth24: {}, PSO: {:04X}, Tex: {:04X}", 
+              i, displayName, layer, layerStr, depth24, psoHash, texHash));
+          }
+        }
+      }
+    }
+    Log::Print("[RenderContext] ------------------------------------");
+    dumpCommandOrder_ = false;
+  }
 
   // 1) プリミティブの頂点転送
   if (prim3D_ && prim3D_->HasAny()) {
@@ -427,6 +491,13 @@ void RenderContext::Execute3DCommands() {
 
   // 2) キューに積まれたコマンドを順に実行
   for (auto &cmd : commandQueue3D_) {
+    // 履歴に追加
+    if (cmd.type == RenderCommand3D::Primitive) {
+      AddCommandHistory("Primitive3D", -1, cmd.sortKey);
+    } else {
+      AddCommandHistory(cmd.debugName ? cmd.debugName : "Unknown", cmd.debugIndex, cmd.sortKey);
+    }
+
     if (cmd.type == RenderCommand3D::Primitive) {
       if (prim3D_) {
         std::string psoName = cmd.primDepth ? "primitive3d" : "primitive3d_nodepth";

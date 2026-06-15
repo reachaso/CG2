@@ -39,8 +39,16 @@ public:
   /// @param pipelineManager パイプライン管理クラスへのポインタ
   /// @param width 画面解像度（幅）
   /// @param height 画面解像度（高さ）
+  /// @brief 初期化
+  /// @param dxCore DirectX12コアシステムへのポインタ
+  /// @param pipelineManager パイプライン管理クラスへのポインタ
+  /// @param width 画面解像度（幅）
+  /// @param height 画面解像度（高さ）
   void Initialize(Dx12Core *dxCore, PipelineManager *pipelineManager,
                   uint32_t width, uint32_t height);
+
+  /// @brief 解像度のリサイズ対応
+  void Resize(uint32_t width, uint32_t height);
 
   /// @brief 内部時間を更新する（毎フレーム呼び出す）
   /// @param deltaTime 経過時間

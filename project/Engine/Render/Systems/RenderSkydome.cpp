@@ -61,7 +61,7 @@ void DrawSkydome(int skydomeHandle, int texHandle) {
       s->Draw(cl, world);
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "Skydome", skydomeHandle);
 }
 
 

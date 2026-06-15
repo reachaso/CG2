@@ -20,7 +20,9 @@ void RenderTexture::Initialize(Dx12Core *dxCore, uint32_t width,
   rtvDesc.Texture2D.MipSlice = 0;
   rtvDesc.Texture2D.PlaneSlice = 0;
 
-  rtvHandle_ = dxCore->RTV().AllocateCPU();
+  if (rtvHandle_.ptr == 0) {
+      rtvHandle_ = dxCore->RTV().AllocateCPU();
+  }
   device->CreateRenderTargetView(resource_.Get(), &rtvDesc, rtvHandle_);
 
   // 3. SRV の作成
@@ -30,10 +32,11 @@ void RenderTexture::Initialize(Dx12Core *dxCore, uint32_t width,
   srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
   srvDesc.Texture2D.MipLevels = 1;
 
-  // インデックスの安全性を担保しつつハンドルを取得
-  UINT srvIndex = dxCore->SRV().Used();
-  srvHandleCPU_ = dxCore->SRV().AllocateCPU();
-  srvHandleGPU_ = dxCore->SRV().GPUAt(srvIndex);
+  if (srvHandleCPU_.ptr == 0) {
+      UINT srvIndex = dxCore->SRV().Used();
+      srvHandleCPU_ = dxCore->SRV().AllocateCPU();
+      srvHandleGPU_ = dxCore->SRV().GPUAt(srvIndex);
+  }
 
   device->CreateShaderResourceView(resource_.Get(), &srvDesc, srvHandleCPU_);
 

@@ -9,6 +9,7 @@
 #include <format>
 #include <chrono>
 #include "RenderCommon.h"
+#include "Render/FrameResource.h"
 
 namespace RC {
 
@@ -255,6 +256,17 @@ void ModelManager::ResetAllBatchCursors() {
       s.ptr->ResetBatchCursor();
       // CS スキニングの Dispatch フラグをリセット
       s.ptr->Resource().ResetSkinningDispatched();
+    }
+  }
+}
+
+void ModelManager::DispatchAllSkinning(ID3D12GraphicsCommandList* cl, RC::FrameResource& frame) {
+  std::lock_guard lock(mtx_);
+  for (auto &s : models_) {
+    if (s.inUse && s.ptr && s.ptr->HasSkinData() && s.ptr->Resource().HasCSSkinning()) {
+      if (!s.ptr->Resource().IsSkinningDispatched()) {
+        s.ptr->Resource().DispatchSkinning(cl, s.ptr->GetSkinMatrices(), frame);
+      }
     }
   }
 }

@@ -177,6 +177,15 @@ void PostProcess::Initialize(Dx12Core *dxCore,
   }
 }
 
+void PostProcess::Resize(uint32_t width, uint32_t height) {
+  width_ = width;
+  height_ = height;
+  if (pingPongInitialized_) {
+    pingPongA_->Initialize(dxCore_, width_, height_);
+    pingPongB_->Initialize(dxCore_, width_, height_);
+  }
+}
+
 void PostProcess::UpdateTime(float deltaTime) {
   randomTime_ += deltaTime;
   if (mappedRandom_) {

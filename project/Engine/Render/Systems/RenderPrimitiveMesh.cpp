@@ -116,7 +116,7 @@ void DrawPrimitiveMesh(int meshHandle, int texHandle) {
       }
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "PrimitiveMesh", meshHandle);
 }
 
 void DrawPrimitiveMeshWater(int meshHandle, int texHandle) {
@@ -188,7 +188,7 @@ void DrawPrimitiveMeshWater(int meshHandle, int texHandle) {
       }
     }
     ctx.SetBlendMode(prevBlend);
-  });
+  }, "PrimitiveMesh(Water)", meshHandle);
 }
 
 void UnloadPrimitiveMesh(int meshHandle) {

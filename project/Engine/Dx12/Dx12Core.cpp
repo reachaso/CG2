@@ -95,6 +95,7 @@ void Dx12Core::Init(HWND hwnd, const Desc &d) {
   if (fixFpsEnabled_) {
     fixFps_ = std::make_unique<FixFps>();
     fixFps_->Initialize();
+    fixFps_->SetTargetFps(targetFps_);
   }
 
   // ====================
@@ -277,6 +278,27 @@ void Dx12Core::Term() {
   device_.Term();
 }
 
+void Dx12Core::Resize(UINT width, UINT height) {
+  if (desc_.width == width && desc_.height == height) {
+    return;
+  }
+
+  desc_.width = width;
+  desc_.height = height;
+
+  // GPU の完了を待機
+  WaitForGPU();
+
+  // スワップチェーンのバッファリサイズ
+  swap_.Resize(width, height);
+
+  // 深度バッファの再生成
+  depth_.Resize(width, height, dsv_);
+
+  // ビューポートとシザーのリセット
+  ResetViewportScissorToBackbuffer(width, height);
+}
+
 void Dx12Core::EnableFixFps(bool enable) {
   // ====================
   // FixFps
@@ -287,10 +309,18 @@ void Dx12Core::EnableFixFps(bool enable) {
     if (!fixFps_) {
       fixFps_ = std::make_unique<FixFps>();
       fixFps_->Initialize();
+      fixFps_->SetTargetFps(targetFps_);
     }
   } else {
     fixFps_.reset();
   }
+}
+
+void Dx12Core::SetTargetFps(float fps) {
+    targetFps_ = fps;
+    if (fixFps_) {
+        fixFps_->SetTargetFps(fps);
+    }
 }
 
 void Dx12Core::StartRecording() {
