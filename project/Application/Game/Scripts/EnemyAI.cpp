@@ -23,6 +23,7 @@ public:
     int hp = 10;
     int maxHp = 10;
     float preferredDist = 15.0f;  ///< Desired distance to player
+    float weight = 5.0f;          ///< Weight for splash calculation
     bool isDead = false;
     float deathTimer = 0.0f;
 
@@ -34,13 +35,40 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
+        auto* tr = GetComponent<TransformComponent>();
+        if (!tr) return;
+
+        float prevY = tr->position.y;
+
         if (isDead) {
             deathTimer += deltaTime;
-            auto* tr = GetComponent<TransformComponent>();
-            if (tr) {
-                tr->position.y -= deltaTime * 2.0f;
+            verticalVel_ -= 9.8f * deltaTime; // 沈む時の重力（水中の抵抗などを考慮しても良いが一旦通常重力）
+            tr->position.y += verticalVel_ * deltaTime;
+            // 空中から水面に落ちた時だけ水しぶきを上げる
+            if (prevY > 0.1f && tr->position.y <= 0.1f) {
+                float impactSpeed = std::abs(verticalVel_);
+                SpawnSplash({tr->position.x, 0.0f, tr->position.z}, impactSpeed, weight);
             }
             return;
+        }
+
+        // 生きている時も空中にいれば落下する
+        if (tr->position.y > 0.0f) {
+            verticalVel_ -= 9.8f * deltaTime;
+            tr->position.y += verticalVel_ * deltaTime;
+
+            // 水面に着水
+            if (tr->position.y <= 0.0f) {
+                tr->position.y = 0.0f;
+                if (prevY > 0.1f) {
+                    float impactSpeed = std::abs(verticalVel_);
+                    SpawnSplash({tr->position.x, 0.0f, tr->position.z}, impactSpeed, weight);
+                }
+                verticalVel_ = 0.0f;
+            }
+        } else {
+            tr->position.y = 0.0f;
+            verticalVel_ = 0.0f;
         }
 
         // Process pending damage from tag system
@@ -52,9 +80,6 @@ protected:
                 TakeDamage(dmg);
             }
         }
-
-        auto* tr = GetComponent<TransformComponent>();
-        if (!tr) return;
 
         Scene* scene = GetScene();
         if (!scene) return;
@@ -155,6 +180,7 @@ public:
         ImGui::DragFloat("Bullet Speed##E", &bulletSpeed, 0.1f, 1.0f, 50.0f);
         ImGui::DragInt("HP##E", &hp, 1, 0, maxHp);
         ImGui::DragFloat("Preferred Dist##E", &preferredDist, 0.5f, 5.0f, 40.0f);
+        ImGui::DragFloat("Weight##E", &weight, 0.1f, 0.1f, 50.0f);
 #endif
     }
 
@@ -178,6 +204,7 @@ private:
     float strafeAngle_ = 0.0f;
     RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
     bool firstUpdate_ = true;
+    float verticalVel_ = 0.0f;
 
     void ShootAt(const RC::Vector3& origin, const RC::Vector3& target) {
         Scene* scene = GetScene();
@@ -257,6 +284,69 @@ private:
         // Border
         RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
                     { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
+    }
+
+    void SpawnSplash(const RC::Vector3& pos, float impactSpeed, float weightVal) {
+        Scene* scene = GetScene();
+        if (!scene) return;
+
+        // 計算式のベース
+        // impactSpeed は大体 1.0 ~ 20.0 などを想定
+        // weightVal は 1.0 ~ 10.0 などを想定
+        float impactFactor = (impactSpeed * 0.1f) * (weightVal * 0.2f);
+        if (impactFactor < 0.1f) impactFactor = 0.1f;
+        if (impactFactor > 5.0f) impactFactor = 5.0f;
+
+        // 水面の波紋を強く発生させる
+        RC::WaveSource source;
+        source.uv = RC::Vector2((pos.x / 100.0f) + 0.5f, (pos.z / 100.0f) + 0.5f);
+        source.radius = 0.05f + (impactFactor * 0.02f);
+        source.strength = 0.5f + (impactFactor * 0.5f);
+        RC::AddWaveSource(source);
+
+        // 水しぶきパーティクルを複数生成
+        int splashCount = static_cast<int>(8 + (impactFactor * 8));
+        if (splashCount > 30) splashCount = 30; // Max
+
+        for (int i = 0; i < splashCount; ++i) {
+            auto splash = scene->CreateEntity("Splash");
+
+            // タグでパーティクルの勢い（スケール）を渡す
+            splash->SetTag("impact_factor", static_cast<int>(impactFactor * 100));
+
+            auto& tr = splash->AddComponent<TransformComponent>();
+            tr.position = pos;
+            float s = (0.15f + (i % 4) * 0.05f) * (1.0f + impactFactor * 0.3f);
+            tr.scale = { s, s, s };
+
+            auto& pm = splash->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Sphere;
+            pm.meshHandle = RC::GenerateSphere(s);
+
+            if (pm.meshHandle >= 0) {
+                if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm.meshHandle)) {
+                    float r = 0.3f + (i % 3) * 0.15f;
+                    float g = 0.6f + (i % 2) * 0.2f;
+                    mat->color = { r, g, 1.0f, 0.85f };
+                }
+            }
+
+            auto& nsc = splash->AddComponent<NativeScriptComponent>();
+            nsc.Bind("SplashParticle");
+            nsc.SetScene(scene);
+            if (GetSceneContext()) nsc.SetSceneContext(GetSceneContext());
+
+            scene->InitDynamicEntityRuntime(*splash);
+
+            // 即座に PrimitiveMesh の Transform を同期して原点でのチラつきを防ぐ
+            if (pm.meshHandle >= 0) {
+                if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
+                    pmTr->scale = tr.scale;
+                    pmTr->rotation = tr.rotation;
+                    pmTr->translation = tr.position;
+                }
+            }
+        }
     }
 };
 

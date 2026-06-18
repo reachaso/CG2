@@ -60,6 +60,17 @@ void Log::ClearHistory() {
 }
 
 void Log::Initialize() {
+#ifdef _DEBUG
+  if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+    FILE* fp;
+    freopen_s(&fp, "CONOUT$", "w", stdout);
+    freopen_s(&fp, "CONOUT$", "w", stderr);
+    std::cout.clear();
+    std::cerr.clear();
+    SetConsoleOutputCP(CP_UTF8);
+  }
+#endif
+
   // 例外フィルターを登録
   SetUnhandledExceptionFilter(UnhandledExceptionFilterFunc);
 

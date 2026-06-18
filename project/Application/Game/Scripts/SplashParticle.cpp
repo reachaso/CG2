@@ -13,10 +13,16 @@ protected:
         elapsed_ = 0.0f;
         lifetime_ = 0.6f + static_cast<float>(rand() % 100) / 100.0f;
 
+        float impactFactor = 1.0f;
+        if (Entity* self = GetEntity()) {
+            int scaleTag = self->GetTagInt("impact_factor", 100);
+            impactFactor = static_cast<float>(scaleTag) / 100.0f;
+        }
+
         // Random velocity (outward + upward)
         float angle = static_cast<float>(rand() % 360) * 3.14159f / 180.0f;
-        float speed = 4.0f + static_cast<float>(rand() % 100) / 15.0f;
-        float upSpeed = 4.0f + static_cast<float>(rand() % 100) / 15.0f;
+        float speed = (4.0f + static_cast<float>(rand() % 100) / 15.0f) * std::sqrt(impactFactor);
+        float upSpeed = (4.0f + static_cast<float>(rand() % 100) / 15.0f) * impactFactor;
 
         velX_ = std::cos(angle) * speed;
         velY_ = upSpeed;
