@@ -10,7 +10,7 @@ struct AppConfig {
 #if defined(RC_DEVELOPMENT)
   int width = 1280;  ///< ウィンドウの幅
   int height = 720; ///< ウィンドウの高さ
-  bool fullscreen = false; ///< フルスクリーン表示にするか
+  bool fullscreen = true; ///< フルスクリーン表示にするか
 #elif defined(_DEBUG)
   int width = 1920;  ///< ウィンドウの幅
   int height = 1080; ///< ウィンドウの高さ
@@ -27,7 +27,7 @@ struct AppConfig {
 #elif defined(_DEBUG)
   std::string title = "ChasoEngine"; ///< デバッグビルド時のタイトル
 #else
-  std::string title = "LE2B_03_オオシマ_タイガ_奈落ランナー"; ///< リリースビルド時のタイトル
+  std::string title = "LE3B_03_オオシマ_タイガ_"; ///< リリースビルド時のタイトル
 #endif
 
   std::array<float, 4> clearColor{0.1f, 0.25f, 0.5f, 1.0f}; ///< 画面のクリアカラー (RGBA)

@@ -342,10 +342,7 @@ void App::LoadAppConfig() {
     }
   }
 
-  // デフォルト設定：モニタ解像度に合わせたボーダーレスフルスクリーン
-  appConfig_.fullscreen = true;
-  appConfig_.width = GetSystemMetrics(SM_CXSCREEN);
-  appConfig_.height = GetSystemMetrics(SM_CYSCREEN);
+  // AppConfig.h の初期値を使用する
   Log::Print(std::format("[App] Default AppConfig: {}x{} Fullscreen:{}", appConfig_.width, appConfig_.height, appConfig_.fullscreen));
 }
 

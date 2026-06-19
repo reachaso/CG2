@@ -19,7 +19,7 @@ void Game::Init(SceneContext &ctx) {
 #elif defined(_DEBUG)
   const char *boot = "Game";
 #else
-  const char *boot = "Title";
+  const char *boot = "Game";
 #endif
   sceneMgr_.ChangeImmediately(boot, ctx);
 }
