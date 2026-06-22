@@ -27,7 +27,29 @@ cbuffer PerFrame : register(b0)
 {
     float gDeltaTime;
     uint gMaxParticles;
-    float2 gPadding;
+    float gMinLifeTime;
+    float gMaxLifeTime;
+
+    float gMinScale;
+    float gMaxScale;
+    float gGravity;
+    uint gEmitterShape;
+
+    float3 gBaseVelocity;
+    float gVelocityVariance;
+
+    float gShapeRadius;
+    float gConeAngle;
+    float2 gShapePad;
+
+    float4 gStartColor;
+    float4 gEndColor;
+
+    float3 gEmitterPosition;
+    uint gEmitCount;
+
+    float3 gShapeBoxSize;
+    float gShapeBoxPad;
 };
 
 
@@ -55,6 +77,11 @@ float HashSigned(uint seed)
 [numthreads(1024, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
+    if (DTid.x >= gEmitCount)
+    {
+        return;
+    }
+
     // FreeList のインデックスを1つ前に設定し、現在のインデックスを取得
     int freeListIndex;
     InterlockedAdd(gFreeListIndex[0], -1, freeListIndex);

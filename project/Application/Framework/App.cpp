@@ -221,13 +221,16 @@ int App::Run() {
       // Viewport 描画用にSRV状態へ遷移
       viewportTexture_.TransitionToShaderResource(cl_);
 
-      // PostProcessでOMSetRenderTargetsが変更されているため、バックバッファに戻す
+      // Particle Preview 描画
+      editorManager_.RenderParticlePreview(cl_, &core_, &pm_, sceneCtx_.deltaTime);
+
+      // PostProcess等でOMSetRenderTargetsが変更されているため、バックバッファに戻す
       D3D12_CPU_DESCRIPTOR_HANDLE backRtv = core_.CurrentRTV();
       cl_->OMSetRenderTargets(1, &backRtv, FALSE, &dsv);
       core_.ResetViewportScissorToBackbuffer(appConfig_.width, appConfig_.height);
 
       // エディタの各パネル描画（Viewport含む）
-      editorManager_.DrawUI(viewportTexture_.GetSRVGPU(), &core_, sceneCtx_.deltaTime, game_.GetCurrentScene());
+      editorManager_.DrawUI(viewportTexture_.GetSRVGPU(), &core_, &pm_, sceneCtx_.deltaTime, game_.GetCurrentScene());
 
       // ImGui 描画
       imgui_.Render(cl_);
@@ -283,6 +286,11 @@ void App::Term() {
   // ====================
   // GPU 完了待ち
   core_.WaitForGPU();
+
+  // ====================
+  // Editor
+  // ====================
+  editorManager_.Term();
 
   // ====================
   // Game

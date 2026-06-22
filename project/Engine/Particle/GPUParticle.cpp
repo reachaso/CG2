@@ -11,6 +11,9 @@
 #include "Common/Log/Log.h"
 #include "Common/EngineConfig.h"
 
+#include <fstream>
+#include <nlohmann/json.hpp>
+
 #if RC_ENABLE_IMGUI
 #include "imgui/imgui.h"
 #endif
@@ -124,6 +127,23 @@ void GPUParticle::Initialize(SceneContext &ctx) {
   perFrameCB_->Map(0, nullptr, reinterpret_cast<void **>(&perFrameMapped_));
   *perFrameMapped_ = GPUParticlePerFrame{};
   perFrameMapped_->maxParticles = maxParticles_;
+  perFrameMapped_->minLifeTime = minLifeTime_;
+  perFrameMapped_->maxLifeTime = maxLifeTime_;
+  perFrameMapped_->minScale = minScale_;
+  perFrameMapped_->maxScale = maxScale_;
+  perFrameMapped_->gravity = gravity_;
+  perFrameMapped_->emitterShape = static_cast<uint32_t>(emitterShape_);
+  perFrameMapped_->baseVelocity = baseVelocity_;
+  perFrameMapped_->velocityVariance = velocityVariance_;
+  perFrameMapped_->shapeRadius = shapeRadius_;
+  perFrameMapped_->coneAngle = coneAngle_;
+  perFrameMapped_->shapePad = {0.0f, 0.0f};
+  perFrameMapped_->startColor = startColor_;
+  perFrameMapped_->endColor = endColor_;
+  perFrameMapped_->emitterPosition = emitterPosition_;
+  perFrameMapped_->emitCount = emitCount_;
+  perFrameMapped_->shapeBoxSize = shapeBoxSize_;
+  perFrameMapped_->shapeBoxPad = 0.0f;
 
   initialized_ = true;
   Log::Print(std::format("[GPUParticle] Initialized: {} particles (FreeList, {} types)",
@@ -253,9 +273,26 @@ void GPUParticle::Update(const RC::Matrix4x4 &view, const RC::Matrix4x4 &proj,
   if (!visible_ || !initialized_)
     return;
 
-  // 定数バッファの更新
+  // 定数バッファの更新（エミッタパラメータも含む）
   perFrameMapped_->deltaTime = deltaTime;
   perFrameMapped_->maxParticles = maxParticles_;
+  perFrameMapped_->minLifeTime = minLifeTime_;
+  perFrameMapped_->maxLifeTime = maxLifeTime_;
+  perFrameMapped_->minScale = minScale_;
+  perFrameMapped_->maxScale = maxScale_;
+  perFrameMapped_->gravity = gravity_;
+  perFrameMapped_->emitterShape = static_cast<uint32_t>(emitterShape_);
+  perFrameMapped_->baseVelocity = baseVelocity_;
+  perFrameMapped_->velocityVariance = velocityVariance_;
+  perFrameMapped_->shapeRadius = shapeRadius_;
+  perFrameMapped_->coneAngle = coneAngle_;
+  perFrameMapped_->shapePad = {0.0f, 0.0f};
+  perFrameMapped_->startColor = startColor_;
+  perFrameMapped_->endColor = endColor_;
+  perFrameMapped_->emitterPosition = emitterPosition_;
+  perFrameMapped_->emitCount = emitCount_;
+  perFrameMapped_->shapeBoxSize = shapeBoxSize_;
+  perFrameMapped_->shapeBoxPad = 0.0f;
 }
 
 void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
@@ -321,11 +358,12 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   // パイプライン取得
   GraphicsPipeline *pso = nullptr;
   if (ctx.pipelineManager) {
+    std::string prefix = isPreview_ ? "gpu_particle_nodepth" : "gpu_particle";
     pso = ctx.pipelineManager->Get(
-        PipelineManager::MakeKey("gpu_particle", blendMode_));
+        PipelineManager::MakeKey(prefix, blendMode_));
     if (!pso && blendMode_ != kBlendModeNormal) {
       pso = ctx.pipelineManager->Get(
-          PipelineManager::MakeKey("gpu_particle", kBlendModeNormal));
+          PipelineManager::MakeKey(prefix, kBlendModeNormal));
     }
   }
   if (!pso)
@@ -342,30 +380,52 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   auto blend = blendMode_;
   auto maxParticles = maxParticles_;
 
-  RC::RenderContext::GetInstance().PushCommand3D(
-      kParticleSortKey,
-      [capturedPso, vbView, vertexCount, maxParticles, perViewAddr, srvGpu, textureSrv,
-       blend](ID3D12GraphicsCommandList *cmdList) {
-        BlendMode prevBlend = RC::GetBlendMode();
-        RC::SetBlendMode(blend);
+  auto pBuffer = particleBuffer_.Get();
+  auto drawFunc = [capturedPso, vbView, vertexCount, maxParticles, perViewAddr, srvGpu, textureSrv,
+                   blend, pBuffer](ID3D12GraphicsCommandList *cmdList) {
+    BlendMode prevBlend = RC::GetBlendMode();
+    RC::SetBlendMode(blend);
 
-        cmdList->SetGraphicsRootSignature(capturedPso->Root());
-        cmdList->SetPipelineState(capturedPso->PSO());
+    // UAV -> SRV
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = pBuffer;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    cmdList->ResourceBarrier(1, &barrier);
 
-        // IA 設定
-        cmdList->IASetVertexBuffers(0, 1, &vbView);
-        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->SetGraphicsRootSignature(capturedPso->Root());
+    cmdList->SetPipelineState(capturedPso->PSO());
 
-        // リソースバインド
-        cmdList->SetGraphicsRootConstantBufferView(0, perViewAddr);
-        cmdList->SetGraphicsRootDescriptorTable(1, srvGpu);
-        cmdList->SetGraphicsRootDescriptorTable(2, textureSrv);
+    // IA 設定
+    cmdList->IASetVertexBuffers(0, 1, &vbView);
+    cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        // インスタンシング描画
-        cmdList->DrawInstanced(vertexCount, maxParticles, 0, 0);
+    // リソースバインド
+    cmdList->SetGraphicsRootConstantBufferView(0, perViewAddr);
+    cmdList->SetGraphicsRootDescriptorTable(1, srvGpu);
+    cmdList->SetGraphicsRootDescriptorTable(2, textureSrv);
 
-        RC::SetBlendMode(prevBlend);
-      });
+    // インスタンシング描画
+    cmdList->DrawInstanced(vertexCount, maxParticles, 0, 0);
+
+    // SRV -> UAV (次回 CS のため)
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    cmdList->ResourceBarrier(1, &barrier);
+
+    RC::SetBlendMode(prevBlend);
+  };
+
+  if (isPreview_) {
+    // プレビューモードの場合は直接描画（現在のターゲットに書き込む）
+    drawFunc(cl);
+  } else {
+    // 通常の描画コマンドをキューに積む（Execute3DCommands で Skybox 等と一緒にフラッシュ）
+    RC::RenderContext::GetInstance().PushCommand3D(kParticleSortKey, drawFunc);
+  }
 }
 
 #if RC_ENABLE_IMGUI
@@ -373,13 +433,13 @@ void GPUParticle::DrawImGui() {
   if (ImGui::TreeNode("GPUParticle")) {
     ImGui::Checkbox("Visible", &visible_);
   
-  int maxP = static_cast<int>(maxParticles_);
-  if (ImGui::SliderInt("Max Particles", &maxP, 256, 16384)) {
-    SetMaxParticles(static_cast<uint32_t>(maxP));
-  }
+    int maxP = static_cast<int>(maxParticles_);
+    if (ImGui::SliderInt("Max Particles", &maxP, 256, 16384)) {
+      SetMaxParticles(static_cast<uint32_t>(maxP));
+    }
 
-  int emit = static_cast<int>(emitCount_);
-  if (ImGui::SliderInt("Emit Count", &emit, 0, 100)) {
+    int emit = static_cast<int>(emitCount_);
+    if (ImGui::SliderInt("Emit Count", &emit, 0, 100)) {
       emitCount_ = static_cast<uint32_t>(emit);
     }
 
@@ -400,12 +460,153 @@ void GPUParticle::DrawImGui() {
       blendMode_ = static_cast<BlendMode>(current);
     }
 
+    ImGui::Separator();
+    ImGui::Text("--- Emitter Parameters ---");
+
+    // エミッタ形状
+    const char *shapeNames[] = {"Point", "Sphere", "Box", "Cone"};
+    int shapeInt = static_cast<int>(emitterShape_);
+    if (ImGui::Combo("Emitter Shape", &shapeInt, shapeNames, IM_ARRAYSIZE(shapeNames))) {
+      emitterShape_ = static_cast<EmitterShape>(shapeInt);
+    }
+
+    // 形状別パラメータ
+    if (emitterShape_ == EmitterShape::Sphere || emitterShape_ == EmitterShape::Cone) {
+      ImGui::DragFloat("Shape Radius", &shapeRadius_, 0.1f, 0.0f, 50.0f);
+    }
+    if (emitterShape_ == EmitterShape::Cone) {
+      float angleDeg = coneAngle_ * 180.0f / 3.14159265f;
+      if (ImGui::DragFloat("Cone Angle (deg)", &angleDeg, 1.0f, 0.0f, 90.0f)) {
+        coneAngle_ = angleDeg * 3.14159265f / 180.0f;
+      }
+    }
+    if (emitterShape_ == EmitterShape::Box) {
+      ImGui::DragFloat3("Box Size", &shapeBoxSize_.x, 0.1f, 0.0f, 50.0f);
+    }
+
+    // 位置
+    ImGui::DragFloat3("Emitter Position", &emitterPosition_.x, 0.1f);
+
+    // ライフタイム
+    ImGui::DragFloat("Min Lifetime", &minLifeTime_, 0.1f, 0.1f, 30.0f);
+    ImGui::DragFloat("Max Lifetime", &maxLifeTime_, 0.1f, 0.1f, 30.0f);
+
+    // スケール
+    ImGui::DragFloat("Min Scale", &minScale_, 0.01f, 0.01f, 5.0f);
+    ImGui::DragFloat("Max Scale", &maxScale_, 0.01f, 0.01f, 5.0f);
+
+    // 速度
+    ImGui::DragFloat3("Base Velocity", &baseVelocity_.x, 0.001f);
+    ImGui::DragFloat("Velocity Variance", &velocityVariance_, 0.001f, 0.0f, 1.0f);
+
+    // 重力
+    ImGui::DragFloat("Gravity", &gravity_, 0.01f, 0.0f, 20.0f);
+
+    // 色
+    ImGui::ColorEdit4("Start Color", &startColor_.x);
+    ImGui::ColorEdit4("End Color", &endColor_.x);
+
+    // テクスチャ
+    ImGui::Text("Texture: %s", texturePath_.c_str());
+
     ImGui::TreePop();
   }
 }
 #else
 void GPUParticle::DrawImGui() {}
 #endif
+
+void GPUParticle::SetTexture(const std::string& path) {
+  texturePath_ = path;
+  texHandle_ = RC::LoadTex(path, true);
+  Log::Print(std::format("[GPUParticle] Texture changed to: {}", path));
+}
+
+void GPUParticle::SaveToJson(const std::string& filepath) const {
+  nlohmann::json j;
+  j["maxParticles"] = maxParticles_;
+  j["emitCount"] = emitCount_;
+  j["particleType"] = static_cast<int>(currentType_);
+  j["blendMode"] = static_cast<int>(blendMode_);
+  j["texturePath"] = texturePath_;
+
+  j["minLifeTime"] = minLifeTime_;
+  j["maxLifeTime"] = maxLifeTime_;
+  j["minScale"] = minScale_;
+  j["maxScale"] = maxScale_;
+  j["gravity"] = gravity_;
+
+  j["baseVelocity"] = { baseVelocity_.x, baseVelocity_.y, baseVelocity_.z };
+  j["velocityVariance"] = velocityVariance_;
+
+  j["emitterShape"] = static_cast<int>(emitterShape_);
+  j["shapeRadius"] = shapeRadius_;
+  j["coneAngle"] = coneAngle_;
+  j["shapeBoxSize"] = { shapeBoxSize_.x, shapeBoxSize_.y, shapeBoxSize_.z };
+
+  j["startColor"] = { startColor_.x, startColor_.y, startColor_.z, startColor_.w };
+  j["endColor"] = { endColor_.x, endColor_.y, endColor_.z, endColor_.w };
+  j["emitterPosition"] = { emitterPosition_.x, emitterPosition_.y, emitterPosition_.z };
+
+  std::ofstream ofs(filepath);
+  if (ofs) {
+    ofs << j.dump(4);
+    Log::Print(std::format("[GPUParticle] Saved to: {}", filepath));
+  } else {
+    Log::Print(std::format("[GPUParticle] Failed to save: {}", filepath));
+  }
+}
+
+void GPUParticle::LoadFromJson(const std::string& filepath) {
+  std::ifstream ifs(filepath);
+  if (!ifs) {
+    Log::Print(std::format("[GPUParticle] Failed to load: {}", filepath));
+    return;
+  }
+
+  try {
+    nlohmann::json j;
+    ifs >> j;
+
+    if (j.contains("maxParticles")) SetMaxParticles(j["maxParticles"].get<uint32_t>());
+    if (j.contains("emitCount")) emitCount_ = j["emitCount"].get<uint32_t>();
+    if (j.contains("particleType")) SetParticleType(static_cast<ParticleType>(j["particleType"].get<int>()));
+    if (j.contains("blendMode")) blendMode_ = static_cast<BlendMode>(j["blendMode"].get<int>());
+    if (j.contains("texturePath")) SetTexture(j["texturePath"].get<std::string>());
+
+    if (j.contains("minLifeTime")) minLifeTime_ = j["minLifeTime"].get<float>();
+    if (j.contains("maxLifeTime")) maxLifeTime_ = j["maxLifeTime"].get<float>();
+    if (j.contains("minScale")) minScale_ = j["minScale"].get<float>();
+    if (j.contains("maxScale")) maxScale_ = j["maxScale"].get<float>();
+    if (j.contains("gravity")) gravity_ = j["gravity"].get<float>();
+
+    if (j.contains("baseVelocity") && j["baseVelocity"].is_array() && j["baseVelocity"].size() == 3) {
+      baseVelocity_ = { j["baseVelocity"][0].get<float>(), j["baseVelocity"][1].get<float>(), j["baseVelocity"][2].get<float>() };
+    }
+    if (j.contains("velocityVariance")) velocityVariance_ = j["velocityVariance"].get<float>();
+
+    if (j.contains("emitterShape")) emitterShape_ = static_cast<EmitterShape>(j["emitterShape"].get<int>());
+    if (j.contains("shapeRadius")) shapeRadius_ = j["shapeRadius"].get<float>();
+    if (j.contains("coneAngle")) coneAngle_ = j["coneAngle"].get<float>();
+    if (j.contains("shapeBoxSize") && j["shapeBoxSize"].is_array() && j["shapeBoxSize"].size() == 3) {
+      shapeBoxSize_ = { j["shapeBoxSize"][0].get<float>(), j["shapeBoxSize"][1].get<float>(), j["shapeBoxSize"][2].get<float>() };
+    }
+
+    if (j.contains("startColor") && j["startColor"].is_array() && j["startColor"].size() == 4) {
+      startColor_ = { j["startColor"][0].get<float>(), j["startColor"][1].get<float>(), j["startColor"][2].get<float>(), j["startColor"][3].get<float>() };
+    }
+    if (j.contains("endColor") && j["endColor"].is_array() && j["endColor"].size() == 4) {
+      endColor_ = { j["endColor"][0].get<float>(), j["endColor"][1].get<float>(), j["endColor"][2].get<float>(), j["endColor"][3].get<float>() };
+    }
+    if (j.contains("emitterPosition") && j["emitterPosition"].is_array() && j["emitterPosition"].size() == 3) {
+      emitterPosition_ = { j["emitterPosition"][0].get<float>(), j["emitterPosition"][1].get<float>(), j["emitterPosition"][2].get<float>() };
+    }
+
+    Log::Print(std::format("[GPUParticle] Loaded from: {}", filepath));
+  } catch (const std::exception& e) {
+    Log::Print(std::format("[GPUParticle] Error loading JSON: {}", e.what()));
+  }
+}
 
 void GPUParticle::SetMaxParticles(uint32_t maxCount) {
   if (maxParticles_ == maxCount) return;

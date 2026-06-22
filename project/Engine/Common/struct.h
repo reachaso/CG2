@@ -192,11 +192,53 @@ struct GPUParticlePerView {
   RC::Matrix4x4 billboardMatrix; ///< ビルボード回転行列
 };
 
+/// @brief エミッタ形状の種類
+enum class EmitterShape : uint32_t {
+  Point = 0,   ///< 一点から放射
+  Sphere = 1,  ///< 球状に発生
+  Box = 2,     ///< 矩形領域から発生
+  Cone = 3,    ///< 円錐状に噴射
+  Count
+};
+
 /// @brief GPU Particle 更新 CS 用のフレーム定数バッファ（CS b0）
+/// @details Particle Editor から設定されるエミッタパラメータも含む。
+/// HLSL の PerFrame 定数バッファと完全に一致するレイアウトにすること。
 struct GPUParticlePerFrame {
-  float deltaTime;     ///< フレーム間隔 (秒)
+  // --- 基本パラメータ (16 bytes) ---
+  float deltaTime;       ///< フレーム間隔 (秒)
   uint32_t maxParticles; ///< 最大パーティクル数
-  float padding[2];    ///< パディング（16byteアラインメント）
+  float minLifeTime;     ///< 最小寿命 (秒)
+  float maxLifeTime;     ///< 最大寿命 (秒)
+
+  // --- スケール (16 bytes) ---
+  float minScale;        ///< 最小スケール
+  float maxScale;        ///< 最大スケール
+  float gravity;         ///< 重力の強さ (下方向が正)
+  uint32_t emitterShape; ///< エミッタ形状 (EmitterShape)
+
+  // --- 速度 (16 bytes) ---
+  RC::Vector3 baseVelocity;   ///< 基本速度ベクトル
+  float velocityVariance;     ///< 速度のランダム分散
+
+  // --- エミッタ形状パラメータ (16 bytes) ---
+  float shapeRadius;     ///< Sphere/Cone の半径
+  float coneAngle;       ///< Cone の半角 (ラジアン)
+  RC::Vector2 shapePad;  ///< パディング
+
+  // --- 開始色 (16 bytes) ---
+  RC::Vector4 startColor;    ///< パーティクル開始色 (RGBA)
+
+  // --- 終了色 (16 bytes) ---
+  RC::Vector4 endColor;      ///< パーティクル終了色 (RGBA)
+
+  // --- エミッタ位置 (16 bytes) ---
+  RC::Vector3 emitterPosition; ///< エミッタのワールド座標
+  uint32_t emitCount;          ///< 1フレームの射出数
+
+  // --- Box形状サイズ (16 bytes) ---
+  RC::Vector3 shapeBoxSize;  ///< Box 形状のサイズ (xyz)
+  float shapeBoxPad;         ///< パディング
 };
 
 /// @brief 平行光源データ

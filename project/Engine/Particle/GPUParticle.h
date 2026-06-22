@@ -5,6 +5,7 @@
 #include "struct.h"
 #include <array>
 #include <cstdint>
+#include <string>
 #include <d3d12.h>
 #include <wrl/client.h>
 
@@ -50,6 +51,9 @@ public:
   /// @brief ImGui デバッグ UI
   void DrawImGui();
 
+  /// @brief 毎フレームの射出数を取得
+  uint32_t GetEmitCount() const { return emitCount_; }
+
   /// @brief 毎フレームの射出数を設定
   void SetEmitCount(uint32_t count) { emitCount_ = count; }
 
@@ -63,6 +67,47 @@ public:
   /// @brief 最大パーティクル数を設定する
   /// @param maxCount 新しい最大パーティクル数
   void SetMaxParticles(uint32_t maxCount);
+
+  /// @brief 現在の最大パーティクル数を取得する
+  uint32_t GetMaxParticles() const { return maxParticles_; }
+
+  /// @brief ブレンドモードを取得する
+  BlendMode GetBlendMode() const { return blendMode_; }
+
+  /// @brief ブレンドモードを設定する
+  void SetBlendMode(BlendMode mode) { blendMode_ = mode; }
+
+  /// @brief テクスチャを動的に変更する
+  /// @param path テクスチャファイルのパス
+  void SetTexture(const std::string& path);
+
+  /// @brief パーティクル設定をJSONファイルに保存する
+  /// @param filepath 保存先のファイルパス
+  void SaveToJson(const std::string& filepath) const;
+
+  /// @brief JSONファイルからパーティクル設定を読み込む
+  /// @param filepath 読み込み元のファイルパス
+  void LoadFromJson(const std::string& filepath);
+
+  /// @brief プレビューモードを設定する（Render 時に即時描画を行うか）
+  void SetPreviewMode(bool isPreview) { isPreview_ = isPreview; }
+
+  // --- Particle Editor 用パラメータ ---
+  float minLifeTime_ = 3.0f;     ///< 最小寿命
+  float maxLifeTime_ = 8.0f;     ///< 最大寿命
+  float minScale_ = 0.3f;        ///< 最小スケール
+  float maxScale_ = 0.6f;        ///< 最大スケール
+  float gravity_ = 0.0f;         ///< 重力
+  RC::Vector3 baseVelocity_ = {0.0f, 0.02f, 0.0f}; ///< 基本速度
+  float velocityVariance_ = 0.02f; ///< 速度の分散
+  EmitterShape emitterShape_ = EmitterShape::Point; ///< エミッタ形状
+  float shapeRadius_ = 2.0f;     ///< 形状の半径
+  float coneAngle_ = 0.5f;       ///< コーンの半角 (rad)
+  RC::Vector3 shapeBoxSize_ = {4.0f, 4.0f, 4.0f}; ///< Box形状のサイズ
+  RC::Vector4 startColor_ = {1.0f, 1.0f, 1.0f, 1.0f}; ///< 開始色
+  RC::Vector4 endColor_ = {1.0f, 1.0f, 1.0f, 0.0f};   ///< 終了色
+  RC::Vector3 emitterPosition_ = {0.0f, 0.0f, 0.0f};  ///< エミッタ位置
+  std::string texturePath_ = "Resources/Particle/circle.png"; ///< テクスチャパス
 
 private:
   static constexpr uint32_t Align256(uint32_t s) { return (s + 255u) & ~255u; }
@@ -124,6 +169,7 @@ private:
 
   bool initialized_ = false;
   bool visible_ = true;
+  bool isPreview_ = false;    ///< プレビューモードか（trueなら即時描画）
   bool needsCSInit_ = false;  ///< CS 初期化を初回フレームに遅延実行するフラグ
 
   uint32_t maxParticles_ = 1024; ///< 現在の最大パーティクル数

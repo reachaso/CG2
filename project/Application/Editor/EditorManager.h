@@ -4,6 +4,9 @@
 #include <functional>
 #include <memory>
 #include <filesystem>
+#include "Particle/GPUParticle.h"
+#include "Graphics/Texture/RenderTexture/RenderTexture.h"
+#include "Camera/CameraController.h"
 
 class Dx12Core;
 class Scene;
@@ -20,6 +23,9 @@ public:
   /// @brief エディタの初期化（テーマ設定など）
   void Initialize();
 
+  /// @brief エディタの終了処理（リソースの解放）
+  void Term();
+
   /// @brief 毎フレームの更新処理（メニューバーやドッキングスペースの構築）
   /// @param core Dx12Core インスタンスへのポインタ
   /// @param onMenuAppend メニューバー追加用コールバック
@@ -29,13 +35,21 @@ public:
   /// @brief 各種パネルの描画
   /// @param viewportSrv ゲーム画面（Viewport）に表示するテクスチャのSRVハンドル
   /// @param core Dx12Core インスタンスへのポインタ
+  /// @param pm PipelineManagerへのポインタ
   /// @param deltaTime 前のフレームからの経過時間
   /// @param currentScene 現在のシーン
-  void DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core = nullptr, float deltaTime = 0.0f, Scene* currentScene = nullptr);
+  void DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core = nullptr, class PipelineManager* pm = nullptr, float deltaTime = 0.0f, Scene* currentScene = nullptr);
 
   /// @brief Viewportウィンドウがホバーされているか取得する
   bool IsViewportHovered() const { return isViewportHovered_; }
   void SetViewportHovered(bool hovered) { isViewportHovered_ = hovered; }
+
+  /// @brief Particle Editor用の専用プレビュー画面を描画する
+  /// @param cl 描画用コマンドリスト
+  /// @param core Dx12Coreのインスタンス
+  /// @param pm PipelineManagerへのポインタ
+  /// @param deltaTime デルタタイム
+  void RenderParticlePreview(ID3D12GraphicsCommandList* cl, Dx12Core* core, class PipelineManager* pm, float deltaTime);
 
   /// @brief 現在のRender Queueの状態をテキストダンプとして出力する
   void ExportRenderQueueDump();
@@ -79,6 +93,7 @@ private:
   bool showDemoWindow_ = false; ///< ImGuiデモウィンドウの表示フラグ
   bool showPerfWindow_ = false; ///< パフォーマンス（FPS）ウィンドウの表示フラグ
   bool showRenderQueue_ = false; ///< Render Queue デバッグウィンドウの表示フラグ
+  bool showParticleEditor_ = false; ///< Particle Editor ウィンドウの表示フラグ
   bool isViewportHovered_ = false; ///< Viewportウィンドウがホバーされているか
   
   PlayState playState_; ///< エディタ上での現在の再生状態
@@ -106,4 +121,14 @@ private:
   std::filesystem::path currentDirectory_ = "Resources"; ///< コンテンツブラウザの現在ディレクトリ
 
   ResizeRequest resizeRequest_; ///< ウィンドウリサイズ要求
+
+  // --- Particle Editor ---
+  std::unique_ptr<GPUParticle> peParticle_; ///< Particle Editor 用のプレビュー用 GPUParticle
+  bool peInitialized_ = false;  ///< Particle Editor が初期化済みか
+  char peJsonPath_[256] = "Resources/Particle/default.json"; ///< JSON 保存/読み込みパス
+  char peTexPath_[256] = "Resources/Particle/circle.png"; ///< テクスチャパス
+
+  // プレビュー描画用リソース
+  RenderTexture peRenderTexture_; ///< プレビュー描画先
+  RC::CameraController peCamera_; ///< プレビュー専用カメラ
 };

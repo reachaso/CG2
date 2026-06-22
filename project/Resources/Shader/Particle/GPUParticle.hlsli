@@ -17,8 +17,8 @@ struct Particle
 
 struct PerView
 {
-    float4x4 viewProjection;
-    float4x4 billboardMatrix;
+    row_major float4x4 viewProjection;
+    row_major float4x4 billboardMatrix;
 };
 
 struct VertexShaderOutput

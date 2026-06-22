@@ -191,6 +191,78 @@ void DrawPrimitiveMeshWater(int meshHandle, int texHandle) {
   }, "PrimitiveMesh(Water)", meshHandle);
 }
 
+void DrawPrimitiveMeshWaterColumn(int meshHandle, int texHandle) {
+  auto &ctx = GetRenderContext();
+  if (!ctx.IsInitialized()) return;
+
+  auto *m = ctx.PrimitiveMeshes().Get(meshHandle);
+  if (!m) return;
+
+  Matrix4x4 world = MakeAffineMatrix(m->T().scale, m->T().rotation, m->T().translation);
+  D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
+  
+  // Water column layer (same as glass: translucent layer)
+  const uint64_t key = SortKey::Make(SortKey::kLayerGlass, SortKey::HashPSO("object3d_watercolumn"), 0);
+
+  ctx.PushCommand3D(key, [m, meshHandle, world, texHandle, lightAddr](ID3D12GraphicsCommandList *cl) {
+    auto &ctx = GetRenderContext();
+    auto prevBlend = ctx.CurrentBlendMode();
+    ctx.SetBlendMode(kBlendModePremultiplied);
+
+    ViewShadingMode shadingMode = ctx.GetViewShadingMode();
+
+    bool isDebug = (shadingMode == ViewShadingMode::FaceOrientation ||
+                    shadingMode == ViewShadingMode::RandomColor ||
+                    shadingMode == ViewShadingMode::SolidShading);
+
+    if (isDebug) {
+      auto savedBlend = ctx.CurrentBlendMode();
+      ctx.SetBlendMode(kBlendModeNone);
+
+      std::string_view prefix = "object3d";
+      switch (shadingMode) {
+      case ViewShadingMode::FaceOrientation: prefix = "object3d_faceori"; break;
+      case ViewShadingMode::RandomColor:     prefix = "object3d_randcolor"; break;
+      case ViewShadingMode::SolidShading:    prefix = "object3d_solid"; break;
+      default: break;
+      }
+
+      if (ctx.BindPipeline(prefix)) {
+        ctx.BindCameraCB();
+        ctx.BindAllLightCBs();
+        ctx.PrimitiveMeshes().ApplyTexture(meshHandle, texHandle);
+        m->Draw(cl, world);
+      }
+      ctx.SetBlendMode(savedBlend);
+    } else {
+      // 2-pass water column: back face first, then front face
+      if (shadingMode != ViewShadingMode::Wireframe) {
+        if (ctx.BindPipeline("object3d_watercolumn_front")) {
+          ctx.BindCameraCB();
+          ctx.BindAllLightCBs();
+          ctx.PrimitiveMeshes().ApplyTexture(meshHandle, texHandle);
+          m->Draw(cl, world);
+        }
+        if (ctx.BindPipeline("object3d_watercolumn")) {
+          ctx.BindCameraCB();
+          ctx.BindAllLightCBs();
+          ctx.PrimitiveMeshes().ApplyTexture(meshHandle, texHandle);
+          m->Draw(cl, world);
+        }
+      }
+      if (shadingMode == ViewShadingMode::Wireframe || shadingMode == ViewShadingMode::SolidWireframe) {
+        if (ctx.BindPipeline("object3d_wire")) {
+          ctx.BindCameraCB();
+          ctx.BindAllLightCBs();
+          ctx.PrimitiveMeshes().ApplyTexture(meshHandle, texHandle);
+          m->Draw(cl, world);
+        }
+      }
+    }
+    ctx.SetBlendMode(prevBlend);
+  }, "PrimitiveMesh(WaterColumn)", meshHandle);
+}
+
 void UnloadPrimitiveMesh(int meshHandle) {
   GetRenderContext().PrimitiveMeshes().Unload(meshHandle);
 }

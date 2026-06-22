@@ -24,19 +24,17 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
 
     Particle particle = gParticles[instanceId];
 
-    // billboardMatrix をベースに worldMatrix を構築
-    float4x4 worldMatrix = gPerView.billboardMatrix;
+    // 1. スケール適用 (ローカル座標)
+    float3 localPos = input.position.xyz * particle.scale;
 
-    // スケール適用: 各軸の方向ベクトルにスケールを乗算
-    worldMatrix[0] *= particle.scale.x;
-    worldMatrix[1] *= particle.scale.y;
-    worldMatrix[2] *= particle.scale.z;
+    // 2. ビルボード回転適用 (3x3行列として扱う)
+    float3 rotatedPos = mul(localPos, (float3x3)gPerView.billboardMatrix);
 
-    // 平行移動: 4行目に translate を設定
-    worldMatrix[3].xyz = particle.translate;
+    // 3. 平行移動適用 (ワールド座標へ)
+    float3 worldPos = rotatedPos + particle.translate;
 
-    // WVP 変換
-    output.position = mul(input.position, mul(worldMatrix, gPerView.viewProjection));
+    // 4. ViewProjection変換
+    output.position = mul(float4(worldPos, 1.0f), gPerView.viewProjection);
     output.texcoord = input.texcoord;
     output.color = particle.color;
 

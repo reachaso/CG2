@@ -17,6 +17,7 @@ public:
     float gravity = -3.0f;
     int damage = 1;
     bool initialized = false;
+    std::string bulletType = "normal";
 
 protected:
     void OnCreate() override {
@@ -37,8 +38,35 @@ protected:
             Entity* self = GetEntity();
             if (self) {
                 std::string name = self->GetName();
+                int bType = self->GetTagInt("bullet_type", 0);
+                if (bType == 0) bulletType = "normal";
+                else if (bType == 1) bulletType = "spread";
+                else if (bType == 2) bulletType = "heavy";
+                
+                float baseSpeed = 40.0f;
+                if (bulletType == "heavy") {
+                    damage = 3;
+                    gravity = -6.0f; // Falls faster due to weight
+                    baseSpeed = 25.0f; // Slower
+                } else if (bulletType == "spread") {
+                    damage = 1;
+                    gravity = -2.5f;
+                    baseSpeed = 35.0f;
+                }
+
                 if (name == "PlayerBullet") {
-                    SetVelocityTowardTarget("Enemy", 40.0f, "player", tr->position);
+                    // Spread bullets use explicit direction tags from the player
+                    if (bulletType == "spread") {
+                        float dx = static_cast<float>(self->GetTagInt("dir_x", 0)) / 1000.0f;
+                        float dz = static_cast<float>(self->GetTagInt("dir_z", 1000)) / 1000.0f;
+                        // Normalize just in case
+                        float len = std::sqrt(dx * dx + dz * dz);
+                        if (len > 0.01f) { dx /= len; dz /= len; }
+                        else { dx = 0.0f; dz = 1.0f; }
+                        velocity = { dx * baseSpeed, 1.5f, dz * baseSpeed };
+                    } else if (velocity.x == 0.0f && velocity.z == 0.0f) {
+                        SetVelocityTowardTarget("Enemy", baseSpeed, "player", tr->position);
+                    }
                 } else if (name == "EnemyBullet") {
                     SetVelocityTowardTarget("player", 25.0f, "", tr->position);
                 }
@@ -91,7 +119,7 @@ protected:
             float dy = eTr->position.y - tr->position.y;
             float dz = eTr->position.z - tr->position.z;
             float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
-            float hitRadius = 1.0f; // Adjusted hit radius based on user feedback
+            float hitRadius = (bulletType == "heavy") ? 1.8f : 1.0f; // Adjusted hit radius based on bullet type
 
             if (dist < hitRadius) {
                 // Use tag system to communicate damage
@@ -174,48 +202,106 @@ private:
         Scene* scene = GetScene();
         if (!scene) return;
 
+        float waveRadius = (bulletType == "heavy") ? 0.1f : 0.05f;
+        float waveStrength = (bulletType == "heavy") ? 1.5f : 0.5f;
+
         // Strong water surface wave
         RC::WaveSource source;
         source.uv = RC::Vector2((pos.x / 100.0f) + 0.5f, (pos.z / 100.0f) + 0.5f);
-        source.radius = 0.05f;
-        source.strength = 0.5f;
+        source.radius = waveRadius;
+        source.strength = waveStrength;
         RC::AddWaveSource(source);
 
-        // Spawn visual splash particles
-        const int splashCount = 12;
-        for (int i = 0; i < splashCount; ++i) {
-            auto splash = scene->CreateEntity("Splash");
+        if (bulletType == "heavy") {
+            // Spawn HeavySplash as a single water column cylinder
+            auto splash = scene->CreateEntity("HeavySplash");
+            splash->SetTag("impact_factor", 150); // Larger impact
 
             auto& tr = splash->AddComponent<TransformComponent>();
             tr.position = pos;
-            float s = 0.15f + (i % 4) * 0.05f;
-            tr.scale = { s, s, s };
+            tr.scale = { 1.5f, 0.1f, 1.5f }; // Start flat and wide
 
             auto& pm = splash->AddComponent<PrimitiveMeshComponent>();
-            pm.type = PrimitiveType::Sphere;
-            pm.meshHandle = RC::GenerateSphere(s);
-
+            pm.type = PrimitiveType::Cylinder;
+            pm.meshHandle = RC::GenerateCylinder(1.0f, 1.0f);
             if (pm.meshHandle >= 0) {
-                if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm.meshHandle)) {
-                    float r = 0.3f + (i % 3) * 0.15f;
-                    float g = 0.6f + (i % 2) * 0.2f;
-                    mat->color = { r, g, 1.0f, 0.85f };
-                }
+                if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm.meshHandle)) mat->color = { 0.9f, 0.95f, 1.0f, 1.0f }; 
             }
 
             auto& nsc = splash->AddComponent<NativeScriptComponent>();
-            nsc.Bind("SplashParticle");
+            nsc.Bind("HeavySplashParticle");
             nsc.SetScene(scene);
             if (GetSceneContext()) nsc.SetSceneContext(GetSceneContext());
 
             scene->InitDynamicEntityRuntime(*splash);
-
-            // 即座に PrimitiveMesh の Transform を同期して原点でのチラつきを防ぐ
             if (pm.meshHandle >= 0) {
                 if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
-                    pmTr->scale = tr.scale;
-                    pmTr->rotation = tr.rotation;
-                    pmTr->translation = tr.position;
+                    pmTr->scale = tr.scale; pmTr->rotation = tr.rotation; pmTr->translation = tr.position;
+                }
+            }
+        } else {
+            // Spawn normal visual splash particles
+            const int splashCount = 12;
+            for (int i = 0; i < splashCount; ++i) {
+                auto splash = scene->CreateEntity("Splash");
+
+                auto& tr = splash->AddComponent<TransformComponent>();
+                tr.position = pos;
+                float s = 0.15f + (i % 4) * 0.05f;
+                tr.scale = { s, s, s };
+
+                auto& pm = splash->AddComponent<PrimitiveMeshComponent>();
+                pm.type = PrimitiveType::Sphere;
+                pm.meshHandle = RC::GenerateSphere(s);
+
+                if (pm.meshHandle >= 0) {
+                    if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm.meshHandle)) {
+                        float r = 0.3f + (i % 3) * 0.15f;
+                        float g = 0.6f + (i % 2) * 0.2f;
+                        mat->color = { r, g, 1.0f, 0.85f };
+                    }
+                }
+
+                auto& nsc = splash->AddComponent<NativeScriptComponent>();
+                nsc.Bind("SplashParticle");
+                nsc.SetScene(scene);
+                if (GetSceneContext()) nsc.SetSceneContext(GetSceneContext());
+
+                scene->InitDynamicEntityRuntime(*splash);
+
+                if (pm.meshHandle >= 0) {
+                    if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
+                        pmTr->scale = tr.scale;
+                        pmTr->rotation = tr.rotation;
+                        pmTr->translation = tr.position;
+                    }
+                }
+            }
+        }
+
+        // Spawn Bubbles for all bullet types as an accent
+        int bubbleCount = (bulletType == "heavy") ? 8 : 4;
+        for (int i = 0; i < bubbleCount; ++i) {
+            auto bubble = scene->CreateEntity("Bubble");
+            auto& tr = bubble->AddComponent<TransformComponent>();
+            tr.position = pos;
+            float s = 0.05f + (i % 3) * 0.05f;
+            tr.scale = { s, s, s };
+            
+            auto& pm = bubble->AddComponent<PrimitiveMeshComponent>();
+            pm.type = PrimitiveType::Sphere;
+            pm.meshHandle = RC::GenerateSphere(s);
+            if (pm.meshHandle >= 0) {
+                if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm.meshHandle)) mat->color = { 0.8f, 0.9f, 1.0f, 0.6f };
+            }
+            auto& nsc = bubble->AddComponent<NativeScriptComponent>();
+            nsc.Bind("BubbleParticle");
+            nsc.SetScene(scene);
+            if (GetSceneContext()) nsc.SetSceneContext(GetSceneContext());
+            scene->InitDynamicEntityRuntime(*bubble);
+            if (pm.meshHandle >= 0) {
+                if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm.meshHandle)) {
+                    pmTr->scale = tr.scale; pmTr->rotation = tr.rotation; pmTr->translation = tr.position;
                 }
             }
         }

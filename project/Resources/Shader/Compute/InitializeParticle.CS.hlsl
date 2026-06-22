@@ -22,9 +22,40 @@ struct Particle
 
 cbuffer PerFrame : register(b0)
 {
+    // 基本パラメータ (16 bytes)
     float gDeltaTime;
     uint gMaxParticles;
-    float2 gPadding;
+    float gMinLifeTime;
+    float gMaxLifeTime;
+
+    // スケール (16 bytes)
+    float gMinScale;
+    float gMaxScale;
+    float gGravity;
+    uint gEmitterShape;
+
+    // 速度 (16 bytes)
+    float3 gBaseVelocity;
+    float gVelocityVariance;
+
+    // 形状パラメータ (16 bytes)
+    float gShapeRadius;
+    float gConeAngle;
+    float2 gShapePad;
+
+    // 開始色 (16 bytes)
+    float4 gStartColor;
+
+    // 終了色 (16 bytes)
+    float4 gEndColor;
+
+    // エミッタ位置 (16 bytes)
+    float3 gEmitterPosition;
+    uint gEmitCount;
+
+    // Box形状サイズ (16 bytes)
+    float3 gShapeBoxSize;
+    float gShapeBoxPad;
 };
 
 RWStructuredBuffer<Particle> gParticles     : register(u0);

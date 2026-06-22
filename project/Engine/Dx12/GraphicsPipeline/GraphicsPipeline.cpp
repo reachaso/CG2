@@ -175,7 +175,7 @@ void GraphicsPipeline::BuildEx(const D3D12_INPUT_ELEMENT_DESC *inputElems,
   ds.StencilEnable = FALSE;
 
   d.DepthStencilState = ds;
-  d.DSVFormat = dsvFmt;
+  d.DSVFormat = opt.enableDepth ? dsvFmt : DXGI_FORMAT_UNKNOWN;
 
   // RT
   d.NumRenderTargets = 1;
@@ -697,42 +697,83 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     break;
 
   case RootSignatureType::InitParticleCS:
-    // GPU Particle 初期化 CS 用ルートシグネチャ
     // 0: UAV u0 (ALL) Particles RWStructuredBuffer
     ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
     ranges[0].BaseShaderRegister = 0; // u0
     ranges[0].NumDescriptors = 1;
-    ranges[0].OffsetInDescriptorsFromTableStart =
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     params[0].DescriptorTable.NumDescriptorRanges = 1;
     params[0].DescriptorTable.pDescriptorRanges = &ranges[0];
 
-    paramCount = 1;
+    // 1: UAV u1 (ALL) FreeListIndex
+    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[1].BaseShaderRegister = 1; // u1
+    ranges[1].NumDescriptors = 1;
+    ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].DescriptorTable.NumDescriptorRanges = 1;
+    params[1].DescriptorTable.pDescriptorRanges = &ranges[1];
+
+    // 2: UAV u2 (ALL) FreeList
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[2].BaseShaderRegister = 2; // u2
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[2];
+
+    paramCount = 3;
     break;
 
+  case RootSignatureType::EmitParticleCS:
   case RootSignatureType::UpdateParticleCS:
-    // GPU Particle 更新 CS 用ルートシグネチャ
     // 0: UAV u0 (ALL) Particles RWStructuredBuffer
     ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
     ranges[0].BaseShaderRegister = 0; // u0
     ranges[0].NumDescriptors = 1;
-    ranges[0].OffsetInDescriptorsFromTableStart =
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
     params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     params[0].DescriptorTable.NumDescriptorRanges = 1;
     params[0].DescriptorTable.pDescriptorRanges = &ranges[0];
 
-    // 1: CBV b0 (ALL) PerFrame (deltaTime)
-    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-    params[1].Descriptor.ShaderRegister = 0; // b0
+    // 1: UAV u1 (ALL) FreeListIndex
+    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[1].BaseShaderRegister = 1; // u1
+    ranges[1].NumDescriptors = 1;
+    ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    paramCount = 2;
+    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[1].DescriptorTable.NumDescriptorRanges = 1;
+    params[1].DescriptorTable.pDescriptorRanges = &ranges[1];
+
+    // 2: UAV u2 (ALL) FreeList
+    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    ranges[2].BaseShaderRegister = 2; // u2
+    ranges[2].NumDescriptors = 1;
+    ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[2].DescriptorTable.NumDescriptorRanges = 1;
+    params[2].DescriptorTable.pDescriptorRanges = &ranges[2];
+
+    // 3: CBV b0 (ALL) PerFrame
+    params[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[3].Descriptor.ShaderRegister = 0; // b0
+
+    paramCount = 4;
     break;
 
   case RootSignatureType::Water:

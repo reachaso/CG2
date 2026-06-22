@@ -25,7 +25,29 @@ cbuffer PerFrame : register(b0)
 {
     float gDeltaTime;
     uint gMaxParticles;
-    float2 gPadding;
+    float gMinLifeTime;
+    float gMaxLifeTime;
+
+    float gMinScale;
+    float gMaxScale;
+    float gGravity;
+    uint gEmitterShape;
+
+    float3 gBaseVelocity;
+    float gVelocityVariance;
+
+    float gShapeRadius;
+    float gConeAngle;
+    float2 gShapePad;
+
+    float4 gStartColor;
+    float4 gEndColor;
+
+    float3 gEmitterPosition;
+    float gEmitterPad;
+
+    float3 gShapeBoxSize;
+    float gShapeBoxPad;
 };
 
 

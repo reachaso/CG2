@@ -1,5 +1,6 @@
 {
     "showDemoWindow": false,
+    "showParticleEditor": true,
     "showPerfWindow": true,
     "showRenderQueue": true
 }

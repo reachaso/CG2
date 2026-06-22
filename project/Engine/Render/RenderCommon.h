@@ -684,6 +684,7 @@ void DrawPrimitiveMesh(int meshHandle, int texHandle = -1);
 /// @param meshHandle メッシュハンドル
 /// @param texHandle 適用するテクスチャハンドル（-1でデフォルト）
 void DrawPrimitiveMeshWater(int meshHandle, int texHandle = -1);
+void DrawPrimitiveMeshWaterColumn(int meshHandle, int texHandle = -1);
 
 /// @brief 汎用プリミティブメッシュを解放
 /// @param meshHandle メッシュハンドル

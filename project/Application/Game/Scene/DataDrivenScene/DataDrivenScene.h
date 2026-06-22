@@ -332,6 +332,8 @@ public:
                 std::string name = e->GetName();
                 if (name == "PlayerBullet" || name == "EnemyBullet" || name == "Splash") {
                     RC::DrawPrimitiveMeshWater(pm->meshHandle, pm->texOverride);
+                } else if (name == "HeavySplash") {
+                    RC::DrawPrimitiveMeshWaterColumn(pm->meshHandle, pm->texOverride);
                 } else {
                     RC::DrawPrimitiveMesh(pm->meshHandle, pm->texOverride);
                 }

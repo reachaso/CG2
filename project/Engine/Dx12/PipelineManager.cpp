@@ -766,6 +766,40 @@ void PipelineManager::RegisterDefaultPipelines() {
                     objVs, waterBallPs, InputLayoutType::Object3D, opt);
   }
 
+  // ====================
+  // Water Column Shader
+  // ====================
+  const std::wstring waterColumnPs =
+      L"Resources/Shader/Object3d/Object3D_WaterColumn.PS.hlsl";
+
+  // 表面描画 (BACKカリング)
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::Object3D;
+    opt.enableDepth = true;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = true;
+    opt.blendMode = kBlendModePremultiplied;
+    opt.cull = D3D12_CULL_MODE_BACK;
+
+    CreateFromFiles(MakeKey("object3d_watercolumn", kBlendModePremultiplied), objVs,
+                    waterColumnPs, InputLayoutType::Object3D, opt);
+  }
+
+  // 背面描画 (FRONTカリング) - 2パス用
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::Object3D;
+    opt.enableDepth = true;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = true;
+    opt.blendMode = kBlendModePremultiplied;
+    opt.cull = D3D12_CULL_MODE_FRONT;
+
+    CreateFromFiles(MakeKey("object3d_watercolumn_front", kBlendModePremultiplied),
+                    objVs, waterColumnPs, InputLayoutType::Object3D, opt);
+  }
+
   // ワイヤーフレーム用
   {
     for (int m = (int)kBlendModeNone; m <= (int)kBlendModePremultiplied; ++m) {
@@ -1104,6 +1138,7 @@ void PipelineManager::RegisterDefaultPipelines() {
     for (int m = (int)kBlendModeNone; m <= (int)kBlendModePremultiplied; ++m) {
       const BlendMode mode = (BlendMode)m;
 
+      // 通常版（深度テストON）
       GPipelineOptions opt{};
       opt.rootType = RootSignatureType::GPUParticle;
       opt.enableDepth = true;          // 深度テスト ON（モデルの前後関係を反映）
@@ -1114,6 +1149,12 @@ void PipelineManager::RegisterDefaultPipelines() {
 
       CreateFromFiles(MakeKey("gpu_particle", mode), gpuPtlVs, gpuPtlPs,
                       InputLayoutType::Particle, opt);
+
+      // プレビュー版（深度テストOFF）
+      GPipelineOptions optNoDepth = opt;
+      optNoDepth.enableDepth = false;
+      CreateFromFiles(MakeKey("gpu_particle_nodepth", mode), gpuPtlVs, gpuPtlPs,
+                      InputLayoutType::Particle, optNoDepth);
     }
   }
 

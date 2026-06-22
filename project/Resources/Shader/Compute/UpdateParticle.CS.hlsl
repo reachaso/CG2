@@ -2,13 +2,14 @@
 // UpdateParticle.CS.hlsl
 // ----------------------------------------------------------------------------
 // GPU Particle の毎フレーム更新用 Compute Shader。
-// velocity による移動、deltaTime による寿命管理、alpha 減衰を行う。
+// velocity による移動、deltaTime による寿命管理、重力適用、
+// startColor → endColor のカラー遷移、alpha 減衰を行う。
 // 寿命切れパーティクルは FreeList に返却する。
 //
 // u0 : gParticles      — パーティクルデータ (RWStructuredBuffer)
 // u1 : gFreeListIndex  — FreeList の現在のインデックス
 // u2 : gFreeList       — 空きパーティクルインデックスの配列
-// b0 : gPerFrame       — フレーム情報 (deltaTime)
+// b0 : gPerFrame       — エミッタパラメータ
 // ============================================================================
 
 struct Particle
@@ -24,9 +25,40 @@ struct Particle
 
 cbuffer PerFrame : register(b0)
 {
+    // 基本パラメータ (16 bytes)
     float gDeltaTime;
     uint gMaxParticles;
-    float2 gPadding;
+    float gMinLifeTime;
+    float gMaxLifeTime;
+
+    // スケール (16 bytes)
+    float gMinScale;
+    float gMaxScale;
+    float gGravity;
+    uint gEmitterShape;
+
+    // 速度 (16 bytes)
+    float3 gBaseVelocity;
+    float gVelocityVariance;
+
+    // 形状パラメータ (16 bytes)
+    float gShapeRadius;
+    float gConeAngle;
+    float2 gShapePad;
+
+    // 開始色 (16 bytes)
+    float4 gStartColor;
+
+    // 終了色 (16 bytes)
+    float4 gEndColor;
+
+    // エミッタ位置 (16 bytes)
+    float3 gEmitterPosition;
+    uint gEmitCount;
+
+    // Box形状サイズ (16 bytes)
+    float3 gShapeBoxSize;
+    float gShapeBoxPad;
 };
 
 
@@ -50,19 +82,28 @@ void main(uint3 DTid : SV_DispatchThreadID)
         return;
     }
 
+    // 重力を速度に適用
+    gParticles[particleIndex].velocity.y -= gGravity * gDeltaTime;
+
     // 速度による移動
     gParticles[particleIndex].translate += gParticles[particleIndex].velocity;
 
     // 経過時間の更新
     gParticles[particleIndex].currentTime += gDeltaTime;
 
-    // 寿命に基づくアルファ減衰
-    float alpha = 1.0f - (gParticles[particleIndex].currentTime / gParticles[particleIndex].lifeTime);
-    gParticles[particleIndex].color.a = saturate(alpha);
+    // 寿命の進行度 (0.0 ~ 1.0)
+    float lifeRatio = saturate(gParticles[particleIndex].currentTime / gParticles[particleIndex].lifeTime);
+
+    // startColor → endColor のカラー遷移 + alpha 減衰
+    float4 lerpedColor = lerp(gStartColor, gEndColor, lifeRatio);
+    float alpha = 1.0f - lifeRatio;
+    gParticles[particleIndex].color = float4(lerpedColor.rgb, lerpedColor.a * alpha);
 
     // alpha が 0 になったら FreeList に返却
-    if (gParticles[particleIndex].color.a == 0)
+    if (gParticles[particleIndex].color.a <= 0.001f)
     {
+        gParticles[particleIndex].color.a = 0;
+
         // スケールを 0 にして VertexShader 出力で棄却されるようにする
         gParticles[particleIndex].scale = float3(0.0f, 0.0f, 0.0f);
 
