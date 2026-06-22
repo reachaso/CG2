@@ -530,8 +530,7 @@ void PipelineManager::RegisterDefaultPipelines() {
       L"Resources/Shader/Object3d/Object3D_Wireframe.PS.hlsl";
   const std::wstring sprVs = L"Resources/Shader/Sprite/Sprite.VS.hlsl";
   const std::wstring sprPs = L"Resources/Shader/Sprite/Sprite.PS.hlsl";
-  const std::wstring ptlVs = L"Resources/Shader/Particle/Particle.VS.hlsl";
-  const std::wstring ptlPs = L"Resources/Shader/Particle/Particle.PS.hlsl";
+
   const std::wstring primVs =
       L"Resources/Shader/Primitive2D/Primitive2D.VS.hlsl";
   const std::wstring primPs =
@@ -612,9 +611,7 @@ void PipelineManager::RegisterDefaultPipelines() {
   regSet("sprite", sprVs, sprPs, InputLayoutType::Sprite,
          RootSignatureType::Sprite, false, false, D3D12_CULL_MODE_BACK);
 
-  // particle：深度ON、書き込みOFF
-  regSet("particle", ptlVs, ptlPs, InputLayoutType::Particle,
-         RootSignatureType::Particle, true, false, D3D12_CULL_MODE_NONE);
+
 
   // 汎用2D：基本は画面オーバーレイ想定
   regSet("primitive2d", primVs, primPs, InputLayoutType::Sprite,

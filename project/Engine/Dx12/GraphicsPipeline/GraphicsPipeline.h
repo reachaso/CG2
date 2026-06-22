@@ -21,7 +21,7 @@ enum class RootSignatureType {
   Object3DInstancing, ///< 3Dオブジェクト（インスタンシング）用
   Object3DSkin,       ///< 3Dオブジェクト（スキニング）用
   Sprite,             ///< スプライト用
-  Particle,           ///< パーティクル用
+
   FogOverlay,         ///< フォグオーバーレイ用
   Primitive3D,        ///< 3Dプリミティブ用
   PostProcess,        ///< ポストプロセス用

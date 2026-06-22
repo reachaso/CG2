@@ -550,38 +550,7 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     paramCount = 1;
     break;
 
-  case RootSignatureType::Particle:
-    // 0: CBV b0 (PS) Material
-    params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[0].Descriptor.ShaderRegister = 0; // b0
 
-    // 1: Instancing 用 StructuredBuffer (t0, VS)
-    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    ranges[0].BaseShaderRegister = 0; // t0
-    ranges[0].NumDescriptors = 1;
-    ranges[0].OffsetInDescriptorsFromTableStart =
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    params[1].DescriptorTable.NumDescriptorRanges = 1;
-    params[1].DescriptorTable.pDescriptorRanges = &ranges[0];
-
-    // 2: Texture 用 SRV (t0, PS)
-    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    ranges[1].BaseShaderRegister = 0; // t0 (PS)
-    ranges[1].NumDescriptors = 1;
-    ranges[1].OffsetInDescriptorsFromTableStart =
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-    params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[2].DescriptorTable.NumDescriptorRanges = 1;
-    params[2].DescriptorTable.pDescriptorRanges = &ranges[1];
-
-    paramCount = 3;
-    break;
 
   case RootSignatureType::Primitive3D:
     // 0: CBV b0 (VS) View/Proj
