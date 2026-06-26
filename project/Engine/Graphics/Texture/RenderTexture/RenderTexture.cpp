@@ -2,15 +2,13 @@
 #include "Dx12Core.h"
 
 void RenderTexture::Initialize(Dx12Core *dxCore, uint32_t width,
-                               uint32_t height, DXGI_FORMAT format) {
+                               uint32_t height, DXGI_FORMAT format,
+                               const RC::Vector4& clearColor) {
   auto device = dxCore->GetDevice();
-
-  // Dx12Core のデフォルトクリアカラーに合わせ、パフォーマンス警告を回避
-  const RC::Vector4 kRenderTargetClearValue{0.1f, 0.25f, 0.5f, 1.0f};
 
   // 1. リソースの作成 (初期状態を COMMON にして確実にバリアが張られるようにする)
   resource_ = CreateRenderTextureResource(device, width, height, format,
-                                          kRenderTargetClearValue);
+                                          clearColor);
   resource_->SetName(L"RenderTexture");
 
   // 2. RTV の作成

@@ -42,6 +42,10 @@ public:
   /// @details Use this for 2D drawing (DrawBox, DrawCircle, etc.)
   virtual void OnRender() {}
 
+  /// @brief Called when a collision occurs with another entity
+  /// @param other The entity that this entity collided with
+  virtual void OnCollision(Entity* other) {}
+
 protected:
   /// @brief Called when the script is created
   virtual void OnCreate() {}

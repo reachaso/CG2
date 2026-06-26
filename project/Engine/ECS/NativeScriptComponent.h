@@ -61,10 +61,16 @@ public:
   void Update(float deltaTime) override {
     if (!instance && InstantiateScript) {
       instance = InstantiateScript();
-      instance->entity_ = GetEntity();
-      instance->scene_ = scene_;
-      instance->sceneContext_ = sceneContext_;
-      instance->OnCreate();
+      if (instance) {
+        instance->entity_ = GetEntity();
+        instance->scene_ = scene_;
+        instance->sceneContext_ = sceneContext_;
+        instance->OnCreate();
+      } else {
+        // Fallback: script not found, prevent further instantiate attempts
+        printf("ERROR: Failed to instantiate script: %s\n", scriptTypeName.c_str());
+        InstantiateScript = nullptr;
+      }
     }
     if (instance) {
       // Update context each frame (may change between frames)

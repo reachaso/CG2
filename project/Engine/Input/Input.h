@@ -157,6 +157,18 @@ public:
     /// @return Input ポインタ
     static Input* GetInstance() { return instance_; }
 
+    /// @brief ゲーム解像度基準のマウス座標を取得する
+    /// @param outX 取得した X 座標
+    /// @param outY 取得した Y 座標
+    void GetGameMousePosition(float& outX, float& outY) const;
+
+    /// @brief エディタ等からゲーム解像度基準のマウス座標を強制上書きする
+    void SetGameMousePosition(float x, float y) {
+        gameMouseX_ = x;
+        gameMouseY_ = y;
+        isGameMousePosSet_ = true;
+    }
+
 private:
     static Input* instance_;                 ///< シングルトン用インスタンスポインタ
     Microsoft::WRL::ComPtr<IDirectInput8> directInput_; ///< DirectInput インターフェース
@@ -165,5 +177,10 @@ private:
     std::unique_ptr<Mouse> mouse_;           ///< マウス
     std::unique_ptr<Controller> controller_; ///< コントローラー
 
+    HWND hwnd_ = nullptr;                    ///< ウィンドウハンドル
     bool viewportHovered_ = false;           ///< Viewportウィンドウがホバーされているか
+
+    float gameMouseX_ = 0.0f;
+    float gameMouseY_ = 0.0f;
+    bool isGameMousePosSet_ = false;
 };

@@ -5,6 +5,7 @@
 #include "ECS/CameraComponent.h"
 #include "ECS/ColliderComponent.h"
 #include "ECS/RigidbodyComponent.h"
+#include "ECS/NativeScriptComponent.h"
 #include "Common/Math/MathUtils.h"
 #include "RenderCommon.h"
 #include <cmath>
@@ -256,22 +257,17 @@ void Scene::ResolveCollisions() {
         if (!e1 || !e1->IsActive() || e1->IsPendingDestroy()) continue;
         auto* tr1 = e1->GetComponent<TransformComponent>();
         auto* col1 = e1->GetComponent<ColliderComponent>();
-        if (!tr1 || !col1 || !col1->IsEnabled() || col1->isTrigger) continue;
+        if (!tr1 || !col1 || !col1->IsEnabled()) continue;
 
         for (size_t j = i + 1; j < entities_.size(); ++j) {
             auto& e2 = entities_[j];
             if (!e2 || !e2->IsActive() || e2->IsPendingDestroy()) continue;
             auto* tr2 = e2->GetComponent<TransformComponent>();
             auto* col2 = e2->GetComponent<ColliderComponent>();
-            if (!tr2 || !col2 || !col2->IsEnabled() || col2->isTrigger) continue;
+            if (!tr2 || !col2 || !col2->IsEnabled()) continue;
 
             auto* rb1 = e1->GetComponent<RigidbodyComponent>();
             auto* rb2 = e2->GetComponent<RigidbodyComponent>();
-
-            // 両方とも動かない場合は衝突解決をスキップ
-            bool isDynamic1 = (rb1 && !rb1->isKinematic);
-            bool isDynamic2 = (rb2 && !rb2->isKinematic);
-            if (!isDynamic1 && !isDynamic2) continue;
 
             // e1 の情報計算
             RC::Vector3 scaledCenter1 = {
@@ -316,6 +312,22 @@ void Scene::ResolveCollisions() {
             }
 
             if (result.hit) {
+                // コールバック呼び出し
+                if (auto* nsc1 = e1->GetComponent<NativeScriptComponent>()) {
+                    if (nsc1->instance) nsc1->instance->OnCollision(e2.get());
+                }
+                if (auto* nsc2 = e2->GetComponent<NativeScriptComponent>()) {
+                    if (nsc2->instance) nsc2->instance->OnCollision(e1.get());
+                }
+
+                // Triggerの場合は物理的な押し出しを行わない
+                if (col1->isTrigger || col2->isTrigger) continue;
+
+                // 両方とも動かない場合は物理解決をスキップ
+                bool isDynamic1 = (rb1 && !rb1->isKinematic);
+                bool isDynamic2 = (rb2 && !rb2->isKinematic);
+                if (!isDynamic1 && !isDynamic2) continue;
+
                 // result.normal direction is from 1 to 2
                 RC::Vector3 normal = reverseNormal ? RC::Mul(result.normal, -1.0f) : result.normal;
 

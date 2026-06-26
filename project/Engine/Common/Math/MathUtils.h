@@ -1,5 +1,6 @@
 #pragma once
 #include "MathTypes.h" // RC::Vector3 とかが入ってる想定
+#include "Math.h"
 #include <algorithm>
 #include <cmath>
 
@@ -202,6 +203,39 @@ inline bool IntersectRaySphere(const Ray& ray, const Vector3& center, float radi
     if (t2 < 0.0f) return false;
     outDistance = t1 >= 0.0f ? t1 : t2;
     return true;
+}
+
+/// @brief スクリーン座標（ピクセル）から3D空間のRayを生成する
+/// @param screenPos スクリーン上の2D座標
+/// @param screenWidth 画面幅
+/// @param screenHeight 画面高さ
+/// @param viewMatrix カメラのビュー行列
+/// @param projMatrix カメラのプロジェクション行列
+/// @return 計算されたRay
+inline Ray ScreenPointToRay(const Vector2& screenPos, float screenWidth, float screenHeight, const Matrix4x4& viewMatrix, const Matrix4x4& projMatrix) {
+    // 1. スクリーン座標をNDC（-1.0 ～ 1.0）に変換
+    // 画面左上が(0,0)の座標系を想定
+    float ndcX = (screenPos.x / screenWidth) * 2.0f - 1.0f;
+    float ndcY = 1.0f - (screenPos.y / screenHeight) * 2.0f;
+
+    // 2. ニアクリップ面とファークリップ面でのNDC座標 (Z=0, Z=1 は DirectX 前提)
+    Vector3 ndcNear = {ndcX, ndcY, 0.0f};
+    Vector3 ndcFar  = {ndcX, ndcY, 1.0f};
+
+    // 3. プロジェクション行列とビュー行列の合成の逆行列を求める
+    Matrix4x4 viewProj = Multiply(viewMatrix, projMatrix);
+    Matrix4x4 invViewProj = Inverse(viewProj);
+
+    // 4. NDCからワールド座標へ変換
+    Vector3 worldNear = Vector3Transform(ndcNear, invViewProj);
+    Vector3 worldFar  = Vector3Transform(ndcFar, invViewProj);
+
+    // 5. Rayの生成
+    Ray ray;
+    ray.origin = worldNear;
+    ray.direction = SafeNormalize(Sub(worldFar, worldNear));
+
+    return ray;
 }
 
 /// @brief 衝突解決のための結果を格納する構造体

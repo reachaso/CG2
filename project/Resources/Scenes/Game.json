@@ -201,7 +201,7 @@
         },
         {
           "data": {
-            "scriptTypeName": "PlayerController"
+            "scriptTypeName": "RailShooterController"
           },
           "enabled": true,
           "type": "NativeScriptComponent"

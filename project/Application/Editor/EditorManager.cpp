@@ -579,6 +579,16 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
       const float fps = io.Framerate;
       const float frameTime = 1000.0f / (fps > 0.0f ? fps : 1.0f);
 
+      static float fpsDropTimer = 0.0f;
+      if (fpsDropTimer > 0.0f) {
+          fpsDropTimer -= io.DeltaTime;
+      }
+      // FPSが30を下回った場合に警告ログを出力 (起動直後などの0FPSは除外)
+      if (fps > 0.0f && fps < 30.0f && fpsDropTimer <= 0.0f) {
+          Log::Print(std::format("[Performance] Warning: FPS dropped to {:.1f} ({:.2f} ms)", fps, frameTime));
+          fpsDropTimer = 5.0f; // 連続出力を防ぐためのクールダウン（5秒）
+      }
+
       // フレームタイム・FPSの履歴バッファ
       static float fpsHistory[120] = {0};
       static float msHistory[120] = {0};
@@ -806,8 +816,22 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
       ImGui::Image((ImTextureID)viewportSrv.ptr, ImVec2(width, height));
       bool isHoveringImage = ImGui::IsItemHovered();
       
+      // ===== Mouse Position Update for Game =====
+      float currentMouseX = ImGui::GetMousePos().x - vMin.x;
+      float currentMouseY = ImGui::GetMousePos().y - vMin.y;
+      if (core) {
+          float gameW = core->Viewport().Width;
+          float gameH = core->Viewport().Height;
+          float scaledX = (currentMouseX / width) * gameW;
+          float scaledY = (currentMouseY / height) * gameH;
+          if (auto input = Input::GetInstance()) {
+              input->SetGameMousePosition(scaledX, scaledY);
+          }
+      }
+
       // ===== Mouse Picking =====
-      if (ImGui::IsMouseClicked(0) && isHoveringImage && !ImGui::IsMouseDragging(0) && currentScene) {
+      if (ImGui::IsMouseClicked(0) && isHoveringImage && !ImGui::IsMouseDragging(0) && currentScene && 
+          (!currentScene->GetContext() || !currentScene->GetContext()->isPlaying())) {
           float mouseX = ImGui::GetMousePos().x - vMin.x;
           float mouseY = ImGui::GetMousePos().y - vMin.y;
           RC::CameraController* cam = RC::GetRenderContext().Ctx()->camera;
@@ -1853,7 +1877,26 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
     ImGui::BeginChild("LogScrollRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
     const auto& history = Log::GetHistory();
     for (const auto& msg : history) {
+      ImVec4 color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+      std::string lowerMsg = msg;
+      std::transform(lowerMsg.begin(), lowerMsg.end(), lowerMsg.begin(), ::tolower);
+
+      if (lowerMsg.find("error") != std::string::npos || lowerMsg.find("fail") != std::string::npos || 
+          lowerMsg.find("exception") != std::string::npos || lowerMsg.find("fatal") != std::string::npos) {
+        color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); // 赤 (エラー)
+      } else if (lowerMsg.find("warn") != std::string::npos) {
+        color = ImVec4(1.0f, 0.8f, 0.2f, 1.0f); // 黄 (警告)
+      } else if (lowerMsg.find("success") != std::string::npos || lowerMsg.find("init") != std::string::npos || 
+                 lowerMsg.find("create") != std::string::npos || lowerMsg.find("load") != std::string::npos || 
+                 lowerMsg.find("save") != std::string::npos || lowerMsg.find("start") != std::string::npos) {
+        color = ImVec4(0.5f, 1.0f, 0.5f, 1.0f); // 緑 (成功/初期化系)
+      } else if (msg.find("[") == 0) {
+        color = ImVec4(0.3f, 0.7f, 1.0f, 1.0f); // 水色 (システム/カテゴリタグあり)
+      }
+
+      ImGui::PushStyleColor(ImGuiCol_Text, color);
       ImGui::TextUnformatted(msg.c_str());
+      ImGui::PopStyleColor();
     }
     
     // オートスクロール（一番下にいる場合のみ追従）
@@ -1877,8 +1920,8 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         if (ImGui::Button("Initialize Preview Particle", ImVec2(-1, 40))) {
           peParticle_ = std::make_unique<GPUParticle>();
           if (core) {
-            // リソース初期化
-            peRenderTexture_.Initialize(core, 512, 512, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+            // リソース初期化 (背景色: 暗いグレー)
+            peRenderTexture_.Initialize(core, 512, 512, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, {0.1f, 0.1f, 0.1f, 1.0f});
 
             // カメラ初期化
             peCamera_.Initialize(nullptr, {0.0f, 2.0f, -15.0f}, {0.0f, 0.0f, 0.0f}, 0.45f, 1.0f, 0.1f, 100.0f);

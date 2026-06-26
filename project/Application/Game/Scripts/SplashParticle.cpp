@@ -30,6 +30,14 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
+        Entity* self = GetEntity();
+        if (self && self->GetTagInt("reused", 0) == 1) {
+            OnCreate();
+            initScale_ = false;
+            markedForDestroy_ = false;
+            self->ClearTag("reused");
+        }
+
         if (markedForDestroy_) return;
 
         auto* tr = GetComponent<TransformComponent>();
@@ -90,14 +98,8 @@ private:
         markedForDestroy_ = true;
 
         Entity* self = GetEntity();
-        Scene* scene = GetScene();
-        if (self && scene) {
-            auto* pm = self->GetComponent<PrimitiveMeshComponent>();
-            if (pm && pm->meshHandle >= 0) {
-                RC::UnloadPrimitiveMesh(pm->meshHandle);
-                pm->meshHandle = -1;
-            }
-            scene->RemoveEntity(self->GetId());
+        if (self) {
+            self->SetActive(false);
         }
     }
 };
@@ -120,6 +122,14 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
+        Entity* self = GetEntity();
+        if (self && self->GetTagInt("reused", 0) == 1) {
+            OnCreate();
+            initScale_ = false;
+            markedForDestroy_ = false;
+            self->ClearTag("reused");
+        }
+
         if (markedForDestroy_) return;
 
         auto* tr = GetComponent<TransformComponent>();
@@ -183,14 +193,8 @@ private:
         markedForDestroy_ = true;
 
         Entity* self = GetEntity();
-        Scene* scene = GetScene();
-        if (self && scene) {
-            auto* pm = self->GetComponent<PrimitiveMeshComponent>();
-            if (pm && pm->meshHandle >= 0) {
-                RC::UnloadPrimitiveMesh(pm->meshHandle);
-                pm->meshHandle = -1;
-            }
-            scene->RemoveEntity(self->GetId());
+        if (self) {
+            self->SetActive(false);
         }
     }
 };
@@ -215,6 +219,14 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
+        Entity* self = GetEntity();
+        if (self && self->GetTagInt("reused", 0) == 1) {
+            OnCreate();
+            initScale_ = false;
+            markedForDestroy_ = false;
+            self->ClearTag("reused");
+        }
+
         if (markedForDestroy_) return;
 
         auto* tr = GetComponent<TransformComponent>();
@@ -282,14 +294,8 @@ private:
         if (markedForDestroy_) return;
         markedForDestroy_ = true;
         Entity* self = GetEntity();
-        Scene* scene = GetScene();
-        if (self && scene) {
-            auto* pm = self->GetComponent<PrimitiveMeshComponent>();
-            if (pm && pm->meshHandle >= 0) {
-                RC::UnloadPrimitiveMesh(pm->meshHandle);
-                pm->meshHandle = -1;
-            }
-            scene->RemoveEntity(self->GetId());
+        if (self) {
+            self->SetActive(false);
         }
     }
 };
@@ -313,6 +319,14 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
+        Entity* self = GetEntity();
+        if (self && self->GetTagInt("reused", 0) == 1) {
+            OnCreate();
+            initScale_ = false;
+            markedForDestroy_ = false;
+            self->ClearTag("reused");
+        }
+
         if (markedForDestroy_) return;
 
         auto* tr = GetComponent<TransformComponent>();
@@ -373,14 +387,8 @@ private:
         if (markedForDestroy_) return;
         markedForDestroy_ = true;
         Entity* self = GetEntity();
-        Scene* scene = GetScene();
-        if (self && scene) {
-            auto* pm = self->GetComponent<PrimitiveMeshComponent>();
-            if (pm && pm->meshHandle >= 0) {
-                RC::UnloadPrimitiveMesh(pm->meshHandle);
-                pm->meshHandle = -1;
-            }
-            scene->RemoveEntity(self->GetId());
+        if (self) {
+            self->SetActive(false);
         }
     }
 };

@@ -21,8 +21,10 @@ public:
   /// @param width テクスチャの幅
   /// @param height テクスチャの高さ
   /// @param format テクスチャフォーマット
+  /// @param clearColor クリアカラー
   void Initialize(Dx12Core *dxCore, uint32_t width, uint32_t height,
-                  DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+                  DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+                  const RC::Vector4& clearColor = {0.1f, 0.25f, 0.5f, 1.0f});
 
   /// @brief 任意の状態にリソースを遷移させる（汎用リソースバリア）
   /// @param cmdList コマンドリスト

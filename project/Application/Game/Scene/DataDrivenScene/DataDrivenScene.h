@@ -1,11 +1,13 @@
 #pragma once
 #include "Scene.h"
+#include "Common/Math/MathUtils.h"
 #include "RenderCommon.h"
 #include <string>
 #include <fstream>
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include "Common/Log/Log.h"
+#include "Input/Input.h"
 
 // All component headers (for factory registration)
 #include "ECS/TransformComponent.h"
@@ -234,32 +236,50 @@ public:
 
     // === ゲーム結果判定（プレイ中のみ） ===
     if (ctx.isPlaying() && !resultTriggered_) {
-        // プレイヤー死亡チェック
-        for (auto& e : entities_) {
-            if (e && e->GetName() == "player" && e->HasTag("game_over")) {
+        if (sceneName_ != "Game") {
+            // ゲーム以外のシーンではスペースキーで次のシーンへ
+            if (ctx.input->IsKeyTrigger(DIK_SPACE)) {
                 resultTriggered_ = true;
-                resultTarget_ = "GameOver";
-                resultDelayTimer_ = 0.0f;
-                break;
+                if (sceneName_ == "Title") {
+                    resultTarget_ = "Select";
+                } else if (sceneName_ == "Select") {
+                    resultTarget_ = "Game";
+                } else if (sceneName_ == "Result" || sceneName_ == "GameOver") {
+                    resultTarget_ = "Title";
+                } else {
+                    resultTarget_ = "Title";
+                }
+                // 即座に遷移させるためディレイを最大値にする
+                resultDelayTimer_ = kResultDelay_;
             }
-        }
-        // 全エネミー撃破チェック（プレイヤーが生きている場合のみ）
-        if (!resultTriggered_) {
-            bool hasEnemy = false;
-            bool allDefeated = true;
+        } else {
+            // プレイヤー死亡チェック
             for (auto& e : entities_) {
-                if (e && e->GetName() == "Enemy") {
-                    hasEnemy = true;
-                    if (!e->HasTag("enemy_defeated")) {
-                        allDefeated = false;
-                        break;
-                    }
+                if (e && e->GetName() == "player" && e->HasTag("game_over")) {
+                    resultTriggered_ = true;
+                    resultTarget_ = "GameOver";
+                    resultDelayTimer_ = 0.0f;
+                    break;
                 }
             }
-            if (hasEnemy && allDefeated) {
-                resultTriggered_ = true;
-                resultTarget_ = "Result";
-                resultDelayTimer_ = 0.0f;
+            // 全エネミー撃破チェック（プレイヤーが生きている場合のみ）
+            if (!resultTriggered_) {
+                bool hasEnemy = false;
+                bool allDefeated = true;
+                for (auto& e : entities_) {
+                    if (e && e->GetName() == "Enemy") {
+                        hasEnemy = true;
+                        if (!e->HasTag("enemy_defeated")) {
+                            allDefeated = false;
+                            break;
+                        }
+                    }
+                }
+                if (hasEnemy && allDefeated) {
+                    resultTriggered_ = true;
+                    resultTarget_ = "Result";
+                    resultDelayTimer_ = 0.0f;
+                }
             }
         }
     }
@@ -282,7 +302,7 @@ public:
         float aspect = float(ctx.app->width) / ctx.app->height;
         if (ctx.isPlaying()) {
             ctx.camera->SetUseDebug(false);
-            ctx.camera->SetMainPosition(camTr->position);
+            ctx.camera->SetMainPosition(RC::Add(camTr->position, camComp->shakeOffset));
             ctx.camera->SetMainRotation(camTr->rotation);
             ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
         } else {
@@ -300,7 +320,7 @@ public:
 
     // Entityコンポーネントを持つモデル・スカイボックス・天球の描画
     for (auto& e : entities_) {
-        if (!e->IsVisible()) continue; // Hierarchy の目アイコンで非表示
+        if (!e->IsVisible() || !e->IsActive()) continue; // Hierarchy の目アイコンで非表示、または非アクティブ時はスキップ
 
         if (auto* skybox = e->GetComponent<SkyboxComponent>()) {
             if (skybox->HasSkybox() && skybox->visible && skybox->IsEnabled()) {
@@ -360,7 +380,7 @@ public:
 
     // Entityコンポーネントのスプライト描画
     for (auto& e : entities_) {
-        if (!e->IsVisible()) continue;
+        if (!e->IsVisible() || !e->IsActive()) continue;
         if (auto* spr = e->GetComponent<SpriteRendererComponent>()) {
             if (spr->HasSprite() && spr->visible && spr->IsEnabled()) {
                 RC::DrawSprite(spr->spriteHandle);

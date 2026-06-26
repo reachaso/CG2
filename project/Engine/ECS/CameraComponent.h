@@ -9,6 +9,7 @@ struct CameraComponent : public IComponent {
     float nearZ = 0.1f;       ///< Near clip distance
     float farZ = 100.0f;      ///< Far clip distance
     bool isMain = true;       ///< Main camera flag (for future multi-camera support)
+    RC::Vector3 shakeOffset = {0.0f, 0.0f, 0.0f}; ///< Camera shake offset applied to position
 
     const char* TypeName() const override { return "CameraComponent"; }
 

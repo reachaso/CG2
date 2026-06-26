@@ -8,6 +8,7 @@ Input* Input::instance_ = nullptr;
 
 Input::Input(HWND hwnd) {
     instance_ = this;
+    hwnd_ = hwnd;
     HRESULT hr = DirectInput8Create(
         GetModuleHandle(nullptr), DIRECTINPUT_HEADER_VERSION,
         IID_IDirectInput8, (void**)directInput_.GetAddressOf(), nullptr);
@@ -63,3 +64,20 @@ BYTE Input::GetXInputLeftTrigger() const { return controller_->GetLeftTrigger();
 BYTE Input::GetXInputRightTrigger() const { return controller_->GetRightTrigger(); }
 void Input::SetXInputVibration(WORD leftMotor, WORD rightMotor) { controller_->SetVibration(leftMotor, rightMotor); }
 void Input::ControllerImGui(const char* label) { controller_->DrawImGui(label); }
+
+void Input::GetGameMousePosition(float& outX, float& outY) const {
+    if (isGameMousePosSet_) {
+        outX = gameMouseX_;
+        outY = gameMouseY_;
+    } else {
+        POINT pt;
+        if (GetCursorPos(&pt)) {
+            ScreenToClient(hwnd_, &pt);
+            outX = static_cast<float>(pt.x);
+            outY = static_cast<float>(pt.y);
+        } else {
+            outX = 0.0f;
+            outY = 0.0f;
+        }
+    }
+}
