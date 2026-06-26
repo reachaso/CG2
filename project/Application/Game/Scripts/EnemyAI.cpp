@@ -4,6 +4,7 @@
 #include "ECS/ColliderComponent.h"
 #include "ECS/NativeScriptComponent.h"
 #include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/CameraComponent.h"
 #include "RenderCommon.h"
 #include "Render/Systems/RenderInteractiveWater.h"
 #include "Scene.h"
@@ -84,82 +85,69 @@ protected:
         Scene* scene = GetScene();
         if (!scene) return;
 
-        // Find player
-        Entity* player = nullptr;
+        // Find Camera
+        Entity* mainCamera = nullptr;
         for (auto& e : scene->GetEntities()) {
-            if (e->GetName() == "player") {
-                player = e.get();
+            if (e->HasComponent<CameraComponent>()) {
+                mainCamera = e.get();
                 break;
             }
         }
-        if (!player) return;
+        if (!mainCamera) return;
 
-        auto* playerTr = player->GetComponent<TransformComponent>();
-        if (!playerTr) return;
+        auto* camTr = mainCamera->GetComponent<TransformComponent>();
+        if (!camTr) return;
 
-        RC::Vector3 toPlayer = {
-            playerTr->position.x - tr->position.x,
-            0.0f,
-            playerTr->position.z - tr->position.z
-        };
-        float dist = std::sqrt(toPlayer.x * toPlayer.x + toPlayer.z * toPlayer.z);
-
-        if (dist > 0.01f) {
-            RC::Vector3 dirToPlayer = { toPlayer.x / dist, 0.0f, toPlayer.z / dist };
-
-            // Strafe movement (orbit around player)
-            strafeAngle_ += deltaTime * 0.8f;
-            float strafeX = -dirToPlayer.z * std::sin(strafeAngle_) * 0.5f;
-            float strafeZ =  dirToPlayer.x * std::sin(strafeAngle_) * 0.5f;
-
-            // Move toward or away from preferred distance
-            float approach = 0.0f;
-            if (dist > preferredDist + 3.0f) approach = 1.0f;
-            else if (dist < preferredDist - 3.0f) approach = -1.0f;
-
-            float moveX = (dirToPlayer.x * approach + strafeX) * moveSpeed * deltaTime;
-            float moveZ = (dirToPlayer.z * approach + strafeZ) * moveSpeed * deltaTime;
-
-            tr->position.x += moveX;
-            tr->position.z += moveZ;
-
-            // Clamp to play area
-            const float areaLimit = 45.0f;
-            if (tr->position.x > areaLimit)  tr->position.x = areaLimit;
-            if (tr->position.x < -areaLimit) tr->position.x = -areaLimit;
-            if (tr->position.z > areaLimit)  tr->position.z = areaLimit;
-            if (tr->position.z < -areaLimit) tr->position.z = -areaLimit;
-
-            // Water wave interaction
-            if (std::abs(moveX) > 0.001f || std::abs(moveZ) > 0.001f) {
-                float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) / deltaTime;
-
-                if (!firstUpdate_) {
-                    RC::WaveSource sourcePrev;
-                    sourcePrev.uv = RC::Vector2((prevPosition_.x / 100.0f) + 0.5f, (prevPosition_.z / 100.0f) + 0.5f);
-                    sourcePrev.radius = 0.035f;
-                    sourcePrev.strength = -velocity * 0.02f;
-                    RC::AddWaveSource(sourcePrev);
-                }
-
-                RC::WaveSource source;
-                source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
-                source.radius = 0.035f;
-                source.strength = velocity * 0.02f;
-                RC::AddWaveSource(source);
-
-            }
-            prevPosition_ = tr->position;
+        if (firstUpdate_) {
+            initialPos_ = tr->position;
             firstUpdate_ = false;
-
-            // Face toward player
-            tr->rotation.y = std::atan2(dirToPlayer.x, dirToPlayer.z);
         }
+
+        RC::Vector3 toCam = {
+            camTr->position.x - tr->position.x,
+            camTr->position.y - tr->position.y,
+            camTr->position.z - tr->position.z
+        };
+        float distToCam = std::sqrt(toCam.x * toCam.x + toCam.z * toCam.z);
+
+        // Strafe movement (left/right around initial position)
+        strafeAngle_ += deltaTime * moveSpeed * 0.5f;
+        float targetX = initialPos_.x + std::sin(strafeAngle_) * 8.0f; // 8 meters strafe
+        float targetZ = initialPos_.z;
+
+        float moveX = (targetX - tr->position.x) * deltaTime * 2.0f;
+        float moveZ = (targetZ - tr->position.z) * deltaTime * 2.0f;
+
+        tr->position.x += moveX;
+        tr->position.z += moveZ;
+
+        // Face toward camera
+        if (distToCam > 0.01f) {
+            tr->rotation.y = std::atan2(toCam.x, toCam.z);
+        }
+
+        // Water wave interaction
+        if (std::abs(moveX) > 0.001f || std::abs(moveZ) > 0.001f) {
+            float velocity = std::sqrt(moveX * moveX + moveZ * moveZ) / deltaTime;
+
+            RC::WaveSource sourcePrev;
+            sourcePrev.uv = RC::Vector2((prevPosition_.x / 100.0f) + 0.5f, (prevPosition_.z / 100.0f) + 0.5f);
+            sourcePrev.radius = 0.035f;
+            sourcePrev.strength = -velocity * 0.02f;
+            RC::AddWaveSource(sourcePrev);
+
+            RC::WaveSource source;
+            source.uv = RC::Vector2((tr->position.x / 100.0f) + 0.5f, (tr->position.z / 100.0f) + 0.5f);
+            source.radius = 0.035f;
+            source.strength = velocity * 0.02f;
+            RC::AddWaveSource(source);
+        }
+        prevPosition_ = tr->position;
 
         // === Shooting ===
         shootTimer_ -= deltaTime;
-        if (shootTimer_ <= 0.0f && dist < 40.0f) {
-            ShootAt(tr->position, playerTr->position);
+        if (shootTimer_ <= 0.0f && distToCam < 60.0f) {
+            ShootAt(tr->position, camTr->position);
             shootTimer_ = shootInterval + (std::sin(strafeAngle_ * 3.0f) * 0.5f);
         }
     }
@@ -202,6 +190,7 @@ public:
 private:
     float shootTimer_ = 0.0f;
     float strafeAngle_ = 0.0f;
+    RC::Vector3 initialPos_ = {0.0f, 0.0f, 0.0f};
     RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
     bool firstUpdate_ = true;
     float verticalVel_ = 0.0f;
@@ -210,15 +199,16 @@ private:
         Scene* scene = GetScene();
         if (!scene) return;
 
-        // Direction to player
+        // Direction to camera
         RC::Vector3 dir = {
             target.x - origin.x,
-            0.0f,
+            target.y - origin.y,
             target.z - origin.z
         };
-        float len = std::sqrt(dir.x * dir.x + dir.z * dir.z);
+        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
         if (len < 0.01f) return;
         dir.x /= len;
+        dir.y /= len;
         dir.z /= len;
 
         // Create bullet entity
@@ -264,6 +254,12 @@ private:
             nsc->SetScene(scene);
             if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
         }
+
+        // 弾の向きタグを設定
+        bullet->SetTag("dir_x", static_cast<int>(dir.x * 1000.0f));
+        bullet->SetTag("dir_y", static_cast<int>(dir.y * 1000.0f));
+        bullet->SetTag("dir_z", static_cast<int>(dir.z * 1000.0f));
+        bullet->SetTag("bullet_speed", static_cast<int>(bulletSpeed * 10.0f));
 
         // Set color (reddish water)
         if (pm->meshHandle >= 0) {

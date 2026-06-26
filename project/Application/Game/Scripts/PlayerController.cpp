@@ -186,8 +186,6 @@ public:
         }
     }
 
-    RC::Vector3 GetFacingDir() const { return facingDir_; }
-
 private:
     RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
     bool firstUpdate_ = true;

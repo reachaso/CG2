@@ -47,6 +47,14 @@ public:
     float shakeMax = 0.5f;           // カメラシェイクの最大強度
     float shakeRecoverySpeed = 5.0f; // カメラシェイクの減衰速度
 
+    // プレイヤーステータス
+    int hp = 5;
+    int maxHp = 5;
+    float invincibleTimer = 0.0f;
+    float invincibleDuration = 1.0f;
+    bool isDead = false;
+    int score = 0;
+
     enum class WeaponType { Normal, Spread, Heavy };
     WeaponType currentWeapon = WeaponType::Normal;
 
@@ -54,6 +62,26 @@ protected:
     void OnUpdate(float deltaTime) override {
         auto* input = Input::GetInstance();
         if (!input) return;
+
+        // === 無敵タイマー ===
+        if (invincibleTimer > 0.0f) {
+            invincibleTimer -= deltaTime;
+        }
+
+        // === ダメージ・スコア処理 ===
+        Entity* self = GetEntity();
+        if (self) {
+            int dmg = self->GetTagInt("pending_damage", 0);
+            if (dmg > 0) {
+                self->ClearTag("pending_damage");
+                TakeDamage(dmg);
+            }
+            int scoreAdd = self->GetTagInt("score_add", 0);
+            if (scoreAdd > 0) {
+                self->ClearTag("score_add");
+                score += scoreAdd;
+            }
+        }
 
         // Weapon Switching
         long wheel = input->GetMouseZ();
@@ -260,9 +288,66 @@ protected:
         RC::DrawBox({wX+25.0f, wY}, {wX+45.0f, wY+20.0f}, {0.2f, 0.8f, 0.4f, alphaS});
         float alphaH = (currentWeapon == WeaponType::Heavy) ? 0.9f : 0.3f;
         RC::DrawBox({wX+50.0f, wY}, {wX+70.0f, wY+20.0f}, {0.8f, 0.3f, 0.1f, alphaH});
+
+        // === Player HP Bar ===
+        float screenW = 1280.0f;
+        if (ctx.Ctx() && ctx.Ctx()->app) {
+            screenW = static_cast<float>(ctx.Ctx()->app->width);
+        }
+        float barX = 20.0f;
+        float barY = screenH - 50.0f;
+        float barW = 200.0f;
+        float barH = 20.0f;
+
+        // Background
+        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 0.3f, 0.05f, 0.05f, 0.8f });
+
+        // Foreground
+        float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
+        RC::Vector4 hpColor = { 1.0f - hpRatio, hpRatio, 0.1f, 0.9f };
+        RC::DrawBox({ barX, barY }, { barX + barW * hpRatio, barY + barH }, hpColor);
+
+        // Border
+        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
+
+        // === Score display (tally circles) ===
+        float scoreX = screenW - 220.0f;
+        float scoreY = 30.0f;
+        for (int i = 0; i < score && i < 20; ++i) {
+            float cx = scoreX + (i % 10) * 20.0f;
+            float cy = scoreY + (i / 10) * 20.0f;
+            RC::DrawCircle({ cx, cy }, 7.0f, { 0.3f, 0.7f, 1.0f, 0.9f });
+        }
+
+        // === Game Over / Damage overlay ===
+        if (isDead) {
+            RC::DrawBox({ 0.0f, screenH * 0.4f }, { screenW, screenH * 0.6f },
+                        { 0.8f, 0.1f, 0.1f, 0.7f });
+        } else if (invincibleTimer > 0.0f) {
+            float flashAlpha = (invincibleTimer / invincibleDuration) * 0.5f;
+            RC::DrawBox({ 0.0f, 0.0f }, { screenW, screenH },
+                        { 1.0f, 0.0f, 0.0f, flashAlpha });
+        }
     }
 
 public:
+    void TakeDamage(int damage) {
+        if (invincibleTimer > 0.0f || isDead) return;
+        hp -= damage;
+        invincibleTimer = invincibleDuration;
+        
+        // 演出
+        currentCameraShake = shakeMax * 2.0f;
+
+        if (hp <= 0) {
+            hp = 0;
+            isDead = true;
+            if (Entity* self = GetEntity()) {
+                self->SetTag("game_over", 1);
+            }
+        }
+    }
+
     void OnImGui() override {
 #if RC_ENABLE_IMGUI
         ImGui::Text("Cursor Pos: (%.1f, %.1f)", cursorPosition.x, cursorPosition.y);
@@ -283,6 +368,11 @@ public:
         ImGui::DragFloat("Fire Cooldown", &fireCooldown, 0.05f, 0.05f, 5.0f);
         ImGui::DragFloat("Bullet Speed", &bulletSpeed, 1.0f, 10.0f, 200.0f);
         ImGui::DragFloat("Bullet Lifetime", &bulletLifetime, 0.1f, 0.5f, 10.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Player Stats");
+        ImGui::DragInt("HP", &hp, 1, 0, maxHp);
+        ImGui::Text("Score: %d", score);
 #endif
     }
 };

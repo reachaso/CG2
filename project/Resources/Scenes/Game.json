@@ -160,105 +160,13 @@
       "components": [
         {
           "data": {
-            "scriptTypeName": "RailShooterController",
+            "scriptTypeName": "EnemyAI",
             "scriptTypeNames": [
-              "RailShooterController",
-              "PlayerController"
+              "EnemyAI"
             ]
           },
           "enabled": true,
           "type": "NativeScriptComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
-            "position": [
-              0.0,
-              0.30000001192092896,
-              -40.0
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "blendMode": 0,
-            "color": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ],
-            "environmentCoeff": 0.0,
-            "modelPath": "Resources/model/player/player.obj",
-            "normalMapPath": "",
-            "roughnessMapPath": "",
-            "texturePath": "",
-            "visible": true
-          },
-          "enabled": true,
-          "type": "ModelRendererComponent"
-        }
-      ],
-      "guid": 15833185702217050271,
-      "isFolder": false,
-      "locked": false,
-      "name": "player",
-      "parentGuid": 0,
-      "visible": true
-    },
-    {
-      "active": true,
-      "components": [
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -283,13 +191,23 @@
         },
         {
           "data": {
-            "scriptTypeName": "EnemyAI",
-            "scriptTypeNames": [
-              "EnemyAI"
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
             ]
           },
           "enabled": true,
-          "type": "NativeScriptComponent"
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -376,80 +294,6 @@
       "isFolder": true,
       "locked": false,
       "name": "Field",
-      "parentGuid": 0,
-      "visible": true
-    },
-    {
-      "active": true,
-      "components": [
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": true,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 1,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
-            "scriptTypeName": "WaterBullet",
-            "scriptTypeNames": [
-              "WaterBullet"
-            ]
-          },
-          "enabled": true,
-          "type": "NativeScriptComponent"
-        },
-        {
-          "data": {
-            "position": [
-              -0.04068954288959503,
-              0.01949714682996273,
-              -18.700000762939453
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              0.30000001192092896,
-              0.30000001192092896,
-              0.30000001192092896
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "environmentCoeff": 0.0,
-            "normalMapPath": "",
-            "roughnessMapPath": "",
-            "texturePath": "",
-            "type": 0,
-            "visible": true
-          },
-          "enabled": true,
-          "type": "PrimitiveMeshComponent"
-        }
-      ],
-      "guid": 10689050971476707365,
-      "isFolder": false,
-      "locked": false,
-      "name": "PlayerBullet",
       "parentGuid": 0,
       "visible": true
     }

@@ -4,6 +4,7 @@
 #include "ECS/ColliderComponent.h"
 #include "ECS/NativeScriptComponent.h"
 #include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/CameraComponent.h"
 #include "RenderCommon.h"
 #include "Render/Systems/RenderInteractiveWater.h"
 #include "Scene.h"
@@ -76,7 +77,7 @@ protected:
                 int lifeTag = self->GetTagInt("bullet_lifetime", 0);
                 if (lifeTag > 0) this->lifetime = static_cast<float>(lifeTag) / 10.0f;
 
-                if (name == "PlayerBullet") {
+                if (name == "PlayerBullet" || name == "EnemyBullet") {
                     int dirX = self->GetTagInt("dir_x", -9999);
                     int dirY = self->GetTagInt("dir_y", -9999);
                     int dirZ = self->GetTagInt("dir_z", -9999);
@@ -89,7 +90,7 @@ protected:
                         if (len > 0.01f) { dx /= len; dy /= len; dz /= len; }
                         else { dx = 0.0f; dy = 0.0f; dz = 1.0f; }
                         velocity = { dx * baseSpeed, dy * baseSpeed, dz * baseSpeed };
-                    } else if (bulletType == "spread") {
+                    } else if (name == "PlayerBullet" && bulletType == "spread") {
                         float dx = static_cast<float>(self->GetTagInt("dir_x", 0)) / 1000.0f;
                         float dz = static_cast<float>(self->GetTagInt("dir_z", 1000)) / 1000.0f;
                         // Normalize just in case
@@ -97,11 +98,9 @@ protected:
                         if (len > 0.01f) { dx /= len; dz /= len; }
                         else { dx = 0.0f; dz = 1.0f; }
                         velocity = { dx * baseSpeed, 1.5f, dz * baseSpeed };
-                    } else if (velocity.x == 0.0f && velocity.z == 0.0f) {
+                    } else if (name == "PlayerBullet" && velocity.x == 0.0f && velocity.z == 0.0f) {
                         SetVelocityTowardTarget("Enemy", baseSpeed, "player", tr->position);
                     }
-                } else if (name == "EnemyBullet") {
-                    SetVelocityTowardTarget("player", 25.0f, "", tr->position);
                 }
             }
             initialized = true;
@@ -138,7 +137,8 @@ protected:
 
         // 当たり判定対象の確認
         bool hitEnemy = (isPlayerBullet && targetName == "Enemy");
-        bool hitPlayer = (!isPlayerBullet && targetName == "player");
+        bool isCamera = other->HasComponent<CameraComponent>();
+        bool hitPlayer = (!isPlayerBullet && isCamera);
         bool hitTerrain = (targetName == "Block" || targetName == "Terrain" || targetName == "Obstacle");
 
         if (hitEnemy || hitPlayer) {
@@ -150,7 +150,7 @@ protected:
             if (hitEnemy) {
                 if (Scene* scene = GetScene()) {
                     for (auto& pe : scene->GetEntities()) {
-                        if (pe->GetName() == "player") {
+                        if (pe->HasComponent<CameraComponent>()) {
                             int scoreAdd = pe->GetTagInt("score_add", 0);
                             pe->SetTag("score_add", scoreAdd + 1);
                             break;
