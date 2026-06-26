@@ -21,6 +21,19 @@ public:
     std::string bulletType = "normal";
 
 protected:
+    void Die() {
+        if (isDead) return;
+        isDead = true;
+        if (Entity* self = GetEntity()) {
+            if (auto* tr = self->GetComponent<TransformComponent>()) {
+                SpawnSplash(tr->position);
+            }
+            // エンティティを破棄せず、非アクティブにしてプール（再利用）する
+            self->SetActive(false);
+            initialized = false;
+        }
+    }
+
     void OnCreate() override {
         elapsed_ = 0.0f;
         // ColliderComponentの付与
@@ -38,12 +51,13 @@ protected:
         if (self && self->GetTagInt("reused", 0) == 1) {
             elapsed_ = 0.0f;
             markedForDestroy_ = false;
+            isDead = false;
             initialized = false;
             velocity = {0.0f, 0.0f, 0.0f};
             self->ClearTag("reused");
         }
 
-        if (markedForDestroy_) return;
+        if (markedForDestroy_ || isDead) return;
 
         auto* tr = GetComponent<TransformComponent>();
         if (!tr) return;
@@ -115,66 +129,73 @@ protected:
         // Lifetime
         elapsed_ += deltaTime;
         if (elapsed_ >= lifetime) {
-            DestroyBullet();
+            Die();
             return;
         }
 
         // Water surface collision (y < 0)
         if (tr->position.y < 0.0f) {
-            SpawnSplash(tr->position);
-            DestroyBullet();
+            Die();
             return;
         }
     }
 
     void OnCollision(Entity* other) override {
-        if (markedForDestroy_ || !other) return;
+        if (isDead || !other) return;
 
         Entity* self = GetEntity();
         std::string myName = self ? self->GetName() : "";
         bool isPlayerBullet = (myName == "PlayerBullet");
         std::string targetName = other->GetName();
 
-        // 当たり判定対象の確認
-        bool hitEnemy = (isPlayerBullet && targetName == "Enemy");
+        // 当たり判定対象の確認 (タグによる疎結合化の準備)
+        bool hitEnemy = (isPlayerBullet && (targetName == "Enemy" || other->GetTagInt("is_enemy", 0) == 1));
         bool isCamera = other->HasComponent<CameraComponent>();
         bool hitPlayer = (!isPlayerBullet && isCamera);
-        bool hitTerrain = (targetName == "Block" || targetName == "Terrain" || targetName == "Obstacle");
+        bool hitTerrain = (targetName == "Block" || targetName == "Terrain" || targetName == "Obstacle" || other->GetTagInt("is_terrain", 0) == 1);
 
         if (hitEnemy || hitPlayer) {
             // ダメージ処理
             int pendingDmg = other->GetTagInt("pending_damage", 0);
             other->SetTag("pending_damage", pendingDmg + damage);
 
-            // プレイヤースコア加算
+            // プレイヤースコア加算 (カメラをキャッシュしてパフォーマンス向上)
             if (hitEnemy) {
-                if (Scene* scene = GetScene()) {
-                    for (auto& pe : scene->GetEntities()) {
-                        if (pe->HasComponent<CameraComponent>()) {
-                            int scoreAdd = pe->GetTagInt("score_add", 0);
-                            pe->SetTag("score_add", scoreAdd + 1);
-                            break;
+                std::shared_ptr<Entity> cam = cachedCamera_.lock();
+                if (!cam || cam->IsPendingDestroy() || !cam->IsActive()) {
+                    if (Scene* scene = GetScene()) {
+                        for (auto& pe : scene->GetEntities()) {
+                            if (pe->HasComponent<CameraComponent>()) {
+                                cam = pe;
+                                cachedCamera_ = cam;
+                                break;
+                            }
                         }
                     }
                 }
+                if (cam) {
+                    int scoreAdd = cam->GetTagInt("score_add", 0);
+                    cam->SetTag("score_add", scoreAdd + 1);
+                }
             }
-
-            if (auto* tr = GetComponent<TransformComponent>()) {
-                SpawnSplash(tr->position);
-            }
-            DestroyBullet();
+            Die();
         } else if (hitTerrain) {
             // 地形に当たって消滅
             if (auto* tr = GetComponent<TransformComponent>()) {
                 SpawnSplash(tr->position);
             }
-            DestroyBullet();
+            Die();
         }
     }
 
-private:
+    private:
     float elapsed_ = 0.0f;
     bool markedForDestroy_ = false;
+    std::weak_ptr<Entity> cachedCamera_;
+
+    void DestroyBullet() {
+        Die();
+    }
 
     void SetVelocityTowardTarget(const std::string& targetName, float speed,
                                   const std::string& ownerName, const RC::Vector3& myPos) {

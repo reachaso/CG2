@@ -85,12 +85,16 @@ protected:
         Scene* scene = GetScene();
         if (!scene) return;
 
-        // Find Camera
-        Entity* mainCamera = nullptr;
-        for (auto& e : scene->GetEntities()) {
-            if (e->HasComponent<CameraComponent>()) {
-                mainCamera = e.get();
-                break;
+        // Find Camera (cached)
+        std::shared_ptr<Entity> mainCamera = cachedTarget_.lock();
+        if (!mainCamera || mainCamera->IsPendingDestroy() || !mainCamera->IsActive()) {
+            mainCamera = nullptr;
+            for (auto& e : scene->GetEntities()) {
+                if (e->HasComponent<CameraComponent>()) {
+                    mainCamera = e;
+                    cachedTarget_ = mainCamera;
+                    break;
+                }
             }
         }
         if (!mainCamera) return;
@@ -194,6 +198,7 @@ private:
     RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
     bool firstUpdate_ = true;
     float verticalVel_ = 0.0f;
+    std::weak_ptr<Entity> cachedTarget_;
 
     void ShootAt(const RC::Vector3& origin, const RC::Vector3& target) {
         Scene* scene = GetScene();
@@ -241,6 +246,15 @@ private:
             pm->meshHandle = RC::GenerateSphere(1.0f);
         }
 
+        // Set color (reddish water)
+        if (pm->meshHandle >= 0) {
+            if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
+                mat->color = { 1.0f, 0.2f, 0.2f, 0.85f };
+                mat->metallic = 0.1f;
+                mat->roughness = 0.2f;
+            }
+        }
+
         auto* col = bullet->GetComponent<ColliderComponent>();
         if (!col) col = &bullet->AddComponent<ColliderComponent>();
         col->shape = ColliderComponent::Shape::Sphere;
@@ -260,13 +274,6 @@ private:
         bullet->SetTag("dir_y", static_cast<int>(dir.y * 1000.0f));
         bullet->SetTag("dir_z", static_cast<int>(dir.z * 1000.0f));
         bullet->SetTag("bullet_speed", static_cast<int>(bulletSpeed * 10.0f));
-
-        // Set color (reddish water)
-        if (pm->meshHandle >= 0) {
-            if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
-                mat->color = { 1.0f, 0.3f, 0.3f, 0.85f };
-            }
-        }
 
         if (isNew) {
             scene->InitDynamicEntityRuntime(*bullet);

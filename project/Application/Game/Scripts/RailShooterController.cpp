@@ -219,11 +219,24 @@ protected:
             Scene* scene = GetScene();
             if (!scene) continue;
 
-            // 弾の生成
-            auto bullet = scene->CreateEntity("PlayerBullet");
-            
-            // Transformの設定（カメラの近傍から発射する）
-            auto* tr = &bullet->AddComponent<TransformComponent>();
+            // Create bullet entity (Pooling)
+            std::shared_ptr<Entity> bullet = nullptr;
+            for (auto& e : scene->GetEntities()) {
+                if (e->GetName() == "PlayerBullet" && !e->IsActive() && !e->IsPendingDestroy()) {
+                    bullet = e;
+                    bullet->SetActive(true);
+                    bullet->SetTag("reused", 1);
+                    break;
+                }
+            }
+            bool isNew = false;
+            if (!bullet) {
+                bullet = scene->CreateEntity("PlayerBullet");
+                isNew = true;
+            }
+
+            auto* tr = bullet->GetComponent<TransformComponent>();
+            if (!tr) tr = &bullet->AddComponent<TransformComponent>();
             tr->position = ray.origin;
             float scale = 0.3f;
             if (currentWeapon == WeaponType::Heavy) scale = 0.6f;
@@ -231,9 +244,12 @@ protected:
             tr->scale = { scale, scale, scale };
             
             // メッシュの追加（描画用）
-            auto* pm = &bullet->AddComponent<PrimitiveMeshComponent>();
-            pm->type = PrimitiveType::Sphere;
-            pm->meshHandle = RC::GenerateSphere(1.0f);
+            auto* pm = bullet->GetComponent<PrimitiveMeshComponent>();
+            if (!pm) {
+                pm = &bullet->AddComponent<PrimitiveMeshComponent>();
+                pm->type = PrimitiveType::Sphere;
+                pm->meshHandle = RC::GenerateSphere(1.0f);
+            }
             if (pm->meshHandle >= 0) {
                 if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
                     mat->color = { 0.2f, 0.6f, 1.0f, 0.85f };
@@ -252,13 +268,24 @@ protected:
             else if (currentWeapon == WeaponType::Heavy) bullet->SetTag("bullet_type", 2);
 
             // Scriptのアタッチ
-            auto* nsc = &bullet->AddComponent<NativeScriptComponent>();
-            nsc->AddScript("WaterBullet");
+            auto* nsc = bullet->GetComponent<NativeScriptComponent>();
+            if (!nsc) {
+                nsc = &bullet->AddComponent<NativeScriptComponent>();
+                nsc->AddScript("WaterBullet");
+            }
             nsc->SetScene(scene);
             if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
 
-            // ランタイムでの初期化
-            scene->InitDynamicEntityRuntime(*bullet);
+            if (isNew) {
+                scene->InitDynamicEntityRuntime(*bullet);
+            } else {
+                // PrimitiveMeshのTransformを即座に同期（チラつき防止）
+                if (pm && pm->meshHandle >= 0) {
+                    if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm->meshHandle)) {
+                        pmTr->translation = tr->position;
+                    }
+                }
+            }
         }
 
         // 演出のトリガー
