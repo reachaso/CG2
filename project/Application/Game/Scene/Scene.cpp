@@ -314,10 +314,14 @@ void Scene::ResolveCollisions() {
             if (result.hit) {
                 // コールバック呼び出し
                 if (auto* nsc1 = e1->GetComponent<NativeScriptComponent>()) {
-                    if (nsc1->instance) nsc1->instance->OnCollision(e2.get());
+                    for (auto& entry : nsc1->scripts) {
+                        if (entry.instance) entry.instance->OnCollision(e2.get());
+                    }
                 }
                 if (auto* nsc2 = e2->GetComponent<NativeScriptComponent>()) {
-                    if (nsc2->instance) nsc2->instance->OnCollision(e1.get());
+                    for (auto& entry : nsc2->scripts) {
+                        if (entry.instance) entry.instance->OnCollision(e1.get());
+                    }
                 }
 
                 // Triggerの場合は物理的な押し出しを行わない

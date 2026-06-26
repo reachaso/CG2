@@ -260,7 +260,7 @@ private:
         auto* nsc = bullet->GetComponent<NativeScriptComponent>();
         if (!nsc) {
             nsc = &bullet->AddComponent<NativeScriptComponent>();
-            nsc->Bind("WaterBullet");
+            nsc->AddScript("WaterBullet");
             nsc->SetScene(scene);
             if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
         }
@@ -378,7 +378,7 @@ private:
             auto* nsc = splash->GetComponent<NativeScriptComponent>();
             if (!nsc) {
                 nsc = &splash->AddComponent<NativeScriptComponent>();
-                nsc->Bind("SplashParticle");
+                nsc->AddScript("SplashParticle");
                 nsc->SetScene(scene);
                 if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
             }

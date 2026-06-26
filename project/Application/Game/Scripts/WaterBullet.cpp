@@ -269,7 +269,7 @@ private:
             auto* nsc = splash->GetComponent<NativeScriptComponent>();
             if (!nsc) {
                 nsc = &splash->AddComponent<NativeScriptComponent>();
-                nsc->Bind("HeavySplashParticle");
+                nsc->AddScript("HeavySplashParticle");
                 nsc->SetScene(scene);
                 if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
             }
@@ -328,7 +328,7 @@ private:
                 auto* nsc = splash->GetComponent<NativeScriptComponent>();
                 if (!nsc) {
                     nsc = &splash->AddComponent<NativeScriptComponent>();
-                    nsc->Bind("SplashParticle");
+                    nsc->AddScript("SplashParticle");
                     nsc->SetScene(scene);
                     if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
                 }
@@ -387,7 +387,7 @@ private:
             auto* nsc = bubble->GetComponent<NativeScriptComponent>();
             if (!nsc) {
                 nsc = &bubble->AddComponent<NativeScriptComponent>();
-                nsc->Bind("BubbleParticle");
+                nsc->AddScript("BubbleParticle");
                 nsc->SetScene(scene);
                 if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
             }

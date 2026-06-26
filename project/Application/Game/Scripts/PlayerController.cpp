@@ -22,21 +22,15 @@ public:
     float speed = 5.0f;
     int hp = 5;
     int maxHp = 5;
-    float shootCooldown = 0.3f;
-    float bulletSpeed = 15.0f;
     float invincibleTimer = 0.0f;
     float invincibleDuration = 1.0f;
     int score = 0;
     float weight = 5.0f;
     bool isDead = false;
 
-    enum class WeaponType { Normal, Spread, Heavy };
-    WeaponType currentWeapon = WeaponType::Normal;
-
-protected:
+    protected:
     void OnCreate() override {
         std::cout << "[PlayerController] OnCreate\n";
-        shootTimer_ = 0.0f;
     }
 
     void OnUpdate(float deltaTime) override {
@@ -98,33 +92,6 @@ protected:
             invincibleTimer -= deltaTime;
         }
 
-        // === Weapon Switching ===
-        if (input->IsKeyPressed(DIK_1)) currentWeapon = WeaponType::Normal;
-        if (input->IsKeyPressed(DIK_2)) currentWeapon = WeaponType::Spread;
-        if (input->IsKeyPressed(DIK_3)) currentWeapon = WeaponType::Heavy;
-
-        if (input->IsXInputConnected()) {
-            bool lb = input->IsXInputButtonPressed(XINPUT_GAMEPAD_LEFT_SHOULDER);
-            bool rb = input->IsXInputButtonPressed(XINPUT_GAMEPAD_RIGHT_SHOULDER);
-            if (lb && !prevLB_) {
-                int w = static_cast<int>(currentWeapon) - 1;
-                if (w < 0) w = 2;
-                currentWeapon = static_cast<WeaponType>(w);
-            }
-            if (rb && !prevRB_) {
-                int w = static_cast<int>(currentWeapon) + 1;
-                if (w > 2) w = 0;
-                currentWeapon = static_cast<WeaponType>(w);
-            }
-            prevLB_ = lb;
-            prevRB_ = rb;
-        }
-
-        // === Shoot cooldown ===
-        if (shootTimer_ > 0.0f) {
-            shootTimer_ -= deltaTime;
-        }
-
         // === Movement ===
         float moveX = 0.0f;
         float moveZ = 0.0f;
@@ -184,24 +151,6 @@ protected:
         
         prevPosition_ = tr->position;
         firstUpdate_ = false;
-
-        // Store facing direction for shooting
-        if (moveX != 0.0f || moveZ != 0.0f) {
-            float len = std::sqrt(moveX * moveX + moveZ * moveZ);
-            facingDir_ = { moveX / len, 0.0f, moveZ / len };
-        }
-
-        // === Shooting ===
-        bool wantShoot = input->IsKeyPressed(DIK_SPACE);
-        if (input->IsXInputConnected()) {
-            wantShoot = wantShoot || input->IsXInputButtonPressed(XINPUT_GAMEPAD_A);
-        }
-
-        if (wantShoot && shootTimer_ <= 0.0f) {
-            Shoot(tr->position);
-            if (currentWeapon == WeaponType::Heavy) shootTimer_ = shootCooldown * 2.0f;
-            else shootTimer_ = shootCooldown;
-        }
     }
 
     void OnRender() override {
@@ -216,8 +165,6 @@ public:
     void OnImGui() override {
 #if RC_ENABLE_IMGUI
         ImGui::DragFloat("Speed##PC", &speed, 0.1f, 0.1f, 50.0f);
-        ImGui::DragFloat("Shoot Cooldown##PC", &shootCooldown, 0.01f, 0.05f, 2.0f);
-        ImGui::DragFloat("Bullet Speed##PC", &bulletSpeed, 0.1f, 1.0f, 50.0f);
         ImGui::DragInt("HP##PC", &hp, 1, 0, maxHp);
         ImGui::DragFloat("Weight##PC", &weight, 0.1f, 0.1f, 50.0f);
         ImGui::Text("Score: %d", score);
@@ -242,107 +189,9 @@ public:
     RC::Vector3 GetFacingDir() const { return facingDir_; }
 
 private:
-    float shootTimer_ = 0.0f;
-    RC::Vector3 facingDir_ = { 0.0f, 0.0f, 1.0f };
     RC::Vector3 prevPosition_ = {0.0f, 0.0f, 0.0f};
     bool firstUpdate_ = true;
     float verticalVel_ = 0.0f;
-    bool prevLB_ = false;
-    bool prevRB_ = false;
-
-    void Shoot(const RC::Vector3& origin) {
-        Scene* scene = GetScene();
-        if (!scene) return;
-
-        int numBullets = 1;
-        float spreadAngle = 0.0f;
-        if (currentWeapon == WeaponType::Spread) {
-            numBullets = 3;
-            spreadAngle = 15.0f * 3.14159f / 180.0f; // 15 degrees
-        }
-
-        for (int i = 0; i < numBullets; ++i) {
-            std::shared_ptr<Entity> bullet = nullptr;
-            for (auto& e : scene->GetEntities()) {
-                if (e->GetName() == "PlayerBullet" && !e->IsActive() && !e->IsPendingDestroy()) {
-                    bullet = e;
-                    bullet->SetActive(true);
-                    bullet->SetTag("reused", 1);
-                    break;
-                }
-            }
-            bool isNew = false;
-            if (!bullet) {
-                bullet = scene->CreateEntity("PlayerBullet");
-                isNew = true;
-            }
-
-            auto* tr = bullet->GetComponent<TransformComponent>();
-            if (!tr) tr = &bullet->AddComponent<TransformComponent>();
-            
-            tr->position = { origin.x, origin.y + 0.5f, origin.z };
-
-            float scale = 0.3f;
-            if (currentWeapon == WeaponType::Heavy) scale = 0.6f;
-            else if (currentWeapon == WeaponType::Spread) scale = 0.2f;
-            tr->scale = { scale, scale, scale };
-
-            if (currentWeapon == WeaponType::Normal) bullet->SetTag("bullet_type", 0);
-            else if (currentWeapon == WeaponType::Spread) bullet->SetTag("bullet_type", 1);
-            else if (currentWeapon == WeaponType::Heavy) bullet->SetTag("bullet_type", 2);
-
-            if (currentWeapon == WeaponType::Spread) {
-                float angleOff = (i - 1) * spreadAngle;
-                float c = std::cos(angleOff);
-                float s = std::sin(angleOff);
-                float dx = facingDir_.x * c - facingDir_.z * s;
-                float dz = facingDir_.x * s + facingDir_.z * c;
-                bullet->SetTag("dir_x", static_cast<int>(dx * 1000));
-                bullet->SetTag("dir_z", static_cast<int>(dz * 1000));
-            }
-
-            auto* pm = bullet->GetComponent<PrimitiveMeshComponent>();
-            if (!pm) {
-                pm = &bullet->AddComponent<PrimitiveMeshComponent>();
-                pm->type = PrimitiveType::Sphere;
-                pm->meshHandle = RC::GenerateSphere(1.0f);
-            } else if (pm->meshHandle < 0) {
-                pm->meshHandle = RC::GenerateSphere(1.0f);
-            }
-
-            auto* col = bullet->GetComponent<ColliderComponent>();
-            if (!col) col = &bullet->AddComponent<ColliderComponent>();
-            col->shape = ColliderComponent::Shape::Sphere;
-            col->radius = (currentWeapon == WeaponType::Heavy) ? 1.5f : 1.0f;
-            col->isTrigger = true;
-
-            auto* nsc = bullet->GetComponent<NativeScriptComponent>();
-            if (!nsc) {
-                nsc = &bullet->AddComponent<NativeScriptComponent>();
-                nsc->Bind("WaterBullet");
-                nsc->SetScene(scene);
-                if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
-            }
-
-            if (pm->meshHandle >= 0) {
-                if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
-                    mat->color = { 0.2f, 0.6f, 1.0f, 0.85f };
-                }
-            }
-
-            if (isNew) {
-                scene->InitDynamicEntityRuntime(*bullet);
-            }
-
-            if (pm->meshHandle >= 0) {
-                if (auto* pmTr = RC::GetPrimitiveMeshTransformPtr(pm->meshHandle)) {
-                    pmTr->scale = tr->scale;
-                    pmTr->rotation = tr->rotation;
-                    pmTr->translation = tr->position;
-                }
-            }
-        }
-    }
 
     void DrawHUD() {
         SceneContext* ctx = GetSceneContext();
@@ -369,15 +218,6 @@ private:
         // Border
         RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
                     { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
-
-        // === Weapon Indicator ===
-        float wX = 20.0f; float wY = screenH - 80.0f;
-        float alphaN = (currentWeapon == WeaponType::Normal) ? 0.9f : 0.3f;
-        RC::DrawBox({wX, wY}, {wX+20.0f, wY+20.0f}, {0.2f, 0.6f, 1.0f, alphaN});
-        float alphaS = (currentWeapon == WeaponType::Spread) ? 0.9f : 0.3f;
-        RC::DrawBox({wX+25.0f, wY}, {wX+45.0f, wY+20.0f}, {0.2f, 0.8f, 0.4f, alphaS});
-        float alphaH = (currentWeapon == WeaponType::Heavy) ? 0.9f : 0.3f;
-        RC::DrawBox({wX+50.0f, wY}, {wX+70.0f, wY+20.0f}, {0.8f, 0.3f, 0.1f, alphaH});
 
         // === Score display (tally circles) ===
         float scoreX = screenW - 220.0f;
@@ -459,7 +299,7 @@ private:
             auto* nsc = splash->GetComponent<NativeScriptComponent>();
             if (!nsc) {
                 nsc = &splash->AddComponent<NativeScriptComponent>();
-                nsc->Bind("SplashParticle");
+                nsc->AddScript("SplashParticle");
                 nsc->SetScene(scene);
                 if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
             }

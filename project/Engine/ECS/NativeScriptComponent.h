@@ -4,97 +4,137 @@
 #include "ScriptRegistry.h"
 #include <functional>
 #include <string>
+#include <vector>
 
-/// @brief Component that manages and executes a native script (ScriptableEntity).
+/// @brief Component that manages and executes native scripts (ScriptableEntity).
 class NativeScriptComponent : public IComponent {
 public:
-  ScriptableEntity* instance = nullptr;
+  struct ScriptEntry {
+    ScriptableEntity* instance = nullptr;
+    std::string scriptTypeName;
+    std::function<ScriptableEntity*()> InstantiateScript;
+    std::function<void(ScriptEntry&)> DestroyScript;
+  };
 
-  std::function<ScriptableEntity*()> InstantiateScript;
-  std::function<void(NativeScriptComponent*)> DestroyScript;
-
-  std::string scriptTypeName;
+  std::vector<ScriptEntry> scripts;
 
   ~NativeScriptComponent() override {
-    if (instance && DestroyScript) {
-      instance->OnDestroy();
-      DestroyScript(this);
+    for (auto& entry : scripts) {
+      if (entry.instance && entry.DestroyScript) {
+        entry.instance->OnDestroy();
+        entry.DestroyScript(entry);
+      }
     }
+    scripts.clear();
   }
 
-  /// @brief Bind a script type to this component
+  /// @brief Add a script type to this component
   /// @tparam T Script type (must inherit from ScriptableEntity)
-  template <typename T> void Bind() {
-    InstantiateScript = []() { return static_cast<ScriptableEntity*>(new T()); };
-    DestroyScript = [](NativeScriptComponent* nsc) {
-      delete nsc->instance;
-      nsc->instance = nullptr;
+  template <typename T> void AddScript() {
+    ScriptEntry entry;
+    entry.InstantiateScript = []() { return static_cast<ScriptableEntity*>(new T()); };
+    entry.DestroyScript = [](ScriptEntry& se) {
+      delete se.instance;
+      se.instance = nullptr;
     };
-    scriptTypeName = typeid(T).name();
+    entry.scriptTypeName = typeid(T).name();
+    scripts.push_back(entry);
   }
 
-  /// @brief Bind a script by its registered string name
-  void Bind(const std::string& name) {
-    if (instance) {
-      instance->OnDestroy();
-      if (DestroyScript) DestroyScript(this);
-    }
-    scriptTypeName = name;
-    if (name.empty()) {
-      InstantiateScript = nullptr;
-      DestroyScript = nullptr;
-    } else {
-      InstantiateScript = [name]() { return ScriptRegistry::Instantiate(name); };
-      DestroyScript = [](NativeScriptComponent* nsc) {
-        delete nsc->instance;
-        nsc->instance = nullptr;
-      };
+  /// @brief Add a script by its registered string name
+  void AddScript(const std::string& name) {
+    if (name.empty()) return;
+    
+    ScriptEntry entry;
+    entry.scriptTypeName = name;
+    entry.InstantiateScript = [name]() { return ScriptRegistry::Instantiate(name); };
+    entry.DestroyScript = [](ScriptEntry& se) {
+      delete se.instance;
+      se.instance = nullptr;
+    };
+    scripts.push_back(entry);
+  }
+
+  /// @brief Remove a script by its index in the vector
+  void RemoveScriptAtIndex(size_t index) {
+    if (index < scripts.size()) {
+      auto& entry = scripts[index];
+      if (entry.instance && entry.DestroyScript) {
+        entry.instance->OnDestroy();
+        entry.DestroyScript(entry);
+      }
+      scripts.erase(scripts.begin() + index);
     }
   }
 
-  /// @brief Set the scene reference for the script
+  /// @brief Set the scene reference for the scripts
   void SetScene(class Scene* scene) { scene_ = scene; }
 
-  /// @brief Set the scene context reference for the script
+  /// @brief Set the scene context reference for the scripts
   void SetSceneContext(SceneContext* ctx) { sceneContext_ = ctx; }
 
   void Update(float deltaTime) override {
-    if (!instance && InstantiateScript) {
-      instance = InstantiateScript();
-      if (instance) {
-        instance->entity_ = GetEntity();
-        instance->scene_ = scene_;
-        instance->sceneContext_ = sceneContext_;
-        instance->OnCreate();
-      } else {
-        // Fallback: script not found, prevent further instantiate attempts
-        printf("ERROR: Failed to instantiate script: %s\n", scriptTypeName.c_str());
-        InstantiateScript = nullptr;
+    for (auto& entry : scripts) {
+      if (!entry.instance && entry.InstantiateScript) {
+        entry.instance = entry.InstantiateScript();
+        if (entry.instance) {
+          entry.instance->entity_ = GetEntity();
+          entry.instance->scene_ = scene_;
+          entry.instance->sceneContext_ = sceneContext_;
+          entry.instance->OnCreate();
+        } else {
+          // Fallback: script not found, prevent further instantiate attempts
+          printf("ERROR: Failed to instantiate script: %s\n", entry.scriptTypeName.c_str());
+          entry.InstantiateScript = nullptr;
+        }
       }
-    }
-    if (instance) {
-      // Update context each frame (may change between frames)
-      instance->scene_ = scene_;
-      instance->sceneContext_ = sceneContext_;
-      instance->OnUpdate(deltaTime);
+      if (entry.instance) {
+        // Update context each frame (may change between frames)
+        entry.instance->scene_ = scene_;
+        entry.instance->sceneContext_ = sceneContext_;
+        entry.instance->OnUpdate(deltaTime);
+      }
     }
   }
 
   const char* TypeName() const override { return "NativeScriptComponent"; }
 
   nlohmann::json Serialize() const override {
-    // Note: Due to lack of C++ reflection, we only save the script type name.
-    // Restoring the correct type pointer automatically via JSON requires a factory registry for Scripts.
-    // For now, this just saves the name.
-    return {
-      {"scriptTypeName", scriptTypeName}
-    };
+    nlohmann::json j;
+    std::vector<std::string> names;
+    for (const auto& entry : scripts) {
+      if (!entry.scriptTypeName.empty()) {
+        names.push_back(entry.scriptTypeName);
+      }
+    }
+    j["scriptTypeNames"] = names;
+    
+    // Backward compatibility property
+    if (!names.empty()) {
+      j["scriptTypeName"] = names[0];
+    }
+    return j;
   }
 
   void Deserialize(const nlohmann::json& j) override {
-    if (j.contains("scriptTypeName")) {
+    for (auto& entry : scripts) {
+      if (entry.instance && entry.DestroyScript) {
+        entry.instance->OnDestroy();
+        entry.DestroyScript(entry);
+      }
+    }
+    scripts.clear();
+
+    if (j.contains("scriptTypeNames") && j["scriptTypeNames"].is_array()) {
+      auto names = j["scriptTypeNames"].get<std::vector<std::string>>();
+      for (const auto& name : names) {
+        AddScript(name);
+      }
+    } else if (j.contains("scriptTypeName")) {
       std::string name = j["scriptTypeName"].get<std::string>();
-      Bind(name);
+      if (!name.empty()) {
+        AddScript(name);
+      }
     }
   }
 

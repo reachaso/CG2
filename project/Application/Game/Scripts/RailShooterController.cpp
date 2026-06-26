@@ -47,10 +47,38 @@ public:
     float shakeMax = 0.5f;           // カメラシェイクの最大強度
     float shakeRecoverySpeed = 5.0f; // カメラシェイクの減衰速度
 
+    enum class WeaponType { Normal, Spread, Heavy };
+    WeaponType currentWeapon = WeaponType::Normal;
+
 protected:
     void OnUpdate(float deltaTime) override {
         auto* input = Input::GetInstance();
         if (!input) return;
+
+        // Weapon Switching
+        long wheel = input->GetMouseZ();
+        if (wheel > 0) {
+            int w = static_cast<int>(currentWeapon) - 1;
+            if (w < 0) w = 2;
+            currentWeapon = static_cast<WeaponType>(w);
+        } else if (wheel < 0) {
+            int w = static_cast<int>(currentWeapon) + 1;
+            if (w > 2) w = 0;
+            currentWeapon = static_cast<WeaponType>(w);
+        }
+
+        if (input->IsXInputConnected()) {
+            if (input->IsXInputButtonTrigger(XINPUT_GAMEPAD_LEFT_SHOULDER)) {
+                int w = static_cast<int>(currentWeapon) - 1;
+                if (w < 0) w = 2;
+                currentWeapon = static_cast<WeaponType>(w);
+            }
+            if (input->IsXInputButtonTrigger(XINPUT_GAMEPAD_RIGHT_SHOULDER)) {
+                int w = static_cast<int>(currentWeapon) + 1;
+                if (w > 2) w = 0;
+                currentWeapon = static_cast<WeaponType>(w);
+            }
+        }
 
         // デッドゾーン計算用の定数（GetXInputThumbLX/LYは-32768～32767）
         const float MAX_THUMB = 32767.0f;
@@ -101,7 +129,8 @@ protected:
         
         bool isFirePressed = input->IsMousePressed(0) || input->GetXInputRightTrigger() > 128;
         if (isFirePressed && currentCooldown <= 0.0f) {
-            currentCooldown = fireCooldown;
+            if (currentWeapon == WeaponType::Heavy) currentCooldown = fireCooldown * 2.0f;
+            else currentCooldown = fireCooldown;
             FireBullet();
         }
 
@@ -143,50 +172,66 @@ protected:
             screenH = static_cast<float>(ctx.Ctx()->app->height);
         }
 
-        // Raycast計算
-        RC::Ray ray = RC::CameraMath::ScreenPointToRay(
-            cursorPosition, 
-            {screenW, screenH}, 
-            ctx.View(), 
-            ctx.Proj()
-        );
+        int numBullets = (currentWeapon == WeaponType::Spread) ? 3 : 1;
 
-        Scene* scene = GetScene();
-        if (!scene) return;
-
-        // 弾の生成
-        auto bullet = scene->CreateEntity("PlayerBullet");
-        
-        // Transformの設定（カメラの近傍から発射する）
-        auto* tr = &bullet->AddComponent<TransformComponent>();
-        tr->position = ray.origin;
-        tr->scale = { 0.3f, 0.3f, 0.3f };
-        
-        // メッシュの追加（描画用）
-        auto* pm = &bullet->AddComponent<PrimitiveMeshComponent>();
-        pm->type = PrimitiveType::Sphere;
-        pm->meshHandle = RC::GenerateSphere(1.0f);
-        if (pm->meshHandle >= 0) {
-            if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
-                mat->color = { 0.2f, 0.6f, 1.0f, 0.85f };
+        for (int i = 0; i < numBullets; ++i) {
+            RC::Vector2 targetPos = cursorPosition;
+            if (currentWeapon == WeaponType::Spread) {
+                targetPos.x += (i - 1) * 80.0f; // -80, 0, 80 pixels offset
             }
+
+            // Raycast計算
+            RC::Ray ray = RC::CameraMath::ScreenPointToRay(
+                targetPos, 
+                {screenW, screenH}, 
+                ctx.View(), 
+                ctx.Proj()
+            );
+
+            Scene* scene = GetScene();
+            if (!scene) continue;
+
+            // 弾の生成
+            auto bullet = scene->CreateEntity("PlayerBullet");
+            
+            // Transformの設定（カメラの近傍から発射する）
+            auto* tr = &bullet->AddComponent<TransformComponent>();
+            tr->position = ray.origin;
+            float scale = 0.3f;
+            if (currentWeapon == WeaponType::Heavy) scale = 0.6f;
+            else if (currentWeapon == WeaponType::Spread) scale = 0.2f;
+            tr->scale = { scale, scale, scale };
+            
+            // メッシュの追加（描画用）
+            auto* pm = &bullet->AddComponent<PrimitiveMeshComponent>();
+            pm->type = PrimitiveType::Sphere;
+            pm->meshHandle = RC::GenerateSphere(1.0f);
+            if (pm->meshHandle >= 0) {
+                if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
+                    mat->color = { 0.2f, 0.6f, 1.0f, 0.85f };
+                }
+            }
+            
+            // パラメータをTagとして渡す
+            bullet->SetTag("dir_x", static_cast<int>(ray.direction.x * 1000.0f));
+            bullet->SetTag("dir_y", static_cast<int>(ray.direction.y * 1000.0f));
+            bullet->SetTag("dir_z", static_cast<int>(ray.direction.z * 1000.0f));
+            bullet->SetTag("bullet_speed", static_cast<int>(bulletSpeed * 10.0f)); 
+            bullet->SetTag("bullet_lifetime", static_cast<int>(bulletLifetime * 10.0f));
+
+            if (currentWeapon == WeaponType::Normal) bullet->SetTag("bullet_type", 0);
+            else if (currentWeapon == WeaponType::Spread) bullet->SetTag("bullet_type", 1);
+            else if (currentWeapon == WeaponType::Heavy) bullet->SetTag("bullet_type", 2);
+
+            // Scriptのアタッチ
+            auto* nsc = &bullet->AddComponent<NativeScriptComponent>();
+            nsc->AddScript("WaterBullet");
+            nsc->SetScene(scene);
+            if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
+
+            // ランタイムでの初期化
+            scene->InitDynamicEntityRuntime(*bullet);
         }
-        
-        // パラメータをTagとして渡す (小数点以下を保持するためにスケールして整数化)
-        bullet->SetTag("dir_x", static_cast<int>(ray.direction.x * 1000.0f));
-        bullet->SetTag("dir_y", static_cast<int>(ray.direction.y * 1000.0f));
-        bullet->SetTag("dir_z", static_cast<int>(ray.direction.z * 1000.0f));
-        bullet->SetTag("bullet_speed", static_cast<int>(bulletSpeed * 10.0f)); 
-        bullet->SetTag("bullet_lifetime", static_cast<int>(bulletLifetime * 10.0f));
-
-        // Scriptのアタッチ
-        auto* nsc = &bullet->AddComponent<NativeScriptComponent>();
-        nsc->Bind("WaterBullet");
-        nsc->SetScene(scene);
-        if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
-
-        // ランタイムでの初期化
-        scene->InitDynamicEntityRuntime(*bullet);
 
         // 演出のトリガー
         currentRecoil = recoilMax;
@@ -201,6 +246,20 @@ protected:
         RC::DrawBox({cursorPosition.x - 2.0f, cursorPosition.y - 2.0f}, 
                     {cursorPosition.x + 2.0f, cursorPosition.y + 2.0f}, 
                     {0.0f, 0.0f, 0.0f, 1.0f});
+
+        // Weapon Indicator
+        auto& ctx = RC::GetRenderContext();
+        float screenH = 720.0f;
+        if (ctx.Ctx() && ctx.Ctx()->app) {
+            screenH = static_cast<float>(ctx.Ctx()->app->height);
+        }
+        float wX = 20.0f; float wY = screenH - 80.0f;
+        float alphaN = (currentWeapon == WeaponType::Normal) ? 0.9f : 0.3f;
+        RC::DrawBox({wX, wY}, {wX+20.0f, wY+20.0f}, {0.2f, 0.6f, 1.0f, alphaN});
+        float alphaS = (currentWeapon == WeaponType::Spread) ? 0.9f : 0.3f;
+        RC::DrawBox({wX+25.0f, wY}, {wX+45.0f, wY+20.0f}, {0.2f, 0.8f, 0.4f, alphaS});
+        float alphaH = (currentWeapon == WeaponType::Heavy) ? 0.9f : 0.3f;
+        RC::DrawBox({wX+50.0f, wY}, {wX+70.0f, wY+20.0f}, {0.8f, 0.3f, 0.1f, alphaH});
     }
 
 public:

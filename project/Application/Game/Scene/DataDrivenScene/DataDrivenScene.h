@@ -393,8 +393,10 @@ public:
         for (auto& e : entities_) {
             if (!e || e->IsPendingDestroy() || !e->IsActive()) continue;
             if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {
-                if (nsc->instance) {
-                    nsc->instance->OnRender();
+                for (auto& entry : nsc->scripts) {
+                    if (entry.instance) {
+                        entry.instance->OnRender();
+                    }
                 }
             }
         }

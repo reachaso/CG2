@@ -1749,25 +1749,38 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                 ImGui::Indent(8.0f);
                 bool enabled = script->IsEnabled();
                 if (ImGui::Checkbox("Enabled (有効化)##Script", &enabled)) script->SetEnabled(enabled);
-                ImGui::Text("Script Type (スクリプト名):");
+                
+                for (size_t i = 0; i < script->scripts.size(); ++i) {
+                    ImGui::PushID(static_cast<int>(i));
+                    ImGui::Separator();
+                    ImGui::Text("Script: %s", script->scripts[i].scriptTypeName.c_str());
+                    ImGui::SameLine();
+                    if (ImGui::Button("X##RemoveScript")) {
+                        script->RemoveScriptAtIndex(i);
+                        ImGui::PopID();
+                        break; // 削除時はループを抜けて安全にする
+                    }
+                    if (script->scripts[i].instance) {
+                        ImGui::Indent(8.0f);
+                        script->scripts[i].instance->OnImGui();
+                        ImGui::Unindent(8.0f);
+                    }
+                    ImGui::PopID();
+                }
+
+                ImGui::Separator();
+                ImGui::Text("Add Script:");
                 ImGui::SameLine();
                 const auto& names = ScriptRegistry::GetScriptNames();
-                std::string current = script->scriptTypeName.empty() ? "(None)" : script->scriptTypeName;
-                if (ImGui::BeginCombo("##ScriptTypeCombo", current.c_str())) {
-                    if (ImGui::Selectable("(None)", current == "(None)")) {
-                        script->Bind("");
-                    }
+                if (ImGui::BeginCombo("##AddScriptCombo", "(Select Script...)")) {
                     for (const auto& n : names) {
-                        if (ImGui::Selectable(n.c_str(), current == n)) {
-                            script->Bind(n);
+                        if (ImGui::Selectable(n.c_str(), false)) {
+                            script->AddScript(n);
                         }
                     }
                     ImGui::EndCombo();
                 }
-                if (script->instance) {
-                    ImGui::Separator();
-                    script->instance->OnImGui();
-                }
+
                 ImGui::Unindent(8.0f);
             }
         }
