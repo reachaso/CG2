@@ -19,6 +19,7 @@ public:
     int damage = 1;
     bool initialized = false;
     std::string bulletType = "normal";
+    bool isDead = false;
 
 protected:
     void Die() {
@@ -192,10 +193,6 @@ protected:
     float elapsed_ = 0.0f;
     bool markedForDestroy_ = false;
     std::weak_ptr<Entity> cachedCamera_;
-
-    void DestroyBullet() {
-        Die();
-    }
 
     void SetVelocityTowardTarget(const std::string& targetName, float speed,
                                   const std::string& ownerName, const RC::Vector3& myPos) {

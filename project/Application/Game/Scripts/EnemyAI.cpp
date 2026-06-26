@@ -250,8 +250,6 @@ private:
         if (pm->meshHandle >= 0) {
             if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
                 mat->color = { 1.0f, 0.2f, 0.2f, 0.85f };
-                mat->metallic = 0.1f;
-                mat->roughness = 0.2f;
             }
         }
 
