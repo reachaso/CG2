@@ -58,7 +58,30 @@ public:
     enum class WeaponType { Normal, Spread, Heavy };
     WeaponType currentWeapon = WeaponType::Normal;
 
+private:
+    uint64_t bulletsFolderGuid_ = 0;
+
+    uint64_t GetBulletsFolder(Scene* scene) {
+        if (bulletsFolderGuid_ != 0) return bulletsFolderGuid_;
+        for (auto& e : scene->GetEntities()) {
+            if (e->GetName() == "PlayerBullets" && e->IsFolder()) {
+                bulletsFolderGuid_ = e->Guid();
+                return bulletsFolderGuid_;
+            }
+        }
+        auto folder = scene->CreateEntity("PlayerBullets");
+        folder->SetIsFolder(true);
+        bulletsFolderGuid_ = folder->Guid();
+        return bulletsFolderGuid_;
+    }
+
 protected:
+    void OnCreate() override {
+        if (Entity* self = GetEntity()) {
+            self->SetTag("is_player", 1);
+        }
+    }
+
     void OnUpdate(float deltaTime) override {
         auto* input = Input::GetInstance();
         if (!input) return;
@@ -202,6 +225,16 @@ protected:
 
         int numBullets = (currentWeapon == WeaponType::Spread) ? 3 : 1;
 
+        std::vector<std::shared_ptr<Entity>> inactiveBullets;
+        if (Scene* scene = GetScene()) {
+            for (auto& e : scene->GetEntities()) {
+                if (e->GetName() == "PlayerBullet" && !e->IsActive() && !e->IsPendingDestroy()) {
+                    inactiveBullets.push_back(e);
+                    if (inactiveBullets.size() >= numBullets) break;
+                }
+            }
+        }
+
         for (int i = 0; i < numBullets; ++i) {
             RC::Vector2 targetPos = cursorPosition;
             if (currentWeapon == WeaponType::Spread) {
@@ -221,16 +254,12 @@ protected:
 
             // Create bullet entity (Pooling)
             std::shared_ptr<Entity> bullet = nullptr;
-            for (auto& e : scene->GetEntities()) {
-                if (e->GetName() == "PlayerBullet" && !e->IsActive() && !e->IsPendingDestroy()) {
-                    bullet = e;
-                    bullet->SetActive(true);
-                    bullet->SetTag("reused", 1);
-                    break;
-                }
-            }
             bool isNew = false;
-            if (!bullet) {
+            if (i < inactiveBullets.size()) {
+                bullet = inactiveBullets[i];
+                bullet->SetActive(true);
+                bullet->SetTag("reused", 1);
+            } else {
                 bullet = scene->CreateEntity("PlayerBullet");
                 isNew = true;
             }
@@ -238,6 +267,7 @@ protected:
             auto* tr = bullet->GetComponent<TransformComponent>();
             if (!tr) tr = &bullet->AddComponent<TransformComponent>();
             tr->position = ray.origin;
+            bullet->SetParentGuid(GetBulletsFolder(scene));
             float scale = 0.3f;
             if (currentWeapon == WeaponType::Heavy) scale = 0.6f;
             else if (currentWeapon == WeaponType::Spread) scale = 0.2f;

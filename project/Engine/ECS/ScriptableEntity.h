@@ -1,5 +1,6 @@
 #pragma once
 #include "Entity.h"
+#include "Common/Math/MathUtils.h"
 
 // Forward declarations
 class Scene;
@@ -44,7 +45,8 @@ public:
 
   /// @brief Called when a collision occurs with another entity
   /// @param other The entity that this entity collided with
-  virtual void OnCollision(Entity* other) {}
+  /// @param contactPoint The world position where the collision occurred
+  virtual void OnCollision(Entity* other, const RC::Vector3& contactPoint = {}) {}
 
 protected:
   /// @brief Called when the script is created

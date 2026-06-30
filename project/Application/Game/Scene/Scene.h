@@ -152,6 +152,11 @@ public:
   /// @brief 選択中のエンティティIDを取得する
   uint32_t GetSelectedEntityId() const { return selectedEntityId_; }
 
+  /// @brief 全コライダーのデバッグ描画フラグを設定する
+  void SetShowColliderGizmos(bool show) { showColliderGizmos_ = show; }
+  /// @brief 全コライダーのデバッグ描画フラグを取得する
+  bool GetShowColliderGizmos() const { return showColliderGizmos_; }
+
   /// @brief GameModeの取得
   GameModeBase* GetGameMode() const { return gameMode_.get(); }
 
@@ -173,6 +178,7 @@ protected:
   uint32_t selectedEntityId_ = 0; ///< 選択中のエンティティID
   std::unique_ptr<GameModeBase> gameMode_ = std::make_unique<GameModeBase>(); ///< ゲームルールの管理
   SceneContext* currentContext_ = nullptr; ///< 現在フレームのSceneContext
+  bool showColliderGizmos_ = false; ///< コライダーを全描画するデバッグフラグ
 
   /// @brief Update all active entities
   /// @details インデックスベースループを使用し、ループ中の entities_ push_back による

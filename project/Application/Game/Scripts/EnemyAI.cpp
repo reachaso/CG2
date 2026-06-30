@@ -15,34 +15,34 @@
 #include "imgui/imgui.h"
 #endif
 
+#include "EnemyBaseScript.h"
+
 /// @brief Enemy AI: chases player, shoots water bullets, takes damage
-class EnemyAI : public ScriptableEntity {
+class EnemyAI : public EnemyBaseScript {
 public:
     float moveSpeed = 3.0f;
     float shootInterval = 1.5f;
     float bulletSpeed = 10.0f;
-    int hp = 10;
-    int maxHp = 10;
     float preferredDist = 15.0f;  ///< Desired distance to player
     float weight = 5.0f;          ///< Weight for splash calculation
-    bool isDead = false;
-    float deathTimer = 0.0f;
 
 protected:
     void OnCreate() override {
+        EnemyBaseScript::OnCreate();
         std::cout << "[EnemyAI] OnCreate\n";
         shootTimer_ = shootInterval * 0.5f; // Start with half delay
         strafeAngle_ = 0.0f;
     }
 
     void OnUpdate(float deltaTime) override {
+        EnemyBaseScript::OnUpdate(deltaTime);
+
         auto* tr = GetComponent<TransformComponent>();
         if (!tr) return;
 
         float prevY = tr->position.y;
 
         if (isDead) {
-            deathTimer += deltaTime;
             verticalVel_ -= 9.8f * deltaTime; // 沈む時の重力（水中の抵抗などを考慮しても良いが一旦通常重力）
             tr->position.y += verticalVel_ * deltaTime;
             // 空中から水面に落ちた時だけ水しぶきを上げる
@@ -70,16 +70,6 @@ protected:
         } else {
             tr->position.y = 0.0f;
             verticalVel_ = 0.0f;
-        }
-
-        // Process pending damage from tag system
-        Entity* self = GetEntity();
-        if (self) {
-            int dmg = self->GetTagInt("pending_damage", 0);
-            if (dmg > 0) {
-                self->ClearTag("pending_damage");
-                TakeDamage(dmg);
-            }
         }
 
         Scene* scene = GetScene();
@@ -157,7 +147,7 @@ protected:
     }
 
     void OnRender() override {
-        DrawEnemyHPBar();
+        EnemyBaseScript::OnRender();
     }
 
     void OnDestroy() override {
@@ -166,29 +156,14 @@ protected:
 
 public:
     void OnImGui() override {
+        EnemyBaseScript::OnImGui();
 #if RC_ENABLE_IMGUI
         ImGui::DragFloat("Move Speed##E", &moveSpeed, 0.1f, 0.1f, 20.0f);
         ImGui::DragFloat("Shoot Interval##E", &shootInterval, 0.05f, 0.1f, 5.0f);
         ImGui::DragFloat("Bullet Speed##E", &bulletSpeed, 0.1f, 1.0f, 50.0f);
-        ImGui::DragInt("HP##E", &hp, 1, 0, maxHp);
         ImGui::DragFloat("Preferred Dist##E", &preferredDist, 0.5f, 5.0f, 40.0f);
         ImGui::DragFloat("Weight##E", &weight, 0.1f, 0.1f, 50.0f);
 #endif
-    }
-
-    /// @brief Take damage from a bullet
-    void TakeDamage(int damage) {
-        if (isDead) return;
-        hp -= damage;
-        if (hp <= 0) {
-            hp = 0;
-            isDead = true;
-            deathTimer = 0.0f;
-            // タグでシーン側に撃破を通知
-            if (Entity* self = GetEntity()) {
-                self->SetTag("enemy_defeated", 1);
-            }
-        }
     }
 
 private:
@@ -199,6 +174,37 @@ private:
     bool firstUpdate_ = true;
     float verticalVel_ = 0.0f;
     std::weak_ptr<Entity> cachedTarget_;
+
+    uint64_t enemyBulletsFolderGuid_ = 0;
+    uint64_t effectsFolderGuid_ = 0;
+
+    uint64_t GetEnemyBulletsFolder(Scene* scene) {
+        if (enemyBulletsFolderGuid_ != 0) return enemyBulletsFolderGuid_;
+        for (auto& e : scene->GetEntities()) {
+            if (e->GetName() == "EnemyBullets" && e->IsFolder()) {
+                enemyBulletsFolderGuid_ = e->Guid();
+                return enemyBulletsFolderGuid_;
+            }
+        }
+        auto folder = scene->CreateEntity("EnemyBullets");
+        folder->SetIsFolder(true);
+        enemyBulletsFolderGuid_ = folder->Guid();
+        return enemyBulletsFolderGuid_;
+    }
+
+    uint64_t GetEffectsFolder(Scene* scene) {
+        if (effectsFolderGuid_ != 0) return effectsFolderGuid_;
+        for (auto& e : scene->GetEntities()) {
+            if (e->GetName() == "Effects" && e->IsFolder()) {
+                effectsFolderGuid_ = e->Guid();
+                return effectsFolderGuid_;
+            }
+        }
+        auto folder = scene->CreateEntity("Effects");
+        folder->SetIsFolder(true);
+        effectsFolderGuid_ = folder->Guid();
+        return effectsFolderGuid_;
+    }
 
     void ShootAt(const RC::Vector3& origin, const RC::Vector3& target) {
         Scene* scene = GetScene();
@@ -235,6 +241,7 @@ private:
         auto* tr = bullet->GetComponent<TransformComponent>();
         if (!tr) tr = &bullet->AddComponent<TransformComponent>();
         tr->position = { origin.x + dir.x * 1.5f, origin.y + 0.5f, origin.z + dir.z * 1.5f };
+        bullet->SetParentGuid(GetEnemyBulletsFolder(scene));
         tr->scale = { 0.25f, 0.25f, 0.25f };
 
         auto* pm = bullet->GetComponent<PrimitiveMeshComponent>();
@@ -287,31 +294,6 @@ private:
         }
     }
 
-    void DrawEnemyHPBar() {
-        SceneContext* ctx = GetSceneContext();
-        if (!ctx) return;
-
-        float screenW = static_cast<float>(ctx->app->width);
-        // Draw HP bar at top-right
-        float barX = screenW - 230.0f;
-        float barY = 60.0f;
-        float barW = 200.0f;
-        float barH = 16.0f;
-
-        // Background
-        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
-                    { 0.3f, 0.05f, 0.05f, 0.8f });
-
-        // Foreground
-        float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
-        RC::Vector4 hpColor = { 0.9f, 0.2f, 0.2f, 0.9f };
-        RC::DrawBox({ barX, barY }, { barX + barW * hpRatio, barY + barH }, hpColor);
-
-        // Border
-        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
-                    { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
-    }
-
     void SpawnSplash(const RC::Vector3& pos, float impactSpeed, float weightVal) {
         Scene* scene = GetScene();
         if (!scene) return;
@@ -334,18 +316,22 @@ private:
         int splashCount = static_cast<int>(8 + (impactFactor * 8));
         if (splashCount > 30) splashCount = 30; // Max
 
+        std::vector<std::shared_ptr<Entity>> inactiveSplashes;
+        for (auto& e : scene->GetEntities()) {
+            if (e->GetName() == "Splash" && !e->IsActive() && !e->IsPendingDestroy()) {
+                inactiveSplashes.push_back(e);
+                if (inactiveSplashes.size() >= splashCount) break;
+            }
+        }
+
         for (int i = 0; i < splashCount; ++i) {
             std::shared_ptr<Entity> splash = nullptr;
-            for (auto& e : scene->GetEntities()) {
-                if (e->GetName() == "Splash" && !e->IsActive() && !e->IsPendingDestroy()) {
-                    splash = e;
-                    splash->SetActive(true);
-                    splash->SetTag("reused", 1);
-                    break;
-                }
-            }
             bool isNew = false;
-            if (!splash) {
+            if (i < inactiveSplashes.size()) {
+                splash = inactiveSplashes[i];
+                splash->SetActive(true);
+                splash->SetTag("reused", 1);
+            } else {
                 splash = scene->CreateEntity("Splash");
                 isNew = true;
             }
@@ -356,6 +342,7 @@ private:
             auto* tr = splash->GetComponent<TransformComponent>();
             if (!tr) tr = &splash->AddComponent<TransformComponent>();
             tr->position = pos;
+            splash->SetParentGuid(GetEffectsFolder(scene));
             float s = (0.15f + (i % 4) * 0.05f) * (1.0f + impactFactor * 0.3f);
             tr->scale = { s, s, s };
 

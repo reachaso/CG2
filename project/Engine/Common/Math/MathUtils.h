@@ -243,6 +243,7 @@ struct CollisionResult {
     bool hit = false;
     Vector3 normal = {0,0,0}; // 衝突法線（オブジェクトAからBを押し出す方向、またはBからAへの方向。関数によって定義）
     float depth = 0.0f;       // めり込み量
+    Vector3 contactPoint = {0,0,0}; // 衝突位置
 };
 
 /// @brief 球と球の交差判定と押し出しベクトルの計算
@@ -261,11 +262,13 @@ inline CollisionResult CheckCollisionSphereSphere(const Vector3& centerA, float 
         result.hit = true;
         result.normal = Mul(diff, 1.0f / dist);
         result.depth = radSum - dist;
+        result.contactPoint = Add(centerA, Mul(result.normal, radiusA - result.depth * 0.5f));
     } else if (distSq <= 0.000001f) {
         // 完全に重なっている場合
         result.hit = true;
         result.normal = {0.0f, 1.0f, 0.0f}; // 適当に上方向に押し出す
         result.depth = radSum;
+        result.contactPoint = centerA;
     }
     return result;
 }
@@ -303,6 +306,13 @@ inline CollisionResult CheckCollisionAabbAabb(const Vector3& minA, const Vector3
             float centerB_z = (minB.z + maxB.z) * 0.5f;
             result.normal = {0.0f, 0.0f, centerB_z > centerA_z ? 1.0f : -1.0f};
         }
+
+        // 接触点の近似（重なり領域の中心）
+        result.contactPoint = {
+            ( (std::max)(minA.x, minB.x) + (std::min)(maxA.x, maxB.x) ) * 0.5f,
+            ( (std::max)(minA.y, minB.y) + (std::min)(maxA.y, maxB.y) ) * 0.5f,
+            ( (std::max)(minA.z, minB.z) + (std::min)(maxA.z, maxB.z) ) * 0.5f
+        };
     }
     return result;
 }
@@ -330,6 +340,7 @@ inline CollisionResult CheckCollisionSphereAabb(const Vector3& centerA, float ra
         result.hit = true;
         result.depth = radiusA - dist;
         result.normal = Mul(diff, 1.0f / dist); // 球からAABBの最近傍点への方向
+        result.contactPoint = closestPt; // AABB上の最近傍点を接点とする
     } else if (distSq == 0.0f) {
         // 球の中心がAABBの内部にある場合
         // AABBの中心から球の中心への方向などを計算する
@@ -344,6 +355,7 @@ inline CollisionResult CheckCollisionSphereAabb(const Vector3& centerA, float ra
         }
         result.hit = true;
         result.depth = radiusA; // 近似。正確にはAABBの境界までの距離を足す必要があるが、通常これに陥る前に弾かれる
+        result.contactPoint = centerA;
     }
     return result;
 }

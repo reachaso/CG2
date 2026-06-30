@@ -72,6 +72,11 @@ public:
     (void)sm;
     currentContext_ = &ctx;
 
+    // F3 キーでコライダーデバッグ描画をトグル
+    if (ctx.input && ctx.input->IsKeyTrigger(DIK_F3)) {
+        showColliderGizmos_ = !showColliderGizmos_;
+    }
+
     // NativeScriptComponent に Scene/Context 参照を設定
     for (auto& e : entities_) {
         if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {

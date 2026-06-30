@@ -213,10 +213,10 @@ void Scene::DrawCameraGizmos(uint32_t selectedEntityId, float aspect) {
 
 void Scene::DrawColliderGizmos(uint32_t selectedEntityId) {
 #if RC_ENABLE_IMGUI
-  if (selectedEntityId == 0) return;
+  if (selectedEntityId == 0 && !showColliderGizmos_) return;
   for (auto& e : entities_) {
-    if (e->Id() != selectedEntityId) continue;
-    if (!e->IsVisible()) continue;
+    if (!showColliderGizmos_ && e->Id() != selectedEntityId) continue;
+    if (!e || !e->IsActive() || e->IsPendingDestroy() || !e->IsVisible()) continue;
     auto* tr = e->GetComponent<TransformComponent>();
     auto* col = e->GetComponent<ColliderComponent>();
     if (!tr || !col || !col->IsEnabled()) continue;
@@ -315,13 +315,18 @@ void Scene::ResolveCollisions() {
                 // コールバック呼び出し
                 if (auto* nsc1 = e1->GetComponent<NativeScriptComponent>()) {
                     for (auto& entry : nsc1->scripts) {
-                        if (entry.instance) entry.instance->OnCollision(e2.get());
+                        if (entry.instance) entry.instance->OnCollision(e2.get(), result.contactPoint);
                     }
                 }
                 if (auto* nsc2 = e2->GetComponent<NativeScriptComponent>()) {
                     for (auto& entry : nsc2->scripts) {
-                        if (entry.instance) entry.instance->OnCollision(e1.get());
+                        if (entry.instance) entry.instance->OnCollision(e1.get(), result.contactPoint);
                     }
+                }
+                
+                // 衝突位置のデバッグ描画
+                if (showColliderGizmos_) {
+                    RC::DrawSphereRings3D(result.contactPoint, 0.5f, {1.0f, 0.0f, 0.0f, 1.0f}, 8, false);
                 }
 
                 // Triggerの場合は物理的な押し出しを行わない

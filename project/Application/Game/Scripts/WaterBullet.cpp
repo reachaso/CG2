@@ -122,10 +122,93 @@ protected:
         }
 
         // === Physics ===
+        RC::Vector3 oldPos = tr->position;
         velocity.y += gravity * deltaTime;
         tr->position.x += velocity.x * deltaTime;
         tr->position.y += velocity.y * deltaTime;
         tr->position.z += velocity.z * deltaTime;
+
+        // Continuous Collision Detection (CCD) Raycast
+        RC::Vector3 diff = { tr->position.x - oldPos.x, tr->position.y - oldPos.y, tr->position.z - oldPos.z };
+        float distSq = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+        if (distSq > 0.001f) {
+            float dist = std::sqrt(distSq);
+            RC::Ray ray;
+            ray.origin = oldPos;
+            ray.direction = { diff.x / dist, diff.y / dist, diff.z / dist };
+            
+            float closestDist = dist;
+            Entity* hitEntity = nullptr;
+            RC::Vector3 hitPoint = tr->position;
+            
+            bool isPlayerBullet = (self->GetName() == "PlayerBullet");
+
+            for (auto& e : scene->GetEntities()) {
+                if (e.get() == self || !e->IsActive() || e->IsPendingDestroy()) continue;
+                
+                const std::string& eName = e->GetName();
+                // 弾やパーティクルなど、確実に当たり判定対象外のものはGetComponentやGetTagの前に除外する（超高速化）
+                if (eName == "Splash" || eName == "Bubble" || eName == "HeavySplash" || 
+                    eName == "PlayerBullet" || eName == "EnemyBullet" || eName == "Wake" ||
+                    eName == "Effects" || eName == "PlayerBullets" || eName == "EnemyBullets") {
+                    continue;
+                }
+
+                auto* eCol = e->GetComponent<ColliderComponent>();
+                auto* eTr = e->GetComponent<TransformComponent>();
+                if (!eCol || !eCol->IsEnabled() || !eTr) continue;
+
+                // 疎結合: タグで当たり判定対象かチェック
+                bool isTarget = false;
+                if (isPlayerBullet) {
+                    if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Block" || e->GetName() == "Terrain") isTarget = true;
+                } else {
+                    if (e->GetTagInt("is_player", 0) == 1 || e->GetName() == "Block" || e->GetName() == "Terrain") isTarget = true;
+                }
+                if (!isTarget) continue;
+
+                RC::Vector3 scaledCenter = {
+                    eCol->center.x * eTr->scale.x,
+                    eCol->center.y * eTr->scale.y,
+                    eCol->center.z * eTr->scale.z
+                };
+                RC::Vector3 center = RC::Add(eTr->position, scaledCenter);
+                
+                float t = -1.0f;
+                bool hit = false;
+                if (eCol->shape == ColliderComponent::Shape::Sphere) {
+                    float r = eCol->radius * (std::max)((std::max)(std::abs(eTr->scale.x), std::abs(eTr->scale.y)), std::abs(eTr->scale.z));
+                    auto* myCol = GetComponent<ColliderComponent>();
+                    if (myCol) {
+                        float myR = myCol->radius * (std::max)((std::max)(std::abs(tr->scale.x), std::abs(tr->scale.y)), std::abs(tr->scale.z));
+                        r += myR;
+                    }
+                    hit = RC::IntersectRaySphere(ray, center, r, t);
+                } else if (eCol->shape == ColliderComponent::Shape::AABB) {
+                    RC::Vector3 h = { std::abs(eCol->size.x * eTr->scale.x * 0.5f), std::abs(eCol->size.y * eTr->scale.y * 0.5f), std::abs(eCol->size.z * eTr->scale.z * 0.5f) };
+                    auto* myCol = GetComponent<ColliderComponent>();
+                    if (myCol) {
+                        float myR = myCol->radius * (std::max)((std::max)(std::abs(tr->scale.x), std::abs(tr->scale.y)), std::abs(tr->scale.z));
+                        h.x += myR; h.y += myR; h.z += myR;
+                    }
+                    RC::Vector3 minBox = RC::Sub(center, h);
+                    RC::Vector3 maxBox = RC::Add(center, h);
+                    hit = RC::IntersectRayAABB(ray, minBox, maxBox, t);
+                }
+
+                if (hit && t >= 0.0f && t <= closestDist) {
+                    closestDist = t;
+                    hitEntity = e.get();
+                    hitPoint = RC::Add(ray.origin, RC::Mul(ray.direction, t));
+                }
+            }
+
+            if (hitEntity) {
+                tr->position = hitPoint;
+                OnCollision(hitEntity, hitPoint);
+                if (isDead) return;
+            }
+        }
 
         // Lifetime
         elapsed_ += deltaTime;
@@ -141,7 +224,7 @@ protected:
         }
     }
 
-    void OnCollision(Entity* other) override {
+    void OnCollision(Entity* other, const RC::Vector3& contactPoint = {}) override {
         if (isDead || !other) return;
 
         Entity* self = GetEntity();
@@ -149,10 +232,14 @@ protected:
         bool isPlayerBullet = (myName == "PlayerBullet");
         std::string targetName = other->GetName();
 
-        // 当たり判定対象の確認 (タグによる疎結合化の準備)
-        bool hitEnemy = (isPlayerBullet && (targetName == "Enemy" || other->GetTagInt("is_enemy", 0) == 1));
-        bool isCamera = other->HasComponent<CameraComponent>();
-        bool hitPlayer = (!isPlayerBullet && isCamera);
+        // 当たった瞬間をログで確認
+        printf("[Collision] %s hit %s at (%.2f, %.2f, %.2f)\n", 
+               myName.c_str(), targetName.c_str(), 
+               contactPoint.x, contactPoint.y, contactPoint.z);
+
+        // 当たり判定対象の確認 (タグによる疎結合化)
+        bool hitEnemy = (isPlayerBullet && other->GetTagInt("is_enemy", 0) == 1);
+        bool hitPlayer = (!isPlayerBullet && other->GetTagInt("is_player", 0) == 1);
         bool hitTerrain = (targetName == "Block" || targetName == "Terrain" || targetName == "Obstacle" || other->GetTagInt("is_terrain", 0) == 1);
 
         if (hitEnemy || hitPlayer) {
@@ -233,6 +320,22 @@ protected:
         }
     }
 
+    uint64_t effectsFolderGuid_ = 0;
+
+    uint64_t GetEffectsFolder(Scene* scene) {
+        if (effectsFolderGuid_ != 0) return effectsFolderGuid_;
+        for (auto& e : scene->GetEntities()) {
+            if (e->GetName() == "Effects" && e->IsFolder()) {
+                effectsFolderGuid_ = e->Guid();
+                return effectsFolderGuid_;
+            }
+        }
+        auto folder = scene->CreateEntity("Effects");
+        folder->SetIsFolder(true);
+        effectsFolderGuid_ = folder->Guid();
+        return effectsFolderGuid_;
+    }
+
     void SpawnSplash(const RC::Vector3& pos) {
         Scene* scene = GetScene();
         if (!scene) return;
@@ -247,19 +350,40 @@ protected:
         source.strength = waveStrength;
         RC::AddWaveSource(source);
 
-        if (bulletType == "heavy") {
-            // Spawn HeavySplash as a single water column cylinder
-            std::shared_ptr<Entity> splash = nullptr;
-            for (auto& e : scene->GetEntities()) {
-                if (e->GetName() == "HeavySplash" && !e->IsActive() && !e->IsPendingDestroy()) {
-                    splash = e;
-                    splash->SetActive(true);
-                    splash->SetTag("reused", 1);
-                    break;
+        int splashCount = (bulletType == "heavy") ? 0 : 12;
+        int bubbleCount = (bulletType == "heavy") ? 8 : 4;
+        
+        std::vector<std::shared_ptr<Entity>> inactiveSplashes;
+        std::vector<std::shared_ptr<Entity>> inactiveBubbles;
+        std::shared_ptr<Entity> inactiveHeavySplash = nullptr;
+
+        for (auto& e : scene->GetEntities()) {
+            if (!e->IsActive() && !e->IsPendingDestroy()) {
+                const std::string& name = e->GetName();
+                if (splashCount > 0 && name == "Splash" && inactiveSplashes.size() < splashCount) {
+                    inactiveSplashes.push_back(e);
+                } else if (bubbleCount > 0 && name == "Bubble" && inactiveBubbles.size() < bubbleCount) {
+                    inactiveBubbles.push_back(e);
+                } else if (bulletType == "heavy" && !inactiveHeavySplash && name == "HeavySplash") {
+                    inactiveHeavySplash = e;
                 }
             }
+            // 必要な数が集まったら即座にループを抜ける（O(N)ループ回避）
+            if (inactiveSplashes.size() >= splashCount && 
+                inactiveBubbles.size() >= bubbleCount && 
+                (bulletType != "heavy" || inactiveHeavySplash)) {
+                break;
+            }
+        }
+
+        if (bulletType == "heavy") {
+            // Spawn HeavySplash as a single water column cylinder
+            std::shared_ptr<Entity> splash = inactiveHeavySplash;
             bool isNew = false;
-            if (!splash) {
+            if (splash) {
+                splash->SetActive(true);
+                splash->SetTag("reused", 1);
+            } else {
                 splash = scene->CreateEntity("HeavySplash");
                 isNew = true;
             }
@@ -269,6 +393,7 @@ protected:
             auto* tr = splash->GetComponent<TransformComponent>();
             if (!tr) tr = &splash->AddComponent<TransformComponent>();
             tr->position = pos;
+            splash->SetParentGuid(GetEffectsFolder(scene));
             tr->scale = { 1.5f, 0.1f, 1.5f }; // Start flat and wide
 
             auto* pm = splash->GetComponent<PrimitiveMeshComponent>();
@@ -303,19 +428,14 @@ protected:
             }
         } else {
             // Spawn normal visual splash particles
-            const int splashCount = 12;
             for (int i = 0; i < splashCount; ++i) {
                 std::shared_ptr<Entity> splash = nullptr;
-                for (auto& e : scene->GetEntities()) {
-                    if (e->GetName() == "Splash" && !e->IsActive() && !e->IsPendingDestroy()) {
-                        splash = e;
-                        splash->SetActive(true);
-                        splash->SetTag("reused", 1);
-                        break;
-                    }
-                }
                 bool isNew = false;
-                if (!splash) {
+                if (i < inactiveSplashes.size()) {
+                    splash = inactiveSplashes[i];
+                    splash->SetActive(true);
+                    splash->SetTag("reused", 1);
+                } else {
                     splash = scene->CreateEntity("Splash");
                     isNew = true;
                 }
@@ -323,6 +443,7 @@ protected:
                 auto* tr = splash->GetComponent<TransformComponent>();
                 if (!tr) tr = &splash->AddComponent<TransformComponent>();
                 tr->position = pos;
+                splash->SetParentGuid(GetEffectsFolder(scene));
                 float s = 0.15f + (i % 4) * 0.05f;
                 tr->scale = { s, s, s };
 
@@ -366,19 +487,14 @@ protected:
         }
 
         // Spawn Bubbles for all bullet types as an accent
-        int bubbleCount = (bulletType == "heavy") ? 8 : 4;
         for (int i = 0; i < bubbleCount; ++i) {
             std::shared_ptr<Entity> bubble = nullptr;
-            for (auto& e : scene->GetEntities()) {
-                if (e->GetName() == "Bubble" && !e->IsActive() && !e->IsPendingDestroy()) {
-                    bubble = e;
-                    bubble->SetActive(true);
-                    bubble->SetTag("reused", 1);
-                    break;
-                }
-            }
             bool isNew = false;
-            if (!bubble) {
+            if (i < inactiveBubbles.size()) {
+                bubble = inactiveBubbles[i];
+                bubble->SetActive(true);
+                bubble->SetTag("reused", 1);
+            } else {
                 bubble = scene->CreateEntity("Bubble");
                 isNew = true;
             }
@@ -386,6 +502,7 @@ protected:
             auto* tr = bubble->GetComponent<TransformComponent>();
             if (!tr) tr = &bubble->AddComponent<TransformComponent>();
             tr->position = pos;
+            bubble->SetParentGuid(GetEffectsFolder(scene));
             float s = 0.05f + (i % 3) * 0.05f;
             tr->scale = { s, s, s };
             
