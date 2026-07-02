@@ -122,6 +122,10 @@ private:
 
   ResizeRequest resizeRequest_; ///< ウィンドウリサイズ要求
 
+  // --- Gizmo Settings ---
+  int gizmoOperation_ = 7; // ImGuizmo::TRANSLATE
+  int gizmoMode_ = 0;      // ImGuizmo::LOCAL
+
   // --- Particle Editor ---
   std::unique_ptr<GPUParticle> peParticle_; ///< Particle Editor 用のプレビュー用 GPUParticle
   bool peInitialized_ = false;  ///< Particle Editor が初期化済みか

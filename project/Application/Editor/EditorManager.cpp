@@ -1,6 +1,7 @@
 #include "EditorManager.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
+#include "imgui/ImGuizmo.h"
 #include "Log/Log.h"
 #include "Dx12/Dx12Core.h"
 #include "Dx12/Utility/ScreenCapture.h"
@@ -34,6 +35,7 @@
 #include <format>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <set>
 
 void EditorManager::Initialize() {
 #if RC_ENABLE_IMGUI
@@ -564,7 +566,7 @@ void EditorManager::DrawEntityNode(std::shared_ptr<Entity> e, Scene* currentScen
 
 void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, PipelineManager* pm, float deltaTime, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
-
+  ImGuizmo::BeginFrame();
 
   if (showDemoWindow_) {
     ImGui::ShowDemoWindow(&showDemoWindow_);
@@ -831,7 +833,8 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
 
       // ===== Mouse Picking =====
       if (ImGui::IsMouseClicked(0) && isHoveringImage && !ImGui::IsMouseDragging(0) && currentScene && 
-          (!currentScene->GetContext() || !currentScene->GetContext()->isPlaying())) {
+          (!currentScene->GetContext() || !currentScene->GetContext()->isPlaying()) &&
+          !ImGuizmo::IsOver()) {
           float mouseX = ImGui::GetMousePos().x - vMin.x;
           float mouseY = ImGui::GetMousePos().y - vMin.y;
           RC::CameraController* cam = RC::GetRenderContext().Ctx()->camera;
@@ -974,18 +977,82 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
       // 幅は「ボタン6個(24px) + 隙間5個(4px) = 164px」に左右余白6pxずつ足して 176px にする
       ImVec2 overlaySize = ImVec2(176.0f, 32.0f);
       
-      // ボタン群（高さ24px）の背景として、上下左右に余白を持たせた半透明の枠を描画
-      // cursorPos は最初のボタンの左上絶対座標。枠は少し左・上にずらして描画する。
-      ImGui::GetWindowDrawList()->AddRectFilled(
-          ImVec2(cursorPos.x - 6.0f, cursorPos.y - 4.0f), 
-          ImVec2(cursorPos.x - 6.0f + overlaySize.x, cursorPos.y - 4.0f + overlaySize.y), 
-          IM_COL32(20, 20, 20, 160), 
-          6.0f
-      );
+      // 再生中以外の場合のみ、ギズモ描画と各種オーバーレイUIを表示する
+      if (playState_ != PlayState::Playing) {
+          // ボタン群（高さ24px）の背景として、上下左右に余白を持たせた半透明の枠を描画
+          // cursorPos は最初のボタンの左上絶対座標。枠は少し左・上にずらして描画する。
+          ImGui::GetWindowDrawList()->AddRectFilled(
+              ImVec2(cursorPos.x - 6.0f, cursorPos.y - 4.0f), 
+              ImVec2(cursorPos.x - 6.0f + overlaySize.x, cursorPos.y - 4.0f + overlaySize.y), 
+              IM_COL32(20, 20, 20, 160), 
+              6.0f
+          );
 
-      // ボタンの描画を実行
-      RC::DrawViewShadingModeImGui("");
-      
+          // シェーディングモード切替ボタンの描画を実行
+          RC::DrawViewShadingModeImGui("");
+
+          // ギズモ操作モード用UIを左上に描画
+          ImGui::SetCursorPos(ImVec2(10.0f, 24.0f));
+          ImVec2 leftCursorPos = ImGui::GetCursorScreenPos();
+          ImVec2 leftOverlaySize = ImVec2(156.0f, 32.0f); // 枠の幅を少し広げてはみ出しを修正
+          ImGui::GetWindowDrawList()->AddRectFilled(
+              ImVec2(leftCursorPos.x - 6.0f, leftCursorPos.y - 4.0f), 
+              ImVec2(leftCursorPos.x - 6.0f + leftOverlaySize.x, leftCursorPos.y - 4.0f + leftOverlaySize.y), 
+              IM_COL32(20, 20, 20, 160), 
+              6.0f
+          );
+
+          ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+          if (ImGui::Button("T", ImVec2(24, 24))) gizmoOperation_ = 7; // TRANSLATE
+          if (ImGui::IsItemHovered()) ImGui::SetTooltip("Translate");
+          ImGui::SameLine();
+          if (ImGui::Button("R", ImVec2(24, 24))) gizmoOperation_ = 120; // ROTATE
+          if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rotate");
+          ImGui::SameLine();
+          if (ImGui::Button("S", ImVec2(24, 24))) gizmoOperation_ = 896; // SCALE
+          if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale");
+          ImGui::SameLine();
+          ImGui::Text("|");
+          ImGui::SameLine();
+          if (ImGui::Button("L", ImVec2(24, 24))) gizmoMode_ = 0; // LOCAL
+          if (ImGui::IsItemHovered()) ImGui::SetTooltip("Local");
+          ImGui::SameLine();
+          if (ImGui::Button("W", ImVec2(24, 24))) gizmoMode_ = 1; // WORLD
+          if (ImGui::IsItemHovered()) ImGui::SetTooltip("World");
+          ImGui::PopStyleVar();
+
+          // ImGuizmo のセットアップ
+          ImGuizmo::SetDrawlist();
+          ImGuizmo::SetRect(vMin.x, vMin.y, width, height);
+
+          // 選択されているオブジェクトがあればギズモを表示
+          if (auto hitEntity = selectedEntity_.lock()) {
+              if (auto* tr = hitEntity->GetComponent<TransformComponent>()) {
+                  RC::CameraController* cam = RC::GetRenderContext().Ctx()->camera;
+                  if (cam) {
+                      RC::Matrix4x4 view = cam->GetView();
+                      RC::Matrix4x4 proj = cam->GetProjection();
+                      
+                      float* viewPtr = reinterpret_cast<float*>(&view);
+                      float* projPtr = reinterpret_cast<float*>(&proj);
+                      
+                      RC::Matrix4x4 worldMat = MakeAffineMatrix(tr->scale, tr->rotation, tr->position);
+                      float* matrixPtr = reinterpret_cast<float*>(&worldMat);
+                      
+                      ImGuizmo::Manipulate(viewPtr, projPtr, (ImGuizmo::OPERATION)gizmoOperation_, (ImGuizmo::MODE)gizmoMode_, matrixPtr);
+                      
+                      if (ImGuizmo::IsUsing()) {
+                          float translation[3], rotation[3], scale[3];
+                          ImGuizmo::DecomposeMatrixToComponents(matrixPtr, translation, rotation, scale);
+                          
+                          tr->position = {translation[0], translation[1], translation[2]};
+                          tr->rotation = {rotation[0] * 3.14159265f / 180.0f, rotation[1] * 3.14159265f / 180.0f, rotation[2] * 3.14159265f / 180.0f};
+                          tr->scale = {scale[0], scale[1], scale[2]};
+                      }
+                  }
+              }
+          }
+      }
     } else {
       ImGui::Text("No Viewport Texture");
     }
@@ -1056,6 +1123,93 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             e->SetName(nameBuf);
         }
         ImGui::Separator();
+
+        if (ImGui::CollapsingHeader("Tags (タグ)", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+            auto& tags = e->GetTagsRef();
+            
+            std::string tagToRemove = "";
+            for (auto& [key, val] : tags) {
+                ImGui::PushID(key.c_str());
+                
+                // タグ名と削除ボタンのみを表示 (値は隠蔽してシンプルにする)
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text(" %s ", key.c_str());
+                ImGui::SameLine(ImGui::GetContentRegionAvail().x - 22.0f);
+                if (ImGui::Button("X", ImVec2(22, 0))) {
+                    tagToRemove = key;
+                }
+                ImGui::PopID();
+            }
+            if (!tagToRemove.empty()) {
+                tags.erase(tagToRemove);
+            }
+
+            ImGui::Separator();
+            
+            // Collect known tags
+            std::set<std::string> knownTags = { "is_enemy", "is_player", "is_terrain", "pending_damage", "impact_factor", "reused", "Shark", "Enemy" };
+            if (currentScene) {
+                for (const auto& sceneEntity : currentScene->GetEntities()) {
+                    if (!sceneEntity) continue;
+                    for (const auto& [k, v] : sceneEntity->GetTags()) {
+                        knownTags.insert(k);
+                    }
+                }
+            }
+            
+            std::vector<std::string> tagList;
+            tagList.push_back("--- Select a tag ---");
+            for (const auto& k : knownTags) {
+                tagList.push_back(k);
+            }
+            tagList.push_back("+ New Tag...");
+
+            static int selectedTagIdx = 0;
+            static char newTagKey[64] = "";
+
+            if (selectedTagIdx >= tagList.size()) selectedTagIdx = 0;
+
+            const char* currentLabel = tagList[selectedTagIdx].c_str();
+            
+            bool isNewTagMode = (selectedTagIdx == tagList.size() - 1);
+            float comboWidth = isNewTagMode ? ImGui::GetContentRegionAvail().x * 0.45f : ImGui::GetContentRegionAvail().x - 50.0f;
+            
+            ImGui::SetNextItemWidth(comboWidth);
+            if (ImGui::BeginCombo("##TagSelector", currentLabel)) {
+                for (int i = 0; i < tagList.size(); ++i) {
+                    bool isSelected = (selectedTagIdx == i);
+                    if (ImGui::Selectable(tagList[i].c_str(), isSelected)) {
+                        selectedTagIdx = i;
+                        if (i > 0 && i < tagList.size() - 1) {
+                            strncpy_s(newTagKey, sizeof(newTagKey), tagList[i].c_str(), _TRUNCATE);
+                        }
+                    }
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::SameLine();
+            
+            if (isNewTagMode) {
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 50.0f);
+                ImGui::InputText("##NewTagKey", newTagKey, sizeof(newTagKey));
+                ImGui::SameLine();
+            }
+            
+            if (ImGui::Button("Add", ImVec2(40.0f, 0.0f))) {
+                std::string tagToAdd = isNewTagMode ? newTagKey : (selectedTagIdx > 0 ? tagList[selectedTagIdx] : "");
+                if (!tagToAdd.empty() && tagToAdd != "--- Select a tag ---" && tagToAdd != "+ New Tag...") {
+                    tags[tagToAdd] = 1; // 値は1固定
+                    newTagKey[0] = '\0';
+                    selectedTagIdx = 0;
+                }
+            }
+            ImGui::Unindent(8.0f);
+        }
 
         if (auto* tr = e->GetComponent<TransformComponent>()) {
             if (ImGui::CollapsingHeader("Transform (変形)", ImGuiTreeNodeFlags_DefaultOpen)) {

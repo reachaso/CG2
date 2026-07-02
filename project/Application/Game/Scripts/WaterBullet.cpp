@@ -161,9 +161,9 @@ protected:
                 // 疎結合: タグで当たり判定対象かチェック
                 bool isTarget = false;
                 if (isPlayerBullet) {
-                    if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Block" || e->GetName() == "Terrain") isTarget = true;
+                    if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Block" || e->GetName() == "Terrain" || e->GetName() == "Shark" || e->GetName() == "Enemy") isTarget = true;
                 } else {
-                    if (e->GetTagInt("is_player", 0) == 1 || e->GetName() == "Block" || e->GetName() == "Terrain") isTarget = true;
+                    if (e->GetTagInt("is_player", 0) == 1 || e->GetName() == "Block" || e->GetName() == "Terrain" || e->GetName() == "player") isTarget = true;
                 }
                 if (!isTarget) continue;
 
@@ -237,9 +237,9 @@ protected:
                myName.c_str(), targetName.c_str(), 
                contactPoint.x, contactPoint.y, contactPoint.z);
 
-        // 当たり判定対象の確認 (タグによる疎結合化)
-        bool hitEnemy = (isPlayerBullet && other->GetTagInt("is_enemy", 0) == 1);
-        bool hitPlayer = (!isPlayerBullet && other->GetTagInt("is_player", 0) == 1);
+        // 当たり判定対象の確認 (タグによる疎結合化、および名前によるフォールバック)
+        bool hitEnemy = (isPlayerBullet && (other->GetTagInt("is_enemy", 0) == 1 || targetName == "Shark" || targetName == "Enemy"));
+        bool hitPlayer = (!isPlayerBullet && (other->GetTagInt("is_player", 0) == 1 || targetName == "player"));
         bool hitTerrain = (targetName == "Block" || targetName == "Terrain" || targetName == "Obstacle" || other->GetTagInt("is_terrain", 0) == 1);
 
         if (hitEnemy || hitPlayer) {

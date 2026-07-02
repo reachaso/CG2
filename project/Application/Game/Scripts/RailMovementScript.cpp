@@ -31,6 +31,50 @@ private:
     float currentWaitTimer = 0.0f;
 
 protected:
+    nlohmann::json Serialize() override {
+        nlohmann::json j;
+        j["speed"] = speed;
+        j["isMoving"] = isMoving;
+        j["loop"] = loop;
+        j["drawPath"] = drawPath;
+        j["pathColor"] = { pathColor.x, pathColor.y, pathColor.z, pathColor.w };
+        nlohmann::json wpArray = nlohmann::json::array();
+        for (const auto& wp : waypoints) {
+            wpArray.push_back({
+                {"pos", {wp.pos.x, wp.pos.y, wp.pos.z}},
+                {"waitTime", wp.waitTime}
+            });
+        }
+        j["waypoints"] = wpArray;
+        return j;
+    }
+
+    void Deserialize(const nlohmann::json& j) override {
+        if (j.contains("speed")) speed = j["speed"].get<float>();
+        if (j.contains("isMoving")) isMoving = j["isMoving"].get<bool>();
+        if (j.contains("loop")) loop = j["loop"].get<bool>();
+        if (j.contains("drawPath")) drawPath = j["drawPath"].get<bool>();
+        if (j.contains("pathColor") && j["pathColor"].size() == 4) {
+            pathColor.x = j["pathColor"][0];
+            pathColor.y = j["pathColor"][1];
+            pathColor.z = j["pathColor"][2];
+            pathColor.w = j["pathColor"][3];
+        }
+        if (j.contains("waypoints") && j["waypoints"].is_array()) {
+            waypoints.clear();
+            for (const auto& wj : j["waypoints"]) {
+                Waypoint wp;
+                if (wj.contains("pos") && wj["pos"].size() == 3) {
+                    wp.pos.x = wj["pos"][0];
+                    wp.pos.y = wj["pos"][1];
+                    wp.pos.z = wj["pos"][2];
+                }
+                if (wj.contains("waitTime")) wp.waitTime = wj["waitTime"].get<float>();
+                waypoints.push_back(wp);
+            }
+        }
+    }
+
     void OnCreate() override {
         // 初期化時に何もウェイポイントがなければ、現在位置を追加しておく
         if (waypoints.empty()) {
@@ -41,15 +85,7 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
-        // パス描画処理
-        if (drawPath && waypoints.size() >= 2) {
-            for (size_t i = 0; i < waypoints.size() - 1; ++i) {
-                RC::DrawLine3D(waypoints[i].pos, waypoints[i + 1].pos, pathColor, true);
-            }
-            if (loop) {
-                RC::DrawLine3D(waypoints.back().pos, waypoints.front().pos, pathColor, true);
-            }
-        }
+        // パス描画処理はOnImGui(選択時)に移動しました。
 
         if (!isMoving || waypoints.empty() || currentWaypointIndex >= waypoints.size()) {
             return;
@@ -113,6 +149,17 @@ public:
         if (currentWaitTimer > 0.0f) {
             ImGui::Text("Waiting... %.2f sec", currentWaitTimer);
         }
+
+        if (ImGui::Button("Restart Path")) {
+            currentWaypointIndex = 0;
+            currentWaitTimer = 0.0f;
+            if (!waypoints.empty()) {
+                if (auto* tr = GetComponent<TransformComponent>()) {
+                    tr->position = waypoints[0].pos;
+                }
+            }
+        }
+        ImGui::SameLine();
         
         if (ImGui::Button("Add Waypoint")) {
             if (!waypoints.empty()) {
@@ -146,6 +193,22 @@ public:
                 break;
             }
             ImGui::PopID();
+        }
+
+        // 選択時のみパスとウェイポイントを描画
+        if (drawPath && waypoints.size() >= 1) {
+            RC::BeginOverlay3D(); // Skyboxの後に描画
+            for (size_t i = 0; i < waypoints.size(); ++i) {
+                // 引数: center, radius, color, slices, stacks, depth
+                RC::DrawWireSphere3D(waypoints[i].pos, 0.5f, pathColor, 16, 16, true);
+                if (i < waypoints.size() - 1) {
+                    RC::DrawLine3D(waypoints[i].pos, waypoints[i + 1].pos, pathColor, true);
+                }
+            }
+            if (loop && waypoints.size() >= 2) {
+                RC::DrawLine3D(waypoints.back().pos, waypoints.front().pos, pathColor, true);
+            }
+            RC::EndOverlay3D();
         }
 #endif
     }

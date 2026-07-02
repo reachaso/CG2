@@ -83,6 +83,8 @@ protected:
     }
 
     void OnUpdate(float deltaTime) override {
+        if (deltaTime <= 0.0f) return; // ゲームが一時停止・停止中の場合は処理しない
+
         auto* input = Input::GetInstance();
         if (!input) return;
 
@@ -178,7 +180,19 @@ protected:
         // 5. 射撃とクールダウン処理
         currentCooldown -= deltaTime;
         
-        bool isFirePressed = input->IsMousePressed(0) || input->GetXInputRightTrigger() > 128;
+        bool isFirePressed = false;
+#if RC_ENABLE_IMGUI
+        // ImGuiがマウスをキャプチャしていても、Viewport上なら射撃を許可する
+        if (!ImGui::GetIO().WantCaptureMouse || input->IsViewportHovered()) {
+            isFirePressed = input->IsMousePressed(0);
+        }
+#else
+        isFirePressed = input->IsMousePressed(0);
+#endif
+        if (input->GetXInputRightTrigger() > 128) {
+            isFirePressed = true;
+        }
+
         if (isFirePressed && currentCooldown <= 0.0f) {
             if (currentWeapon == WeaponType::Heavy) currentCooldown = fireCooldown * 2.0f;
             else currentCooldown = fireCooldown;

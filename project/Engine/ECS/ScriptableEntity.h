@@ -12,6 +12,12 @@ class ScriptableEntity {
 public:
   virtual ~ScriptableEntity() = default;
 
+  /// @brief Serialize script data to JSON
+  virtual nlohmann::json Serialize() { return nlohmann::json::object(); }
+
+  /// @brief Deserialize script data from JSON
+  virtual void Deserialize(const nlohmann::json& j) {}
+
   /// @brief Called for drawing custom ImGui UI in the editor
   virtual void OnImGui() {}
 

@@ -14,6 +14,7 @@ public:
     std::string scriptTypeName;
     std::function<ScriptableEntity*()> InstantiateScript;
     std::function<void(ScriptEntry&)> DestroyScript;
+    nlohmann::json pendingData;
   };
 
   std::vector<ScriptEntry> scripts;
@@ -81,6 +82,9 @@ public:
           entry.instance->entity_ = GetEntity();
           entry.instance->scene_ = scene_;
           entry.instance->sceneContext_ = sceneContext_;
+          if (!entry.pendingData.is_null()) {
+            entry.instance->Deserialize(entry.pendingData);
+          }
           entry.instance->OnCreate();
         } else {
           // Fallback: script not found, prevent further instantiate attempts
@@ -102,12 +106,19 @@ public:
   nlohmann::json Serialize() const override {
     nlohmann::json j;
     std::vector<std::string> names;
+    nlohmann::json dataList = nlohmann::json::array();
     for (const auto& entry : scripts) {
       if (!entry.scriptTypeName.empty()) {
         names.push_back(entry.scriptTypeName);
+        if (entry.instance) {
+          dataList.push_back(entry.instance->Serialize());
+        } else {
+          dataList.push_back(entry.pendingData);
+        }
       }
     }
     j["scriptTypeNames"] = names;
+    j["scriptDataList"] = dataList;
     
     // Backward compatibility property
     if (!names.empty()) {
@@ -127,8 +138,12 @@ public:
 
     if (j.contains("scriptTypeNames") && j["scriptTypeNames"].is_array()) {
       auto names = j["scriptTypeNames"].get<std::vector<std::string>>();
-      for (const auto& name : names) {
-        AddScript(name);
+      nlohmann::json dataList = j.value("scriptDataList", nlohmann::json::array());
+      for (size_t i = 0; i < names.size(); ++i) {
+        AddScript(names[i]);
+        if (i < dataList.size() && !scripts.empty()) {
+          scripts.back().pendingData = dataList[i];
+        }
       }
     } else if (j.contains("scriptTypeName")) {
       std::string name = j["scriptTypeName"].get<std::string>();

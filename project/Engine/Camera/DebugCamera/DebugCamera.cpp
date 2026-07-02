@@ -54,8 +54,8 @@ void DebugCamera::Update() {
     translation_ = Add(translation_, Multiply(forward, wheel * wheelSpeed));
   }
 
-  // ── 左クリックドラッグによる回転 ──
-  if (input_->IsMousePressed(0)) {
+  // ── 右クリックドラッグによる回転 ──
+  if (input_->IsMousePressed(1)) { // 1: 右クリック
     float mouseRotateSpeed = 0.1f * deltaTime_; // マウス感度
     rotation_.y += input_->GetMouseX() * mouseRotateSpeed;
     rotation_.x += input_->GetMouseY() * mouseRotateSpeed;

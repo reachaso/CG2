@@ -167,6 +167,10 @@ public:
   /// @brief Check if a tag exists
   bool HasTag(const std::string& key) const { return intTags_.count(key) > 0; }
 
+  /// @brief Get all tags
+  const std::unordered_map<std::string, int>& GetTags() const { return intTags_; }
+  std::unordered_map<std::string, int>& GetTagsRef() { return intTags_; }
+
   /// @brief Serialize entity state to JSON
   nlohmann::json Serialize() const {
     nlohmann::json j;
@@ -188,6 +192,7 @@ public:
       }
     }
     j["components"] = comps;
+    j["tags"] = intTags_;
     return j;
   }
 
@@ -212,6 +217,9 @@ public:
           components_[std::type_index(typeid(*comp))] = std::move(comp);
         }
       }
+    }
+    if (j.contains("tags")) {
+      intTags_ = j["tags"].get<std::unordered_map<std::string, int>>();
     }
   }
 

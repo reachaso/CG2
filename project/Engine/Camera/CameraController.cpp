@@ -1,6 +1,7 @@
 #include "CameraController.h"
 #include "RC.h" // Transform 定義のため（プロジェクト側で提供されている想定）
 #include "imGui/imGui.h"
+#include "imgui/ImGuizmo.h"
 #include <cmath> // tanf, sqrtf, fabs
 
 namespace RC {
@@ -78,12 +79,18 @@ void CameraController::Update(float dt) {
 
   if (useDebug_) {
     #if RC_ENABLE_IMGUI
-    // Viewport上でマウスボタン（左/右/中）が押されたらドラッグ開始
-    if (input_->IsViewportHovered() && (input_->IsMousePressed(0) || input_->IsMousePressed(1) || input_->IsMousePressed(2))) {
-      isDraggingCamera_ = true;
+    // ギズモ操作中またはマウスがギズモに乗っている時はカメラ操作をブロックする
+    bool isGuizmoActive = ImGuizmo::IsUsing() || ImGuizmo::IsOver();
+
+    if (!isGuizmoActive) {
+        // Viewport上でマウスボタン（右/中）が押されたらドラッグ開始 (左クリックはギズモや選択と競合するため除外)
+        if (input_->IsViewportHovered() && (input_->IsMousePressed(1) || input_->IsMousePressed(2))) {
+          isDraggingCamera_ = true;
+        }
     }
-    // 全てのボタンが離されたらドラッグ終了
-    if (!input_->IsMousePressed(0) && !input_->IsMousePressed(1) && !input_->IsMousePressed(2)) {
+    
+    // 右・中のボタンが離されたらドラッグ終了
+    if (!input_->IsMousePressed(1) && !input_->IsMousePressed(2)) {
       isDraggingCamera_ = false;
     }
 
@@ -93,7 +100,7 @@ void CameraController::Update(float dt) {
     // Viewport上にあるかドラッグ中なら、キーボード（WASD等）もカメラに渡す
     bool captureKeyboard = ImGui::GetIO().WantCaptureKeyboard && !(input_->IsViewportHovered() || isDraggingCamera_);
 
-    if (!(captureMouse || captureKeyboard)) {
+    if (!(captureMouse || captureKeyboard) && !isGuizmoActive) {
 #else
 if (true) {
 #endif
@@ -275,7 +282,7 @@ void CameraController::DrawImGui() {
     ImGui::Text(" QE : 上下移動");
     ImGui::Text(" 十字キー : カメラの回転");
     ImGui::Text(" マウスホイール : 前後移動");
-    ImGui::Text(" 左クリックしながらドラッグ : 回転");
+    ImGui::Text(" 右クリックしながらドラッグ : 回転");
     ImGui::Text(" マウスホイール押しながらドラッグ : 上下左右移動");
     ImGui::End();
   }
