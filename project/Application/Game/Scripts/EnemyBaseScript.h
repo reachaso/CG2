@@ -12,6 +12,11 @@
 #include "imgui/imgui.h"
 #endif
 
+#include "Engine/Camera/CameraMath.h"
+#include "ECS/CameraComponent.h"
+#include "Engine/Render/RenderContext.h"
+
+
 /// @brief Base class for enemies handling HP, damage, and death state
 class EnemyBaseScript : public ScriptableEntity {
 public:
@@ -94,11 +99,15 @@ protected:
                     self->Destroy();
                 }
             }
+            
+            // HP情報をタグで公開（UI用）
+            self->SetTag("current_hp", hp);
+            self->SetTag("max_hp", maxHp);
         }
     }
 
     void OnRender() override {
-        DrawEnemyHPBar();
+        // UI描画は RailShooterController 側で一括して行うように変更しました
     }
 
 public:
@@ -128,29 +137,4 @@ public:
         }
     }
 
-    virtual void DrawEnemyHPBar() {
-        if (isDead) return;
-        SceneContext* ctx = GetSceneContext();
-        if (!ctx) return;
-
-        float screenW = static_cast<float>(ctx->app->width);
-        // Draw HP bar at top-right
-        float barX = screenW - 230.0f;
-        float barY = 60.0f;
-        float barW = 200.0f;
-        float barH = 16.0f;
-
-        // Background
-        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
-                    { 0.3f, 0.05f, 0.05f, 0.8f });
-
-        // Foreground
-        float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
-        RC::Vector4 hpColor = { 0.9f, 0.2f, 0.2f, 0.9f };
-        RC::DrawBox({ barX, barY }, { barX + barW * hpRatio, barY + barH }, hpColor);
-
-        // Border
-        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH },
-                    { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
-    }
 };

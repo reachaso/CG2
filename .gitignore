@@ -329,3 +329,9 @@ FodyWeavers.xsd
 pso_cache.bin
 .agents/workflows/
 media/
+
+# Remove unwanted files
+Texassemble.exe
+*.exp
+project/externals/**/*.lib
+!project/externals/assimp/**/*.lib

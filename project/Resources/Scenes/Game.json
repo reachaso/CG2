@@ -65,6 +65,7 @@
       "locked": false,
       "name": "Water",
       "parentGuid": 710271550770534429,
+      "tags": {},
       "visible": true
     },
     {
@@ -175,6 +176,9 @@
       "locked": false,
       "name": "Camera",
       "parentGuid": 0,
+      "tags": {
+        "is_player": 1
+      },
       "visible": true
     },
     {
@@ -221,6 +225,7 @@
       "locked": false,
       "name": "Skybox",
       "parentGuid": 710271550770534429,
+      "tags": {},
       "visible": true
     },
     {
@@ -272,6 +277,7 @@
       "locked": false,
       "name": "Directional Light",
       "parentGuid": 710271550770534429,
+      "tags": {},
       "visible": true
     },
     {
@@ -282,6 +288,7 @@
       "locked": false,
       "name": "Field",
       "parentGuid": 0,
+      "tags": {},
       "visible": true
     },
     {
@@ -366,6 +373,9 @@
       "locked": false,
       "name": "Shark",
       "parentGuid": 0,
+      "tags": {
+        "is_enemy": 1
+      },
       "visible": true
     }
   ],

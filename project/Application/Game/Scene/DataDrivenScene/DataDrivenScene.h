@@ -237,7 +237,6 @@ public:
 
     UpdateEntities(updateDt);
     ResolveCollisions();
-    RemoveDeadEntities();
 
     // === ゲーム結果判定（プレイ中のみ） ===
     if (ctx.isPlaying() && !resultTriggered_) {
@@ -272,7 +271,7 @@ public:
                 bool hasEnemy = false;
                 bool allDefeated = true;
                 for (auto& e : entities_) {
-                    if (e && e->GetName() == "Enemy") {
+                    if (e && (e->GetName() == "Enemy" || e->GetName() == "Shark" || e->HasTag("is_enemy"))) {
                         hasEnemy = true;
                         if (!e->HasTag("enemy_defeated")) {
                             allDefeated = false;
@@ -288,6 +287,9 @@ public:
             }
         }
     }
+
+    // デッドエンティティの削除は判定後に行う（タグを読み取れるようにするため）
+    RemoveDeadEntities();
 
     // シーン遷移ディレイ処理
     if (resultTriggered_ && ctx.isPlaying()) {

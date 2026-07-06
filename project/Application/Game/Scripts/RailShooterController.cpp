@@ -58,6 +58,11 @@ public:
     enum class WeaponType { Normal, Spread, Heavy };
     WeaponType currentWeapon = WeaponType::Normal;
 
+    // 敵全体（ボス）情報
+    int totalEnemyHp = 0;
+    int totalEnemyMaxHp = 0;
+    bool isGameCleared = false;
+
 private:
     uint64_t bulletsFolderGuid_ = 0;
 
@@ -106,6 +111,42 @@ protected:
                 self->ClearTag("score_add");
                 score += scoreAdd;
             }
+        }
+
+        // 敵の合計HPの集計、ダメージ処理、およびクリア判定
+        totalEnemyHp = 0;
+        totalEnemyMaxHp = 0;
+        if (Scene* scene = GetScene()) {
+            for (auto& e : scene->GetEntities()) {
+                if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Shark") {
+                    // タグが未設定なら初期化
+                    int ehp = e->GetTagInt("current_hp", -1);
+                    int eMaxHp = e->GetTagInt("max_hp", -1);
+                    if (ehp == -1) { ehp = 30; e->SetTag("current_hp", 30); }
+                    if (eMaxHp == -1) { eMaxHp = 30; e->SetTag("max_hp", 30); }
+
+                    // ダメージ処理（敵側のスクリプトが停止していてもここで処理する）
+                    int dmg = e->GetTagInt("pending_damage", 0);
+                    if (dmg > 0) {
+                        ehp -= dmg;
+                        if (ehp < 0) ehp = 0;
+                        e->SetTag("current_hp", ehp);
+                        e->ClearTag("pending_damage");
+                    }
+
+                    // 死亡処理
+                    if (ehp <= 0 && !e->IsPendingDestroy()) {
+                        e->SetTag("enemy_defeated", 1);
+                        e->Destroy(); // 敵を破壊する
+                    }
+
+                    totalEnemyHp += ehp;
+                    totalEnemyMaxHp += eMaxHp;
+                }
+            }
+        }
+        if (totalEnemyMaxHp > 0 && totalEnemyHp <= 0) {
+            isGameCleared = true;
         }
 
         // Weapon Switching
@@ -382,18 +423,66 @@ protected:
         RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
 
         // === Score display (tally circles) ===
-        float scoreX = screenW - 220.0f;
-        float scoreY = 30.0f;
+        float scoreX = 40.0f;
+        float scoreY = 40.0f;
         for (int i = 0; i < score && i < 20; ++i) {
             float cx = scoreX + (i % 10) * 20.0f;
             float cy = scoreY + (i / 10) * 20.0f;
             RC::DrawCircle({ cx, cy }, 7.0f, { 0.3f, 0.7f, 1.0f, 0.9f });
         }
 
-        // === Game Over / Damage overlay ===
+        // === 敵ごとの個別HPバーを頭上に描画 ===
+        if (Scene* scene = GetScene()) {
+            RC::Matrix4x4 viewProj = Multiply(ctx.View(), ctx.Proj());
+            for (auto& e : scene->GetEntities()) {
+                if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Shark") {
+                    int ehp = e->GetTagInt("current_hp", 30);
+                    int eMaxHp = e->GetTagInt("max_hp", 30);
+                    if (ehp <= 0 || eMaxHp <= 0) continue;
+
+                    auto* tr = e->GetComponent<TransformComponent>();
+                    if (!tr) continue;
+                    
+                    // 頭の少し上を計算
+                    RC::Vector3 headPos = tr->position;
+                    headPos.y += 1.2f; 
+                    
+                    // w(深度)計算による背後判定 (一時的にコメントアウトして強制描画)
+                    float w = headPos.x * viewProj.m[0][3] + headPos.y * viewProj.m[1][3] +
+                              headPos.z * viewProj.m[2][3] + 1.0f * viewProj.m[3][3];
+                    // if (w < 0.1f) continue; // コメントアウト
+                    
+                    // スクリーン座標へ変換
+                    RC::Vector3 screenPos = RC::CameraMath::WorldToScreenPoint(
+                        headPos, {screenW, screenH}, ctx.View(), ctx.Proj());
+                        
+                    // 画面外に飛ばないようにクランプ（画面端で見えるようにする）
+                    screenPos.x = RC::Clamp(screenPos.x, 50.0f, screenW - 50.0f);
+                    screenPos.y = RC::Clamp(screenPos.y, 50.0f, screenH - 50.0f);
+                    
+                    // 描画
+                    float eBarW = 100.0f;
+                    float eBarH = 10.0f;
+                    float eBarX = screenPos.x - eBarW * 0.5f;
+                    float eBarY = screenPos.y;
+                    
+                    RC::DrawBox({ eBarX, eBarY }, { eBarX + eBarW, eBarY + eBarH }, { 0.3f, 0.05f, 0.05f, 0.8f });
+                    
+                    float eHpRatio = static_cast<float>(ehp) / static_cast<float>(eMaxHp);
+                    RC::DrawBox({ eBarX, eBarY }, { eBarX + eBarW * eHpRatio, eBarY + eBarH }, { 0.9f, 0.2f, 0.2f, 0.9f });
+                    
+                    RC::DrawBox({ eBarX, eBarY }, { eBarX + eBarW, eBarY + eBarH }, { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
+                }
+            }
+        }
+
+        // === Game Over / Game Clear / Damage overlay ===
         if (isDead) {
             RC::DrawBox({ 0.0f, screenH * 0.4f }, { screenW, screenH * 0.6f },
                         { 0.8f, 0.1f, 0.1f, 0.7f });
+        } else if (isGameCleared) {
+            RC::DrawBox({ 0.0f, screenH * 0.4f }, { screenW, screenH * 0.6f },
+                        { 0.1f, 0.8f, 0.2f, 0.6f });
         } else if (invincibleTimer > 0.0f) {
             float flashAlpha = (invincibleTimer / invincibleDuration) * 0.5f;
             RC::DrawBox({ 0.0f, 0.0f }, { screenW, screenH },

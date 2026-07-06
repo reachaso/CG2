@@ -70,4 +70,20 @@ inline Ray ScreenPointToRay(const Vector2& mousePos, const Vector2& screenSize, 
     return ray;
 }
 
+/// @brief ワールド空間の座標をスクリーン座標に変換する
+/// @param worldPos ワールド空間の座標
+/// @param screenSize 画面サイズ (幅, 高さ)
+/// @param viewMatrix カメラのビュー行列
+/// @param projMatrix カメラのプロジェクション行列
+/// @return スクリーン座標 (x, y) および NDC空間でのZ値 (z)
+inline Vector3 WorldToScreenPoint(const Vector3& worldPos, const Vector2& screenSize, const Matrix4x4& viewMatrix, const Matrix4x4& projMatrix) {
+    Matrix4x4 viewProj = Multiply(viewMatrix, projMatrix);
+    Vector3 ndcPos = Vector3Transform(worldPos, viewProj);
+    
+    float screenX = (ndcPos.x + 1.0f) * 0.5f * screenSize.x;
+    float screenY = (1.0f - ndcPos.y) * 0.5f * screenSize.y;
+    
+    return Vector3{screenX, screenY, ndcPos.z};
+}
+
 } // namespace RC::CameraMath
