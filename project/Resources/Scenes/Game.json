@@ -73,6 +73,27 @@
       "components": [
         {
           "data": {
+            "position": [
+              0.0,
+              2.0,
+              -50.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
             "scriptDataList": [
               {},
               {
@@ -138,27 +159,6 @@
           },
           "enabled": true,
           "type": "NativeScriptComponent"
-        },
-        {
-          "data": {
-            "position": [
-              0.0,
-              2.0,
-              -50.0
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
         },
         {
           "data": {
@@ -296,6 +296,40 @@
       "components": [
         {
           "data": {
+            "scriptDataList": [
+              {}
+            ],
+            "scriptTypeName": "EnemyAI",
+            "scriptTypeNames": [
+              "EnemyAI"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.5,
+              30.0
+            ],
+            "rotation": [
+              0.0,
+              3.1415927410125732,
+              0.0
+            ],
+            "scale": [
+              1.5,
+              1.5,
+              3.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -313,40 +347,6 @@
           },
           "enabled": true,
           "type": "ColliderComponent"
-        },
-        {
-          "data": {
-            "position": [
-              0.0,
-              0.5,
-              30.0
-            ],
-            "rotation": [
-              0.0,
-              3.141590118408203,
-              0.0
-            ],
-            "scale": [
-              1.5,
-              1.5,
-              3.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "scriptDataList": [
-              null
-            ],
-            "scriptTypeName": "SharkEnemyScript",
-            "scriptTypeNames": [
-              "SharkEnemyScript"
-            ]
-          },
-          "enabled": true,
-          "type": "NativeScriptComponent"
         },
         {
           "data": {
@@ -374,7 +374,9 @@
       "name": "Shark",
       "parentGuid": 0,
       "tags": {
-        "is_enemy": 1
+        "current_hp": 10,
+        "is_enemy": 1,
+        "max_hp": 10
       },
       "visible": true
     }
