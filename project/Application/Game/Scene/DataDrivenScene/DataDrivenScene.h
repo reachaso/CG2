@@ -140,7 +140,7 @@ public:
                     l->SetColor(dirLight->color);
                     l->SetDirection(dirLight->direction);
                     l->SetIntensity(dirLight->intensity);
-                    RC::SetDirectionalLightEnabled(dirLight->lightHandle, dirLight->visible && dirLight->IsEnabled());
+                    RC::SetDirectionalLightEnabled(dirLight->lightHandle, e->IsVisible() && dirLight->visible && dirLight->IsEnabled());
                 }
             }
             if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
@@ -150,7 +150,7 @@ public:
                     l->SetIntensity(ptLight->intensity);
                     l->SetRadius(ptLight->radius);
                     l->SetDecay(ptLight->decay);
-                    RC::SetPointLightEnabled(ptLight->lightHandle, ptLight->visible && ptLight->IsEnabled());
+                    RC::SetPointLightEnabled(ptLight->lightHandle, e->IsVisible() && ptLight->visible && ptLight->IsEnabled());
                 }
             }
             if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
@@ -162,7 +162,7 @@ public:
                     l->SetDistance(spLight->distance);
                     l->SetDecay(spLight->decay);
                     l->SetCosAngle(spLight->cosAngle);
-                    RC::SetSpotLightEnabled(spLight->lightHandle, spLight->visible && spLight->IsEnabled());
+                    RC::SetSpotLightEnabled(spLight->lightHandle, e->IsVisible() && spLight->visible && spLight->IsEnabled());
                 }
             }
             if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
@@ -174,7 +174,7 @@ public:
                     l->SetDecay(arLight->decay);
                     l->SetHalfSize(arLight->halfWidth, arLight->halfHeight);
                     l->SetTwoSided(arLight->twoSided);
-                    RC::SetAreaLightEnabled(arLight->lightHandle, arLight->visible && arLight->IsEnabled());
+                    RC::SetAreaLightEnabled(arLight->lightHandle, e->IsVisible() && arLight->visible && arLight->IsEnabled());
                 }
             }
             if (auto* skydome = e->GetComponent<SkydomeComponent>()) {

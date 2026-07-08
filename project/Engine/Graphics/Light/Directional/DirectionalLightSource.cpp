@@ -9,7 +9,7 @@ DirectionalLightSource::DirectionalLightSource() {
   // デフォルトは上からの白いライト
   data_.color = {1.0f, 1.0f, 1.0f, 1.0f};
   data_.direction = {0.0f, -1.0f, 0.0f};
-  data_.intensity = 1.0f;
+  data_.intensity = 0.0f; // デフォルトで照らさないようにする
 }
 
 void DirectionalLightSource::SetDirection(const Vector3 &dir, bool normalize) {

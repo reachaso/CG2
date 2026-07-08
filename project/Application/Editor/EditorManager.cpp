@@ -144,6 +144,7 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
       ImGui::MenuItem("Performance (FPS)", nullptr, &showPerfWindow_);
       ImGui::MenuItem("Render Queue", nullptr, &showRenderQueue_);
       ImGui::MenuItem("Particle Editor", nullptr, &showParticleEditor_);
+      ImGui::MenuItem("Environment Settings", nullptr, &showEnvironmentWindow_);
       if (ImGui::MenuItem("Reset Layout")) {
         resetLayout_ = true;
       }
@@ -793,6 +794,49 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             } else { ImGui::Text("-"); }
           }
           ImGui::EndTable();
+        }
+      }
+    }
+    ImGui::End();
+  }
+
+  // Environment Settings パネル
+  if (showEnvironmentWindow_) {
+    if (ImGui::Begin("Environment Settings (環境設定)", &showEnvironmentWindow_)) {
+      if (!currentScene) {
+        ImGui::Text("No active scene.");
+      } else {
+        std::shared_ptr<Entity> skyEntity = nullptr;
+        for (auto& e : currentScene->GetEntities()) {
+          if (e->HasComponent<SkyboxComponent>() || e->HasComponent<SkydomeComponent>()) {
+            skyEntity = e;
+            break;
+          }
+        }
+        
+        if (skyEntity) {
+          ImGui::Text("Current Environment Entity: %s", skyEntity->GetName().c_str());
+          if (ImGui::Button("Select in Hierarchy")) {
+            selectedEntity_ = skyEntity;
+          }
+          ImGui::Separator();
+          ImGui::TextDisabled("Select the entity to edit details in the Inspector.");
+        } else {
+          ImGui::Text("No Skybox or Skydome in the scene.");
+          ImGui::Separator();
+          if (ImGui::Button("Create Skydome")) {
+            auto e = currentScene->CreateEntity("Environment (Skydome)");
+            e->AddComponent<TransformComponent>();
+            auto& sd = e->AddComponent<SkydomeComponent>();
+            sd.skydomeHandle = RC::GenerateSkydomeEx(-1);
+            selectedEntity_ = e;
+          }
+          if (ImGui::Button("Create Skybox")) {
+            auto e = currentScene->CreateEntity("Environment (Skybox)");
+            e->AddComponent<TransformComponent>();
+            e->AddComponent<SkyboxComponent>();
+            selectedEntity_ = e;
+          }
         }
       }
     }

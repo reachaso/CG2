@@ -1,4 +1,90 @@
 {
   "sceneName": "Title",
-  "entities": []
+  "entities": [
+    {
+      "id": "c9edc375-a34b-4377-8955-7adca77d04ff",
+      "name": "Directional Light",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "DirectionalLightComponent",
+          "data": {
+            "visible": true,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.5
+            ],
+            "intensity": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "02c89cac-5a04-49ea-8b16-d64c4acb0afa",
+      "name": "Main Camera",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              1.0,
+              -10.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "CameraComponent",
+          "data": {
+            "fovY": 0.45,
+            "nearZ": 0.1,
+            "farZ": 100.0,
+            "isMain": true
+          }
+        }
+      ]
+    }
+  ]
 }

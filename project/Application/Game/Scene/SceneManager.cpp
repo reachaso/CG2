@@ -373,7 +373,31 @@ bool Scene::SceneManager::CreateNewScene(const std::string& name, const std::str
   std::string filePath = dirPath + "/" + name + ".json";
 
   auto scene = std::make_unique<DataDrivenScene>(name, filePath);
-  scene->Save();
+
+  std::string templatePath = dirPath + "/../Template/SceneTemplate.json";
+  if (fs::exists(templatePath)) {
+    fs::copy_file(templatePath, filePath, fs::copy_options::overwrite_existing);
+    Log::Print("[SceneManager] Created new scene from template: " + templatePath);
+    scene->Load();
+  } else {
+    // デフォルトのエンティティを追加 (Unityライクな初期状態)
+    auto dirLight = scene->CreateEntity("Directional Light");
+    auto& dl = dirLight->AddComponent<DirectionalLightComponent>();
+    dl.color = {1.0f, 1.0f, 1.0f, 1.0f};
+    dl.direction = {0.0f, -1.0f, 0.5f}; // 斜め下
+    dl.intensity = 1.0f;
+
+    auto mainCam = scene->CreateEntity("Main Camera");
+    auto& cam = mainCam->AddComponent<CameraComponent>();
+    cam.isMain = true;
+    
+    if (auto* tr = mainCam->GetComponent<TransformComponent>()) {
+        tr->position = {0.0f, 1.0f, -10.0f};
+    }
+
+    scene->Save();
+  }
+
   Log::Print("[SceneManager] Created new scene: " + name);
   scenes_[name] = std::move(scene);
   return true;

@@ -94,6 +94,7 @@ private:
   bool showPerfWindow_ = false; ///< パフォーマンス（FPS）ウィンドウの表示フラグ
   bool showRenderQueue_ = false; ///< Render Queue デバッグウィンドウの表示フラグ
   bool showParticleEditor_ = false; ///< Particle Editor ウィンドウの表示フラグ
+  bool showEnvironmentWindow_ = false; ///< Environment Settings ウィンドウの表示フラグ
   bool isViewportHovered_ = false; ///< Viewportウィンドウがホバーされているか
   
   PlayState playState_; ///< エディタ上での現在の再生状態

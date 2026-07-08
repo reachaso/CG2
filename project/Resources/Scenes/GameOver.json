@@ -1,4 +1,90 @@
 {
   "sceneName": "GameOver",
-  "entities": []
+  "entities": [
+    {
+      "id": "d56da584-bc45-484a-8af9-8241529bfdb1",
+      "name": "Directional Light",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "DirectionalLightComponent",
+          "data": {
+            "visible": true,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.5
+            ],
+            "intensity": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "f5191e66-a0bf-40b4-a9b1-cde9f199cd17",
+      "name": "Main Camera",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              1.0,
+              -10.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "CameraComponent",
+          "data": {
+            "fovY": 0.45,
+            "nearZ": 0.1,
+            "farZ": 100.0,
+            "isMain": true
+          }
+        }
+      ]
+    }
+  ]
 }

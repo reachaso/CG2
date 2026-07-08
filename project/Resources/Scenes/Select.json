@@ -1,4 +1,90 @@
 {
   "sceneName": "Select",
-  "entities": []
+  "entities": [
+    {
+      "id": "f4cdba5d-ff39-4775-ad47-3425f6d7e102",
+      "name": "Directional Light",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "DirectionalLightComponent",
+          "data": {
+            "visible": true,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.5
+            ],
+            "intensity": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "259fea98-032c-412c-aca9-db26ca7f118d",
+      "name": "Main Camera",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              1.0,
+              -10.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "CameraComponent",
+          "data": {
+            "fovY": 0.45,
+            "nearZ": 0.1,
+            "farZ": 100.0,
+            "isMain": true
+          }
+        }
+      ]
+    }
+  ]
 }
