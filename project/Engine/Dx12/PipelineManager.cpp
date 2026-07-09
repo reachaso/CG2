@@ -672,6 +672,38 @@ void PipelineManager::RegisterDefaultPipelines() {
     Create(MakeKey("fog", kBlendModeNormal), d);
   }
 
+  // shadow map : 深度ON、書き込みON、カリングBACK (またはNONE)、RTV無し
+  {
+    const std::wstring shadowVs = L"Resources/Shader/Shadow/Shadow.VS.hlsl";
+    const std::wstring shadowInstVs = L"Resources/Shader/Shadow/Shadow_Inst.VS.hlsl";
+    const std::wstring shadowSkinVs = L"Resources/Shader/Shadow/Shadow_Skin.VS.hlsl";
+    const std::wstring shadowPs = L"Resources/Shader/Shadow/Shadow.PS.hlsl";
+    GPipelineOptions opt{};
+    
+    // 基本 (Object3D)
+    opt.rootType = RootSignatureType::Object3D;
+    opt.enableDepth = true;
+    opt.enableDepthWrite = true;
+    opt.enableAlphaBlend = false;
+    opt.blendMode = kBlendModeNone;
+    opt.cull = D3D12_CULL_MODE_BACK;
+    opt.disableRTV = true;
+    opt.dsvFormatOverride = DXGI_FORMAT_D32_FLOAT; // シャドウマップ用DSVフォーマット
+
+    CreateFromFiles(MakeKey("shadow", kBlendModeNone), shadowVs, shadowPs,
+                    InputLayoutType::Object3D, opt);
+                    
+    // インスタンシング (Object3DInstancing)
+    opt.rootType = RootSignatureType::Object3DInstancing;
+    CreateFromFiles(MakeKey("shadow_inst", kBlendModeNone), shadowInstVs, shadowPs,
+                    InputLayoutType::Object3D, opt); // インスタンス用レイアウトは通常と同じか確認（Object3DInstancingの場合はSRVで受け取るので通常と同じでOK）
+                    
+    // スキニング (Object3DSkin)
+    opt.rootType = RootSignatureType::Object3DSkin;
+    CreateFromFiles(MakeKey("shadow_skin", kBlendModeNone), shadowSkinVs, shadowPs,
+                    InputLayoutType::Object3DSkin, opt);
+  }
+
   // 単体
   {
     GPipelineOptions opt{};

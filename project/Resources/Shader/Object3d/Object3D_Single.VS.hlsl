@@ -24,5 +24,9 @@ VertexShaderOutput main(VertexShaderInput input)
     output.normal = normalize(mul(input.normal, (float3x3) gTransformationMatrix.worldInverseTranspose));
     output.worldPosition = mul(input.position, gTransformationMatrix.World).xyz;
     output.instColor = float4(1, 1, 1, 1);
+    
+    // ライトビュープロジェクションでライト空間の座標を計算
+    output.lightSpacePos = mul(float4(output.worldPosition, 1.0f), gShadowParams.lightViewProjection);
+    
     return output;
 }

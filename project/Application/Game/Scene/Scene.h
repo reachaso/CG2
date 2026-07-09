@@ -45,6 +45,9 @@ struct SceneContext {
   
   PlayState playState = PlayState::Playing; ///< 現在の再生状態
 
+  D3D12_CPU_DESCRIPTOR_HANDLE currentRTV{}; ///< 現在の描画先RTV
+  D3D12_CPU_DESCRIPTOR_HANDLE currentDSV{}; ///< 現在の描画先DSV
+
   /// @brief 再生中かどうか判定する
   bool isPlaying() const {
     return playState == PlayState::Playing;

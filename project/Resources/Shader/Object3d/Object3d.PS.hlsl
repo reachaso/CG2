@@ -408,7 +408,36 @@ for (uint i = 0; i < MAX_SPOT_LIGHTS; ++i)
     }
 
 // 合算
-    output.color.rgb = (diffuseDir + diffusePoint + diffuseSpot + diffuseArea) + (specularDir + specularPoint + specularSpot + specularArea);
+    float3 ambient = base.rgb * 0.2f; // 環境光として 20% のベースカラーを足す
+    output.color.rgb = ambient + (diffuseDir + diffusePoint + diffuseSpot + diffuseArea) + (specularDir + specularPoint + specularSpot + specularArea);
+
+    // -----------------
+    // Shadow Map (影判定)
+    // -----------------
+    if (gShadowParams.shadowMapEnabled)
+    {
+        // クリップ空間(-1〜1) から UV座標(0〜1) へ変換
+        float3 projCoords = input.lightSpacePos.xyz / input.lightSpacePos.w;
+        projCoords.x = projCoords.x * 0.5f + 0.5f;
+        projCoords.y = -projCoords.y * 0.5f + 0.5f;
+
+        // 範囲内かチェック
+        if (projCoords.x >= 0.0f && projCoords.x <= 1.0f &&
+            projCoords.y >= 0.0f && projCoords.y <= 1.0f &&
+            projCoords.z >= 0.0f && projCoords.z <= 1.0f)
+        {
+            // サンプリング（PCFなどを行わず単純な1点比較）
+            float closestDepth = gShadowMap.Sample(gShadowSampler, projCoords.xy).r;
+            
+            // 自分の深度がシャドウマップの深度より大きければ影
+            if (projCoords.z > closestDepth + gShadowParams.bias)
+            {
+                // 影の場合、指定された色・濃さで暗くする（アルファブレンド的に合成）
+                float shadowIntensity = gShadowParams.color.a;
+                output.color.rgb = lerp(output.color.rgb, output.color.rgb * gShadowParams.color.rgb, shadowIntensity);
+            }
+        }
+    }
 
     // 環境マップ映り込み
     [branch]

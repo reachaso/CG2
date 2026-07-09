@@ -1,6 +1,7 @@
 #pragma once
 #include "Scene.h"
 #include "Common/Math/MathUtils.h"
+#include "Common/Math/Math.h"
 #include "RenderCommon.h"
 #include <string>
 #include <fstream>
@@ -321,9 +322,74 @@ public:
 
   void Render(SceneContext& ctx, ID3D12GraphicsCommandList* cl) override {
     // ===========================================
+    // シャドウパス
+    // ===========================================
+    // TODO: ここでは最初のスポットライトのみ影を落とす暫定実装
+    RC::Matrix4x4 lightViewProj = MakeIdentity4x4();
+    RC::Vector3 lightDir = {0, -1, 0};
+    bool shadowEnabled = false;
+
+    for (auto& e : entities_) {
+        if (!e->IsVisible() || !e->IsActive()) continue;
+        if (auto* sl = e->GetComponent<SpotLightComponent>()) {
+            if (sl->IsEnabled() && sl->visible) {
+                // Projection
+                float fov = std::acos(sl->cosAngle) * 2.0f;
+                RC::Matrix4x4 proj = MakePerspectiveFovMatrix(fov, 1.0f, 0.1f, sl->distance);
+                // View: SpotLight の position と direction からカメラ行列を構築
+                if (auto* tr = e->GetComponent<TransformComponent>()) {
+                    RC::Vector3 dir = Normalize(sl->direction);
+                    float pitch = std::asin(-dir.y);
+                    float yaw = std::atan2(dir.x, dir.z);
+                    RC::Vector3 rot = {pitch, yaw, 0.0f};
+                    RC::Matrix4x4 world = MakeAffineMatrix({1.0f, 1.0f, 1.0f}, rot, tr->position);
+                    RC::Matrix4x4 view = Inverse(world);
+                    lightViewProj = Multiply(view, proj);
+                    lightDir = sl->direction;
+                    shadowEnabled = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    ShadowParams sParams;
+    sParams.lightViewProjection = lightViewProj;
+    sParams.lightDirection = lightDir;
+    sParams.bias = 0.005f;
+    sParams.color = {0.0f, 0.0f, 0.0f, 0.5f}; // 色と濃さ
+    sParams.shadowMapEnabled = shadowEnabled ? 1 : 0;
+    RC::UpdateShadowParams(sParams);
+
+    if (shadowEnabled) {
+        // RenderContext の準備（CommandListの設定など）は PreDraw3D で行われるため、先に PreDraw3D を呼ぶ
+        RC::PreDraw3D(ctx, cl);
+        RC::BeginShadowPass();
+
+        for (auto& e : entities_) {
+            if (!e->IsVisible() || !e->IsActive()) continue;
+            // 影を落とすオブジェクト群（モデルとプリミティブメッシュ）
+            if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
+                if (ren->HasModel() && ren->visible && ren->IsEnabled()) {
+                    RC::DrawModel(ren->modelHandle, ren->texOverride);
+                }
+            }
+            if (auto* pm = e->GetComponent<PrimitiveMeshComponent>()) {
+                if (pm->HasMesh() && pm->visible && pm->IsEnabled()) {
+                    RC::DrawPrimitiveMesh(pm->meshHandle, pm->texOverride);
+                }
+            }
+        }
+        RC::Execute3DCommands(); // シャドウパスのコマンドを実行
+        RC::EndShadowPass();
+    } else {
+        // シャドウパスが不要な場合も準備として呼ぶ
+        RC::PreDraw3D(ctx, cl);
+    }
+
+    // ===========================================
     // 3D描画
     // ===========================================
-    RC::PreDraw3D(ctx, cl);
 
     // Entityコンポーネントを持つモデル・スカイボックス・天球の描画
     for (auto& e : entities_) {

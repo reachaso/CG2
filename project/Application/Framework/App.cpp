@@ -196,6 +196,9 @@ int App::Run() {
       D3D12_CPU_DESCRIPTOR_HANDLE rtv = renderTexture_.GetRTV();
       D3D12_CPU_DESCRIPTOR_HANDLE dsv = core_.Dsv();
       cl_->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+      
+      sceneCtx_.currentRTV = rtv;
+      sceneCtx_.currentDSV = dsv;
 
       Render();
 

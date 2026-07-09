@@ -45,6 +45,8 @@ struct GPipelineOptions {
   RootSignatureType rootType = RootSignatureType::Object3D; ///< ルートシグネチャの形状
   D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType =
       D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; ///< トポロジの種類 (三角形, 線, 点)
+  bool disableRTV = false; ///< レンダーターゲット出力を無効にするか（ShadowMap等）
+  DXGI_FORMAT dsvFormatOverride = DXGI_FORMAT_UNKNOWN; ///< デフォルトのDSVフォーマットを上書きするか
 };
 
 /// @brief ルートシグネチャとパイプラインステートオブジェクト(PSO)を構築・管理するクラス

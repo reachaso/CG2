@@ -175,11 +175,16 @@ void GraphicsPipeline::BuildEx(const D3D12_INPUT_ELEMENT_DESC *inputElems,
   ds.StencilEnable = FALSE;
 
   d.DepthStencilState = ds;
-  d.DSVFormat = opt.enableDepth ? dsvFmt : DXGI_FORMAT_UNKNOWN;
+  d.DSVFormat = opt.enableDepth ? (opt.dsvFormatOverride != DXGI_FORMAT_UNKNOWN ? opt.dsvFormatOverride : dsvFmt) : DXGI_FORMAT_UNKNOWN;
 
   // RT
-  d.NumRenderTargets = 1;
-  d.RTVFormats[0] = rtvFmt;
+  if (opt.disableRTV) {
+      d.NumRenderTargets = 0;
+      d.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+  } else {
+      d.NumRenderTargets = 1;
+      d.RTVFormats[0] = rtvFmt;
+  }
 
   d.PrimitiveTopologyType = opt.topologyType;
   d.SampleDesc.Count = 1;
@@ -248,8 +253,8 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // 既存ルートシグネチャ解放
   root_.Reset();
 
-  D3D12_ROOT_PARAMETER params[14] = {};
-  D3D12_DESCRIPTOR_RANGE ranges[6] = {}; // t0(Tex), t1(EnvMap), t1(Depth), t1(SkinMat)等
+  D3D12_ROOT_PARAMETER params[16] = {};
+  D3D12_DESCRIPTOR_RANGE ranges[8] = {}; // t0(Tex), t1(EnvMap), t1(Depth), t1(SkinMat)等
   UINT paramCount = 0;
 
   switch (type) {
@@ -335,7 +340,23 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[10].DescriptorTable.NumDescriptorRanges = 1;
     params[10].DescriptorTable.pDescriptorRanges = &ranges[3];
 
-    paramCount = 11;
+    // 11: SRV table t4 (PS) ShadowMap
+    ranges[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[4].BaseShaderRegister = 4; // t4
+    ranges[4].NumDescriptors = 1;
+    ranges[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[11].DescriptorTable.NumDescriptorRanges = 1;
+    params[11].DescriptorTable.pDescriptorRanges = &ranges[4];
+
+    // 12: CBV b6 (ALL) ShadowParams
+    params[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[12].Descriptor.ShaderRegister = 6; // b6
+
+    paramCount = 13;
     break;
 
   case RootSignatureType::Object3DInstancing:
@@ -421,7 +442,23 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[10].DescriptorTable.NumDescriptorRanges = 1;
     params[10].DescriptorTable.pDescriptorRanges = &ranges[4];
 
-    paramCount = 11;
+    // 11: SRV table t4 (PS) ShadowMap
+    ranges[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[5].BaseShaderRegister = 4; // t4
+    ranges[5].NumDescriptors = 1;
+    ranges[5].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[11].DescriptorTable.NumDescriptorRanges = 1;
+    params[11].DescriptorTable.pDescriptorRanges = &ranges[5];
+
+    // 12: CBV b6 (ALL) ShadowParams
+    params[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[12].Descriptor.ShaderRegister = 6; // b6
+
+    paramCount = 13;
     break;
 
   case RootSignatureType::Object3DSkin:
@@ -485,34 +522,50 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[8].DescriptorTable.NumDescriptorRanges = 1;
     params[8].DescriptorTable.pDescriptorRanges = &ranges[1];
 
-    // 9: SRV t1 (VS) SkinMatrices (StructuredBuffer<float4x4>)
-    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    params[9].Descriptor.ShaderRegister = 1; // t1
-
-    // 10: SRV table t2 (PS) NormalMap
+    // 9: SRV table t2 (PS) NormalMap
     ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     ranges[2].BaseShaderRegister = 2; // t2
     ranges[2].NumDescriptors = 1;
     ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-    params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    params[10].DescriptorTable.NumDescriptorRanges = 1;
-    params[10].DescriptorTable.pDescriptorRanges = &ranges[2];
+    params[9].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[9].DescriptorTable.NumDescriptorRanges = 1;
+    params[9].DescriptorTable.pDescriptorRanges = &ranges[2];
 
-    // 11: SRV table t3 (PS) RoughnessMap
+    // 10: SRV table t3 (PS) RoughnessMap
     ranges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     ranges[3].BaseShaderRegister = 3; // t3
     ranges[3].NumDescriptors = 1;
     ranges[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+    params[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[10].DescriptorTable.NumDescriptorRanges = 1;
+    params[10].DescriptorTable.pDescriptorRanges = &ranges[3];
+
+    // 11: SRV table t4 (PS) ShadowMap
+    ranges[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[4].BaseShaderRegister = 4; // t4
+    ranges[4].NumDescriptors = 1;
+    ranges[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
     params[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     params[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     params[11].DescriptorTable.NumDescriptorRanges = 1;
-    params[11].DescriptorTable.pDescriptorRanges = &ranges[3];
+    params[11].DescriptorTable.pDescriptorRanges = &ranges[4];
 
-    paramCount = 12;
+    // 12: CBV b6 (ALL) ShadowParams
+    params[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    params[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    params[12].Descriptor.ShaderRegister = 6; // b6
+
+    // 13: SRV t1 (VS) SkinMatrices (StructuredBuffer<float4x4>)
+    params[13].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+    params[13].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    params[13].Descriptor.ShaderRegister = 1; // t1
+
+    paramCount = 14;
     break;
 
   case RootSignatureType::Sprite:

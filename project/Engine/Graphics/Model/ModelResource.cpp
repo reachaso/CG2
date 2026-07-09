@@ -467,8 +467,8 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
     const D3D12_GPU_DESCRIPTOR_HANDLE mainSrv =
         (textureSrv_.ptr != 0) ? textureSrv_ : GetSrvForMaterial_(0);
     cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
-    cmdList->SetGraphicsRootDescriptorTable(10, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
-    cmdList->SetGraphicsRootDescriptorTable(11, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer()) {
       cmdList->DrawIndexedInstanced(mesh_->IndexCount(), 1, 0, 0, 0);
@@ -495,8 +495,8 @@ void ModelResource::DrawSkinned(ID3D12GraphicsCommandList *cmdList,
         (textureSrv_.ptr != 0) ? textureSrv_
                                : GetSrvForMaterial_(it.materialIndex);
     cmdList->SetGraphicsRootDescriptorTable(2, mainSrv);
-    cmdList->SetGraphicsRootDescriptorTable(10, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
-    cmdList->SetGraphicsRootDescriptorTable(11, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(9, (normalMapSrv_.ptr != 0) ? normalMapSrv_ : mainSrv);
+    cmdList->SetGraphicsRootDescriptorTable(10, (roughnessMapSrv_.ptr != 0) ? roughnessMapSrv_ : mainSrv);
 
     if (mesh_->HasIndexBuffer() && it.indexCount > 0) {
       cmdList->DrawIndexedInstanced(it.indexCount, 1, it.indexStart, 0, 0);

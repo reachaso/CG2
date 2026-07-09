@@ -63,6 +63,17 @@ void RenderContext::Init(SceneContext &ctx) {
     *fogCBMapped_ = FogOverlayCB{};
   }
 
+  // ShadowCB
+  shadowCB_ = CreateBufferResource(device_.Get(), sizeof(ShadowParams),
+                                   L"RenderContext::ShadowCB");
+  shadowCB_->Map(0, nullptr, reinterpret_cast<void **>(&shadowCBMapped_));
+  if (shadowCBMapped_) {
+    *shadowCBMapped_ = ShadowParams{};
+  }
+
+  // ShadowMap 初期化 (例: 2048x2048)
+  shadowMap_.Create(ctx.core, 2048, 2048);
+
   view_ = MakeIdentity4x4();
   proj_ = MakeIdentity4x4();
   cl_ = nullptr;
@@ -129,6 +140,14 @@ void RenderContext::Term() {
     fogCB_.Reset();
   }
 
+  if (shadowCB_) {
+    if (shadowCBMapped_) {
+      shadowCB_->Unmap(0, nullptr);
+      shadowCBMapped_ = nullptr;
+    }
+    shadowCB_.Reset();
+  }
+
   texMan_.Term();
   TermWaterResources();
 
@@ -186,6 +205,7 @@ void RenderContext::PreDraw3D(SceneContext &ctx, ID3D12GraphicsCommandList *cl) 
 
   BindCameraCB();
   BindAllLightCBs();
+  // BindShadow() は Execute3DCommands で通常パスの実行時のみバインドする
 
   modelMan_.ResetAllBatchCursors();
 
@@ -288,13 +308,51 @@ GraphicsPipeline *RenderContext::BindPipeline(std::string_view prefix) {
     return nullptr;
   }
 
-  auto *pso = GetPipeline(prefix, currentBlendMode_);
+  std::string_view actualPrefix = prefix;
+  if (isShadowPass_) {
+    // スキニング用・インスタンシング用などの対応
+    if (prefix.find("skin") != std::string_view::npos) {
+      actualPrefix = "shadow_skin";
+    } else if (prefix.find("inst") != std::string_view::npos) {
+      actualPrefix = "shadow_inst";
+    } else {
+      actualPrefix = "shadow";
+    }
+  }
+
+  auto *pso = GetPipeline(actualPrefix, currentBlendMode_);
   if (!pso) {
     return nullptr;
   }
 
   cl_->SetGraphicsRootSignature(pso->Root());
   cl_->SetPipelineState(pso->PSO());
+
+  // シャドウマップ（またはHazard回避用ダミー）のバインド
+  if (actualPrefix.find("object3d") != std::string_view::npos ||
+      actualPrefix.find("shadow") != std::string_view::npos) {
+    D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv = {};
+    if (isShadowPass_) {
+      int dummyTex = texMan_.LoadID("Resources/white1x1.png", false);
+      if (dummyTex >= 0) {
+        shadowSrv = texMan_.GetSrv(dummyTex);
+      }
+    } else if (shadowMap_.GetResource() != nullptr && ctxRef_ && ctxRef_->core) {
+      shadowSrv = ctxRef_->core->SRV().GPUAt(shadowMap_.GetSrvIndex());
+    }
+
+    if (shadowSrv.ptr != 0) {
+      // GraphicsPipeline のルートシグネチャ定義を統一したため、Skinning でも 11 番スロットに ShadowMap が来る
+      UINT srvSlot = 11;
+      cl_->SetGraphicsRootDescriptorTable(srvSlot, shadowSrv);
+    }
+
+    if (shadowCB_) {
+      UINT cbvSlot = (actualPrefix.find("skin") != std::string_view::npos) ? 13 : 12;
+      cl_->SetGraphicsRootConstantBufferView(cbvSlot, shadowCB_->GetGPUVirtualAddress());
+    }
+  }
+
   return pso;
 }
 
@@ -333,6 +391,72 @@ void RenderContext::BindEnvironmentMap() {
     return;
   }
   cl_->SetGraphicsRootDescriptorTable(8, environmentMapSrv_);
+}
+
+void RenderContext::UpdateShadowParams(const ShadowParams& params) {
+  if (shadowCBMapped_) {
+    *shadowCBMapped_ = params;
+  }
+}
+
+void RenderContext::BindShadow() {
+  // BindPipeline 側でバインドするようになったため、ここでは何もしません。
+}
+
+void RenderContext::BeginShadowPass() {
+  if (!cl_) return;
+
+  // Viewport / Scissor をシャドウマップに合わせる
+  D3D12_VIEWPORT viewport{};
+  viewport.TopLeftX = 0.0f;
+  viewport.TopLeftY = 0.0f;
+  viewport.Width = static_cast<float>(shadowMap_.GetWidth());
+  viewport.Height = static_cast<float>(shadowMap_.GetHeight());
+  viewport.MinDepth = 0.0f;
+  viewport.MaxDepth = 1.0f;
+
+  D3D12_RECT scissor{};
+  scissor.left = 0;
+  scissor.top = 0;
+  scissor.right = shadowMap_.GetWidth();
+  scissor.bottom = shadowMap_.GetHeight();
+
+  cl_->RSSetViewports(1, &viewport);
+  cl_->RSSetScissorRects(1, &scissor);
+
+  shadowMap_.BindAndClear(cl_);
+  isShadowPass_ = true;
+
+  // シャドウ用パイプラインをバインド
+  auto *pso = GetPipeline("shadow", kBlendModeNone);
+  if (pso) {
+    cl_->SetGraphicsRootSignature(pso->Root());
+    cl_->SetPipelineState(pso->PSO());
+    cl_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // Dummy texture binding is now handled inside BindPipeline
+  }
+}
+
+void RenderContext::EndShadowPass() {
+  if (!cl_) return;
+  isShadowPass_ = false;
+  shadowMap_.TransitionToSRV(cl_);
+
+  if (ctxRef_ && ctxRef_->app) {
+    auto rtv = ctxRef_->currentRTV;
+    auto dsv = ctxRef_->currentDSV;
+    if (rtv.ptr != 0) {
+      cl_->OMSetRenderTargets(1, &rtv, FALSE, (dsv.ptr != 0) ? &dsv : nullptr);
+    }
+
+    auto w = static_cast<float>(ctxRef_->app->width);
+    auto h = static_cast<float>(ctxRef_->app->height);
+    D3D12_VIEWPORT vp = {0.0f, 0.0f, w, h, 0.0f, 1.0f};
+    D3D12_RECT scissor = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
+    cl_->RSSetViewports(1, &vp);
+    cl_->RSSetScissorRects(1, &scissor);
+  }
 }
 
 // ============================================================================
@@ -420,6 +544,9 @@ void RenderContext::Execute3DCommands() {
   if (!cl_) {
     return;
   }
+
+  // BindShadow(); // BindPipeline に移行したため不要
+
 
   // 最初の1フレームだけ自動でダンプを要求する
   static bool s_firstDump = false;

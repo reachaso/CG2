@@ -309,6 +309,16 @@ struct AreaLightsCB {
   AreaLight lights[4]{};        ///< 面光源の配列
 };
 
+/// @brief シャドウマップ用のパラメータ (b6番)
+struct ShadowParams {
+  RC::Matrix4x4 lightViewProjection; ///< 光源からの ViewProjection 行列
+  RC::Vector3 lightDirection;        ///< 光源の方向
+  float bias;                        ///< シャドウバイアス (自己影回避用)
+  RC::Vector4 color;                 ///< 影の色 (RGB:色, A:濃さ)
+  uint32_t shadowMapEnabled;         ///< シャドウマップが有効か (0:無効, 1:有効)
+  uint32_t padding[3];               ///< パディング
+};
+
 /// @brief ライティングの計算方式
 enum LightingMode {
   None = 0,        ///< ライティングなし

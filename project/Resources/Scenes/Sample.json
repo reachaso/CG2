@@ -35,8 +35,12 @@
           "type": "CameraComponent"
         }
       ],
+      "guid": 11326600310923214594,
+      "isFolder": false,
       "locked": false,
       "name": "MainCamera",
+      "parentGuid": 0,
+      "tags": {},
       "visible": true
     },
     {
@@ -83,9 +87,13 @@
           "type": "DirectionalLightComponent"
         }
       ],
+      "guid": 4472919711185639131,
+      "isFolder": false,
       "locked": false,
       "name": "DirectionalLight",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -128,9 +136,13 @@
           "type": "PointLightComponent"
         }
       ],
+      "guid": 3790978778505889504,
+      "isFolder": false,
       "locked": false,
       "name": "PointLight",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -173,9 +185,13 @@
           "type": "PointLightComponent"
         }
       ],
+      "guid": 12720452971122867354,
+      "isFolder": false,
       "locked": false,
       "name": "PointLight2",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -183,13 +199,13 @@
         {
           "data": {
             "position": [
-              0.0,
+              2.27386736869812,
               5.0,
               0.0
             ],
             "rotation": [
               0.0,
-              0.0,
+              -0.0,
               0.0
             ],
             "scale": [
@@ -204,8 +220,8 @@
         {
           "data": {
             "color": [
-              0.20000000298023224,
-              0.20000000298023224,
+              1.0,
+              1.0,
               1.0,
               1.0
             ],
@@ -217,15 +233,19 @@
               0.0
             ],
             "distance": 20.0,
-            "intensity": 1.0,
+            "intensity": 4.5,
             "visible": true
           },
           "enabled": true,
           "type": "SpotLightComponent"
         }
       ],
+      "guid": 14265854806647204149,
+      "isFolder": false,
       "locked": false,
       "name": "SpotLight",
+      "parentGuid": 0,
+      "tags": {},
       "visible": true
     },
     {
@@ -275,9 +295,13 @@
           "type": "SpotLightComponent"
         }
       ],
+      "guid": 16792495192409356391,
+      "isFolder": false,
       "locked": false,
       "name": "SpotLight2",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -323,9 +347,13 @@
           "type": "AreaLightComponent"
         }
       ],
+      "guid": 16860548632896301742,
+      "isFolder": false,
       "locked": false,
       "name": "AreaLight",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -371,9 +399,13 @@
           "type": "ModelRendererComponent"
         }
       ],
+      "guid": 292499295893885091,
+      "isFolder": false,
       "locked": false,
       "name": "Plane",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -419,33 +451,17 @@
           "type": "ModelRendererComponent"
         }
       ],
+      "guid": 7506499629364832881,
+      "isFolder": false,
       "locked": false,
       "name": "Block",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
       "components": [
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
         {
           "data": {
             "position": [
@@ -466,6 +482,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -501,9 +537,13 @@
           "type": "RigidbodyComponent"
         }
       ],
+      "guid": 6751376463351484840,
+      "isFolder": false,
       "locked": false,
       "name": "Teapot",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -549,8 +589,12 @@
           "type": "ModelRendererComponent"
         }
       ],
+      "guid": 6878350918092669890,
+      "isFolder": false,
       "locked": false,
       "name": "Terrain",
+      "parentGuid": 0,
+      "tags": {},
       "visible": true
     },
     {
@@ -597,9 +641,13 @@
           "type": "ModelRendererComponent"
         }
       ],
+      "guid": 2433244400933142032,
+      "isFolder": false,
       "locked": false,
       "name": "MultiMesh",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -640,8 +688,12 @@
           "type": "SkyboxComponent"
         }
       ],
+      "guid": 11997508827928781453,
+      "isFolder": false,
       "locked": false,
       "name": "Skybox",
+      "parentGuid": 0,
+      "tags": {},
       "visible": true
     },
     {
@@ -684,9 +736,13 @@
           "type": "SkydomeComponent"
         }
       ],
+      "guid": 11909393763501776827,
+      "isFolder": false,
       "locked": false,
       "name": "Skydome",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -725,9 +781,13 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 3830714150583106066,
+      "isFolder": false,
       "locked": false,
       "name": "Sphere",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -766,9 +826,13 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 8044544267344549660,
+      "isFolder": false,
       "locked": false,
       "name": "Box",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -807,9 +871,13 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 16380920202782982045,
+      "isFolder": false,
       "locked": false,
       "name": "GroundPlane",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -848,9 +916,13 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 15823412894257999149,
+      "isFolder": false,
       "locked": false,
       "name": "Cylinder",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -889,9 +961,13 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 8978598134142369552,
+      "isFolder": false,
       "locked": false,
       "name": "Cone",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -930,9 +1006,13 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 7708972188407013471,
+      "isFolder": false,
       "locked": false,
       "name": "Torus",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -940,13 +1020,13 @@
         {
           "data": {
             "position": [
-              9.0,
+              2.4999799728393555,
               1.25,
               0.0
             ],
             "rotation": [
               0.0,
-              0.0,
+              -0.0,
               0.0
             ],
             "scale": [
@@ -971,8 +1051,12 @@
           "type": "PrimitiveMeshComponent"
         }
       ],
+      "guid": 12030772812588004536,
+      "isFolder": false,
       "locked": false,
       "name": "Capsule",
+      "parentGuid": 0,
+      "tags": {},
       "visible": true
     },
     {
@@ -1018,33 +1102,17 @@
           "type": "SpriteRendererComponent"
         }
       ],
+      "guid": 12462608855837685545,
+      "isFolder": false,
       "locked": false,
       "name": "Sprite",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
       "components": [
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
         {
           "data": {
             "position": [
@@ -1068,13 +1136,23 @@
         },
         {
           "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": false,
-            "speed": 1.0
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
           },
           "enabled": true,
-          "type": "AnimationComponent"
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -1094,11 +1172,25 @@
           },
           "enabled": true,
           "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": false,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
         }
       ],
+      "guid": 10709636544362243176,
+      "isFolder": false,
       "locked": false,
       "name": "AnimatedCube",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -1126,16 +1218,6 @@
         },
         {
           "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": true,
-            "speed": 1.0
-          },
-          "enabled": true,
-          "type": "AnimationComponent"
-        },
-        {
-          "data": {
             "blendMode": 0,
             "color": [
               1.0,
@@ -1152,11 +1234,25 @@
           },
           "enabled": true,
           "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
         }
       ],
+      "guid": 13032829889593693821,
+      "isFolder": false,
       "locked": false,
       "name": "Walk",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     },
     {
       "active": true,
@@ -1184,16 +1280,6 @@
         },
         {
           "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": true,
-            "speed": 1.0
-          },
-          "enabled": true,
-          "type": "AnimationComponent"
-        },
-        {
-          "data": {
             "blendMode": 0,
             "color": [
               1.0,
@@ -1210,11 +1296,25 @@
           },
           "enabled": true,
           "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
         }
       ],
+      "guid": 17398521705719224991,
+      "isFolder": false,
       "locked": false,
       "name": "SimpleSkin",
-      "visible": true
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
     }
   ],
   "sceneName": "Sample"

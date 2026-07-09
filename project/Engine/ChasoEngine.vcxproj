@@ -141,6 +141,7 @@
     <ClCompile Include="..\Engine\Dx12\FixFps\FixFps.cpp" />
     <ClCompile Include="..\Engine\Dx12\GraphicsPipeline\GraphicsPipeline.cpp" />
     <ClCompile Include="..\Engine\Dx12\PipelineManager.cpp" />
+    <ClCompile Include="..\Engine\Dx12\ShadowMap\ShadowMap.cpp" />
     <ClCompile Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.cpp" />
     <ClCompile Include="..\Engine\Dx12\SRVManager\SRVManager.cpp" />
     <ClCompile Include="..\Engine\Dx12\ComputeShader\ComputeShader.cpp" />
@@ -233,6 +234,7 @@
     <ClInclude Include="..\Engine\Dx12\FixFps\FixFps.h" />
     <ClInclude Include="..\Engine\Dx12\GraphicsPipeline\GraphicsPipeline.h" />
     <ClInclude Include="..\Engine\Dx12\PipelineManager.h" />
+    <ClInclude Include="..\Engine\Dx12\ShadowMap\ShadowMap.h" />
     <ClInclude Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.h" />
     <ClInclude Include="..\Engine\Dx12\SRVManager\SRVManager.h" />
     <ClInclude Include="..\Engine\Dx12\ComputeShader\ComputeShader.h" />

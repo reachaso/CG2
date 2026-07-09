@@ -22,6 +22,7 @@
 
 #include "RenderQueue.h"
 #include "FrameResource.h"
+#include "Dx12/ShadowMap/ShadowMap.h"
 
 
 #include "Light/Area/AreaLightManager.h"
@@ -190,6 +191,18 @@ public:
   /// @brief 環境マップを現在のスロット（b6等）にバインドする
   void BindEnvironmentMap();
 
+  /// @brief シャドウパラメータを更新する
+  void UpdateShadowParams(const ShadowParams& params);
+  
+  /// @brief シャドウ定数バッファとシャドウマップを現在のスロットにバインドする
+  void BindShadow();
+
+  /// @brief シャドウマップ用の描画パスを開始する
+  void BeginShadowPass();
+
+  /// @brief シャドウマップ用の描画パスを終了し、メイン描画用にSRVへ遷移する
+  void EndShadowPass();
+
   /// @brief 2Dプリミティブ描画オブジェクトを遅延生成・取得する
   Primitive2D *EnsurePrimitive2D();
   
@@ -307,6 +320,7 @@ private:
   bool initialized_ = false; ///< 初期化フラグ
   bool overlayMode_ = false; ///< オーバーレイモード（ギズモ用）
   bool dumpCommandOrder_ = false; ///< 1フレームだけコマンド実行順をダンプするフラグ
+  bool isShadowPass_ = false; ///< シャドウパス中かどうかのフラグ
 
   Microsoft::WRL::ComPtr<ID3D12Device> device_;    ///< デバイス
   DescriptorHeap *srvHeap_ = nullptr;              ///< SRVヒープ
@@ -354,6 +368,11 @@ private:
   };
   Microsoft::WRL::ComPtr<ID3D12Resource> fogCB_;   ///< フォグCB
   FogOverlayCB *fogCBMapped_ = nullptr;            ///< フォグCBマップ済みポインタ
+
+  // Shadow CB
+  Microsoft::WRL::ComPtr<ID3D12Resource> shadowCB_;   ///< シャドウCB
+  ShadowParams *shadowCBMapped_ = nullptr;            ///< シャドウCBマップ済みポインタ
+  ShadowMap shadowMap_;                               ///< シャドウマップリソース
 
   std::unique_ptr<Primitive2D> prim2D_;             ///< 2Dプリミティブ描画器
   std::unique_ptr<Primitive3D> prim3D_;             ///< 3Dプリミティブ描画器

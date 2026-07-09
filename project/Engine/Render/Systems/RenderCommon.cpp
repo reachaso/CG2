@@ -59,6 +59,26 @@ void SetCamera(const Matrix4x4 &view, const Matrix4x4 &proj,
 }
 
 // ============================================================================
+// Shadow Pass
+// ============================================================================
+
+void UpdateShadowParams(const ShadowParams& params) {
+  RenderContext::GetInstance().UpdateShadowParams(params);
+}
+
+void BeginShadowPass() {
+  RenderContext::GetInstance().BeginShadowPass();
+}
+
+void EndShadowPass() {
+  RenderContext::GetInstance().EndShadowPass();
+}
+
+void Execute3DCommands() {
+  RenderContext::GetInstance().Execute3DCommands();
+}
+
+// ============================================================================
 // 3D Pass
 // ============================================================================
 

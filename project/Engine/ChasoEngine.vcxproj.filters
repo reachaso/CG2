@@ -16,6 +16,9 @@
     <Filter Include="Dx12">
       <UniqueIdentifier>{e70cf635-884a-22dd-a39c-d9f8503a16d7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dx12\ShadowMap">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567812}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Dx12\CommandContext">
       <UniqueIdentifier>{1afb2bf6-89c0-3bb0-6fc3-887202984cc4}</UniqueIdentifier>
     </Filter>
@@ -254,6 +257,9 @@
     </ClCompile>
     <ClCompile Include="..\Engine\Dx12\PipelineManager.cpp">
       <Filter>Dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Engine\Dx12\ShadowMap\ShadowMap.cpp">
+      <Filter>Dx12\ShadowMap</Filter>
     </ClCompile>
     <ClCompile Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.cpp">
       <Filter>Dx12\ShaderCompiler</Filter>
@@ -517,6 +523,9 @@
     </ClInclude>
     <ClInclude Include="..\Engine\Dx12\PipelineManager.h">
       <Filter>Dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Engine\Dx12\ShadowMap\ShadowMap.h">
+      <Filter>Dx12\ShadowMap</Filter>
     </ClInclude>
     <ClInclude Include="..\Engine\Dx12\ShaderCompiler\ShaderCompiler.h">
       <Filter>Dx12\ShaderCompiler</Filter>
