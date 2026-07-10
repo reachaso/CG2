@@ -5,9 +5,19 @@
 ShadowMap::ShadowMap() {}
 
 ShadowMap::~ShadowMap() {
+  Term();
+}
+
+void ShadowMap::Term() {
+  resource_.Reset();
+  dsvHeap_.Term();
   if (core_ && srvIndex_ > 0) {
-    // Note: 実際の運用ではSRVの解放処理を適切に行う
+    SRVManager::Handle h;
+    h.index = srvIndex_;
+    core_->SRVMan().Free(h);
+    srvIndex_ = 0;
   }
+  core_ = nullptr;
 }
 
 void ShadowMap::Create(Dx12Core* core, uint32_t width, uint32_t height) {

@@ -331,8 +331,29 @@ public:
 
     for (auto& e : entities_) {
         if (!e->IsVisible() || !e->IsActive()) continue;
+
+        // まず DirectionalLight を探す
+        if (auto* dl = e->GetComponent<DirectionalLightComponent>()) {
+            if (dl->IsEnabled() && dl->visible) {
+                // DirectionalLight用の広範囲の正射影
+                float range = 40.0f;
+                RC::Matrix4x4 proj = MakeOrthographicMatrix(-range, range, range, -range, 0.1f, 100.0f);
+                RC::Vector3 dir = Normalize(dl->direction);
+                float pitch = std::asin(-dir.y);
+                float yaw = std::atan2(dir.x, dir.z);
+                RC::Vector3 rot = {pitch, yaw, 0.0f};
+                RC::Vector3 pos = {-dir.x * 50.0f, -dir.y * 50.0f, -dir.z * 50.0f}; // シーンの中心から引き戻す
+                RC::Matrix4x4 world = MakeAffineMatrix({1.0f, 1.0f, 1.0f}, rot, pos);
+                RC::Matrix4x4 view = Inverse(world);
+                lightViewProj = Multiply(view, proj);
+                lightDir = dl->direction;
+                shadowEnabled = true;
+                break;
+            }
+        }
+        // なければ SpotLight を使う
         if (auto* sl = e->GetComponent<SpotLightComponent>()) {
-            if (sl->IsEnabled() && sl->visible) {
+            if (sl->IsEnabled() && sl->visible && !shadowEnabled) {
                 // Projection
                 float fov = std::acos(sl->cosAngle) * 2.0f;
                 RC::Matrix4x4 proj = MakePerspectiveFovMatrix(fov, 1.0f, 0.1f, sl->distance);
@@ -347,7 +368,8 @@ public:
                     lightViewProj = Multiply(view, proj);
                     lightDir = sl->direction;
                     shadowEnabled = true;
-                    break;
+                    // SpotLight は DirectionalLight が無ければ採用するが、
+                    // もし後から DirectionalLight が見つかったら上書きしたいのでブレイクしない
                 }
             }
         }
@@ -356,7 +378,7 @@ public:
     ShadowParams sParams;
     sParams.lightViewProjection = lightViewProj;
     sParams.lightDirection = lightDir;
-    sParams.bias = 0.005f;
+    sParams.bias = 0.01f; // シャドウアクネを防ぐためにバイアスを少し大きめに設定
     sParams.color = {0.0f, 0.0f, 0.0f, 0.5f}; // 色と濃さ
     sParams.shadowMapEnabled = shadowEnabled ? 1 : 0;
     RC::UpdateShadowParams(sParams);

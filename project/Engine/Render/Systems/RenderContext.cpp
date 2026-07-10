@@ -106,6 +106,8 @@ void RenderContext::Term() {
   // 残っている非同期タスクを全て待機
   WaitAllLoads();
 
+  shadowMap_.Term();
+
   modelMan_.Term();
   skydomeMan_.Term();
   skyboxMan_.Term();

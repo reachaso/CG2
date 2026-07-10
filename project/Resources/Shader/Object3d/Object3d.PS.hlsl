@@ -429,8 +429,12 @@ for (uint i = 0; i < MAX_SPOT_LIGHTS; ++i)
             // サンプリング（PCFなどを行わず単純な1点比較）
             float closestDepth = gShadowMap.Sample(gShadowSampler, projCoords.xy).r;
             
+            // 法線とライト方向の角度に応じてバイアスを変動させる (Slope-Scale Depth Bias 簡易版)
+            float NdotL = max(0.0f, dot(N, -gShadowParams.lightDirection));
+            float currentBias = max(0.001f, gShadowParams.bias * (1.0f - NdotL));
+            
             // 自分の深度がシャドウマップの深度より大きければ影
-            if (projCoords.z > closestDepth + gShadowParams.bias)
+            if (projCoords.z > closestDepth + currentBias)
             {
                 // 影の場合、指定された色・濃さで暗くする（アルファブレンド的に合成）
                 float shadowIntensity = gShadowParams.color.a;

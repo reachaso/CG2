@@ -26,6 +26,9 @@ public:
   /// @param cmd コマンドリスト
   void TransitionToSRV(ID3D12GraphicsCommandList* cmd);
 
+  /// @brief リソースを破棄する
+  void Term();
+
   /// @brief テクスチャリソースの取得
   ID3D12Resource* GetResource() const { return resource_.Get(); }
 
