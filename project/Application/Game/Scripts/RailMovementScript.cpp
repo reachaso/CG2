@@ -91,6 +91,15 @@ protected:
             return;
         }
 
+        // ゲームオーバー判定
+        if (Scene* scene = GetScene()) {
+            for (auto& e : scene->GetEntities()) {
+                if (e->GetTagInt("game_over", 0) == 1) {
+                    return; // 移動停止
+                }
+            }
+        }
+
         // 待機処理
         if (currentWaitTimer > 0.0f) {
             currentWaitTimer -= deltaTime;

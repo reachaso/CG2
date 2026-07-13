@@ -172,6 +172,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\Application\Game\Scripts\RailShooterController.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\RailMovementScript.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\EnemyAI.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\SharkEnemyScript.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\WaterBullet.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\SplashParticle.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
@@ -191,6 +192,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="..\Application\Game\Scene\Scene.h" />
     <ClInclude Include="..\Application\Game\Scene\SceneManager.h" />
     <ClInclude Include="..\Application\Game\Scene\DataDrivenScene\DataDrivenScene.h" />
+    <ClInclude Include="..\Application\Game\Scripts\EnemyBaseScript.h" />
   </ItemGroup>
   <ItemGroup>
     <!-- 繧ｷ繧ｧ繝ｼ繝繝ｼ (繝薙Ν繝峨°繧蛾勁螟・/ 蜿ら・逕ｨ) -->

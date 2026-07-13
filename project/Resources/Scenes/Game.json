@@ -296,33 +296,20 @@
       "components": [
         {
           "data": {
-            "scriptDataList": [
-              {}
-            ],
-            "scriptTypeName": "EnemyAI",
-            "scriptTypeNames": [
-              "EnemyAI"
-            ]
-          },
-          "enabled": true,
-          "type": "NativeScriptComponent"
-        },
-        {
-          "data": {
             "position": [
-              0.0,
-              0.5,
-              30.0
+              2.0,
+              0.10000000149011612,
+              27.0
             ],
             "rotation": [
-              0.0,
-              3.1415927410125732,
-              0.0
+              3.141592502593994,
+              1.3962634801864624,
+              3.141592502593994
             ],
             "scale": [
-              1.5,
-              1.5,
-              3.0
+              3.99999737739563,
+              4.0,
+              3.99999737739563
             ]
           },
           "enabled": true,
@@ -330,35 +317,37 @@
         },
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
+            "scriptDataList": [
+              {
+                "attackHitDistance": 2.5,
+                "attackSpeed": 25.0,
+                "attackStartDistance": 10.0,
+                "cooldownDuration": 2.0,
+                "detectDistance": 30.0,
+                "swimSineAmplitude": 3.0,
+                "swimSineFrequency": 2.0,
+                "swimSpeed": 8.0
+              }
             ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.5,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
+            "scriptTypeName": "SharkEnemyScript",
+            "scriptTypeNames": [
+              "SharkEnemyScript"
             ]
           },
           "enabled": true,
-          "type": "ColliderComponent"
+          "type": "NativeScriptComponent"
         },
         {
           "data": {
             "blendMode": 0,
             "color": [
               1.0,
-              0.20000000298023224,
-              0.20000000298023224,
+              1.0,
+              1.0,
               1.0
             ],
             "environmentCoeff": 0.0,
-            "modelPath": "Resources/model/cube/cube.obj",
+            "modelPath": "Resources/model/shark/shark.obj",
             "normalMapPath": "",
             "roughnessMapPath": "",
             "texturePath": "",
@@ -368,15 +357,15 @@
           "type": "ModelRendererComponent"
         }
       ],
-      "guid": 4353101845029150511,
+      "guid": 7482451223708769765,
       "isFolder": false,
       "locked": false,
-      "name": "Shark",
+      "name": "shark",
       "parentGuid": 0,
       "tags": {
-        "current_hp": 10,
+        "current_hp": 20,
         "is_enemy": 1,
-        "max_hp": 10
+        "max_hp": 20
       },
       "visible": true
     }

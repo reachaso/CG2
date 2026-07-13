@@ -193,17 +193,18 @@ protected:
         input->GetGameMousePosition(absMouseX, absMouseY);
 
         // 3. カーソル移動の適用
-        // マウスの移動やクリックがあれば、マウス操作とみなして絶対座標にスナップする
-        bool isMouseActive = (deltaMouseX != 0.0f || deltaMouseY != 0.0f || 
-                              input->IsMousePressed(0) || input->IsMousePressed(1) || input->IsMousePressed(2));
+        if (!isDead) {
+            bool isMouseActive = (deltaMouseX != 0.0f || deltaMouseY != 0.0f || 
+                                  input->IsMousePressed(0) || input->IsMousePressed(1) || input->IsMousePressed(2));
 
-        if (isMouseActive) {
-            cursorPosition.x = absMouseX;
-            cursorPosition.y = absMouseY;
-        } else {
-            // コントローラーのスティックは傾き続けるため deltaTime に依存させる
-            cursorPosition.x += (stickX * controllerSensitivity * deltaTime);
-            cursorPosition.y += (stickY * controllerSensitivity * deltaTime);
+            if (isMouseActive) {
+                cursorPosition.x = absMouseX;
+                cursorPosition.y = absMouseY;
+            } else {
+                // コントローラーのスティックは傾き続けるため deltaTime に依存させる
+                cursorPosition.x += (stickX * controllerSensitivity * deltaTime);
+                cursorPosition.y += (stickY * controllerSensitivity * deltaTime);
+            }
         }
 
         // 4. 画面外に出ないよう Clamp 処理
@@ -219,25 +220,27 @@ protected:
         cursorPosition.y = RC::Clamp(cursorPosition.y, 0.0f, screenH);
 
         // 5. 射撃とクールダウン処理
-        currentCooldown -= deltaTime;
-        
-        bool isFirePressed = false;
+        if (!isDead) {
+            currentCooldown -= deltaTime;
+            
+            bool isFirePressed = false;
 #if RC_ENABLE_IMGUI
-        // ImGuiがマウスをキャプチャしていても、Viewport上なら射撃を許可する
-        if (!ImGui::GetIO().WantCaptureMouse || input->IsViewportHovered()) {
-            isFirePressed = input->IsMousePressed(0);
-        }
+            // ImGuiがマウスをキャプチャしていても、Viewport上なら射撃を許可する
+            if (!ImGui::GetIO().WantCaptureMouse || input->IsViewportHovered()) {
+                isFirePressed = input->IsMousePressed(0);
+            }
 #else
-        isFirePressed = input->IsMousePressed(0);
+            isFirePressed = input->IsMousePressed(0);
 #endif
-        if (input->GetXInputRightTrigger() > 128) {
-            isFirePressed = true;
-        }
+            if (input->GetXInputRightTrigger() > 128) {
+                isFirePressed = true;
+            }
 
-        if (isFirePressed && currentCooldown <= 0.0f) {
-            if (currentWeapon == WeaponType::Heavy) currentCooldown = fireCooldown * 2.0f;
-            else currentCooldown = fireCooldown;
-            FireBullet();
+            if (isFirePressed && currentCooldown <= 0.0f) {
+                if (currentWeapon == WeaponType::Heavy) currentCooldown = fireCooldown * 2.0f;
+                else currentCooldown = fireCooldown;
+                FireBullet();
+            }
         }
 
         // 6. 演出（反動とシェイク）の更新
@@ -412,23 +415,35 @@ protected:
         float barH = 20.0f;
 
         // Background
-        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 0.3f, 0.05f, 0.05f, 0.8f });
+        
+        bool drawPlayerUI = true;
+        if (invincibleTimer > 0.0f) {
+            if (static_cast<int>(invincibleTimer * 10.0f) % 2 == 0) {
+                drawPlayerUI = false;
+            }
+        }
 
-        // Foreground
-        float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
-        RC::Vector4 hpColor = { 1.0f - hpRatio, hpRatio, 0.1f, 0.9f };
-        RC::DrawBox({ barX, barY }, { barX + barW * hpRatio, barY + barH }, hpColor);
+        if (drawPlayerUI) {
+            RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 0.3f, 0.05f, 0.05f, 0.8f });
 
-        // Border
-        RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
+            // Foreground
+            float hpRatio = static_cast<float>(hp) / static_cast<float>(maxHp);
+            RC::Vector4 hpColor = { 1.0f - hpRatio, hpRatio, 0.1f, 0.9f };
+            RC::DrawBox({ barX, barY }, { barX + barW * hpRatio, barY + barH }, hpColor);
+
+            // Border
+            RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
+        }
 
         // === Score display (tally circles) ===
         float scoreX = 40.0f;
         float scoreY = 40.0f;
-        for (int i = 0; i < score && i < 20; ++i) {
-            float cx = scoreX + (i % 10) * 20.0f;
-            float cy = scoreY + (i / 10) * 20.0f;
-            RC::DrawCircle({ cx, cy }, 7.0f, { 0.3f, 0.7f, 1.0f, 0.9f });
+        if (drawPlayerUI) {
+            for (int i = 0; i < score && i < 20; ++i) {
+                float cx = scoreX + (i % 10) * 20.0f;
+                float cy = scoreY + (i / 10) * 20.0f;
+                RC::DrawCircle({ cx, cy }, 7.0f, { 0.3f, 0.7f, 1.0f, 0.9f });
+            }
         }
 
         // === 敵ごとの個別HPバーを頭上に描画 ===
@@ -510,6 +525,23 @@ public:
 
     void OnImGui() override {
 #if RC_ENABLE_IMGUI
+        if (isDead) {
+            auto& ctx = RC::GetRenderContext();
+            float screenW = 1280.0f;
+            float screenH = 720.0f;
+            if (ctx.Ctx() && ctx.Ctx()->app) {
+                screenW = static_cast<float>(ctx.Ctx()->app->width);
+                screenH = static_cast<float>(ctx.Ctx()->app->height);
+            }
+            ImGui::SetNextWindowPos(ImVec2(screenW * 0.5f, screenH * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            ImGui::SetNextWindowBgAlpha(0.0f);
+            ImGui::Begin("GameOverOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::SetWindowFontScale(4.0f);
+            ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "GAME OVER");
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::End();
+        }
+
         ImGui::Text("Cursor Pos: (%.1f, %.1f)", cursorPosition.x, cursorPosition.y);
         
         ImGui::Separator();
