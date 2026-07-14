@@ -84,26 +84,36 @@ const ::ModelObject *ModelManager::Get(int handle) const {
 
 std::shared_ptr<::ModelMesh> ModelManager::GetOrLoadMesh_(
     const std::string &path) {
-  // Load 内ですでにロックされている可能性があるため、ここでは個別にロックせず呼び出し側で管理するか、
-  // 内部的に再帰ロックにする必要があります。今回はシンプルに Load 等の各公開メソッド冒頭でロックします。
   const std::string key = NormalizeMeshKey_(path);
 
-  // すでにロード済みなら共有
-  if (auto it = meshCache_.find(key); it != meshCache_.end()) {
-    if (auto sp = it->second.lock()) {
-      return sp;
+  // すでにロード済みなら共有 (ロックを取得して確認)
+  {
+    std::lock_guard lock(mtx_);
+    if (auto it = meshCache_.find(key); it != meshCache_.end()) {
+      if (it->second) {
+        return it->second;
+      }
+      meshCache_.erase(it);
     }
-    // 期限切れ（誰も参照していない）なら掃除して入れ直す
-    meshCache_.erase(it);
   }
 
-  // 未ロードならロード
+  // 未ロードならロード (重い処理なのでロックを外す)
   auto mesh = std::make_shared<::ModelMesh>();
   if (!mesh->LoadObj(device_,path)) {
     return nullptr;
   }
 
-  meshCache_[key] = mesh;
+  // キャッシュに登録
+  {
+    std::lock_guard lock(mtx_);
+    if (auto it = meshCache_.find(key); it != meshCache_.end()) {
+      if (it->second) {
+        return it->second;
+      }
+    }
+    meshCache_[key] = mesh;
+  }
+  
   return mesh;
 }
 
@@ -136,7 +146,7 @@ int ModelManager::Load(const std::string &path) {
       // 1. メッシュのロード (MeshGenerator等で非常に重い処理)
       std::shared_ptr<::ModelMesh> mesh;
       {
-        std::lock_guard lock(mtx_);
+        // GetOrLoadMesh_ 内部で適切にロックするため、ここでは全体をロックしない
         mesh = GetOrLoadMesh_(npath);
       }
 
@@ -209,9 +219,11 @@ void ModelManager::SetLightingMode(int handle, LightingMode m) {
 }
 
 void ModelManager::SetMesh(int handle, const std::string &path) {
-  std::lock_guard lock(mtx_);
-  if (!IsValid(handle)) {
-    return;
+  {
+    std::lock_guard lock(mtx_);
+    if (!IsValid(handle)) {
+      return;
+    }
   }
 
   auto mesh = GetOrLoadMesh_(path);
@@ -219,9 +231,15 @@ void ModelManager::SetMesh(int handle, const std::string &path) {
     return;
   }
 
-  models_[handle].ptr->SetMesh(mesh);
-  // Mesh を変えると mtl のテクスチャ参照も変わる可能性があるので戻す
-  models_[handle].ptr->ResetTextureToMtl();
+  {
+    std::lock_guard lock(mtx_);
+    if (!IsValid(handle)) {
+      return;
+    }
+    models_[handle].ptr->SetMesh(mesh);
+    // Mesh を変えると mtl のテクスチャ参照も変わる可能性があるので戻す
+    models_[handle].ptr->ResetTextureToMtl();
+  }
 }
 
 void ModelManager::ResetCursor(int handle) {

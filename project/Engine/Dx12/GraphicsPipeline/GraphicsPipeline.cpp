@@ -897,7 +897,18 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
     params[12].DescriptorTable.NumDescriptorRanges = 1;
     params[12].DescriptorTable.pDescriptorRanges = &ranges[4];
 
-    paramCount = 13;
+    // 13: SRV table t5 (PS) Depth Texture for Foam
+    ranges[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    ranges[5].BaseShaderRegister = 5; // t5
+    ranges[5].NumDescriptors = 1;
+    ranges[5].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    params[13].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    params[13].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    params[13].DescriptorTable.NumDescriptorRanges = 1;
+    params[13].DescriptorTable.pDescriptorRanges = &ranges[5];
+
+    paramCount = 14;
     break;
 
   case RootSignatureType::WaveSimulationCS:

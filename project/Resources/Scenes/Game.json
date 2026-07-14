@@ -118,15 +118,15 @@
                   },
                   {
                     "pos": [
-                      0.0,
+                      5.0,
                       2.0,
-                      -20.0
+                      -30.0
                     ],
                     "waitTime": 0.0
                   },
                   {
                     "pos": [
-                      -10.0,
+                      -2.0,
                       2.0,
                       -10.0
                     ],
@@ -134,17 +134,17 @@
                   },
                   {
                     "pos": [
-                      -4.5,
+                      4.0,
                       2.0,
-                      -0.5
+                      10.0
                     ],
                     "waitTime": 0.0
                   },
                   {
                     "pos": [
-                      -1.0,
+                      0.0,
                       2.0,
-                      15.0
+                      30.0
                     ],
                     "waitTime": 0.0
                   }
@@ -367,6 +367,201 @@
         "is_enemy": 1,
         "max_hp": 20
       },
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              -5.0,
+              0.0,
+              -30.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              5.0,
+              10.0,
+              5.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "type": 1,
+            "texturePath": "",
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "visible": true,
+            "environmentCoeff": 0.0
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        }
+      ],
+      "guid": 8738307410113883208,
+      "isFolder": false,
+      "locked": false,
+      "name": "Rock1",
+      "parentGuid": 710271550770534429,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              8.0,
+              0.0,
+              -10.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              6.0,
+              15.0,
+              6.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "type": 1,
+            "texturePath": "",
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "visible": true,
+            "environmentCoeff": 0.0
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        }
+      ],
+      "guid": 5083823529286277202,
+      "isFolder": false,
+      "locked": false,
+      "name": "Rock2",
+      "parentGuid": 710271550770534429,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              -6.0,
+              0.0,
+              10.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              7.0,
+              12.0,
+              7.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "type": 1,
+            "texturePath": "",
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "visible": true,
+            "environmentCoeff": 0.0
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        }
+      ],
+      "guid": 4862712088783453991,
+      "isFolder": false,
+      "locked": false,
+      "name": "Rock3",
+      "parentGuid": 710271550770534429,
+      "tags": {},
       "visible": true
     }
   ],

@@ -118,6 +118,14 @@ protected:
                 if (distToCam <= detectDistance) {
                     state_ = SharkState::Approach;
                     std::cout << "[SharkEnemyScript] Detected player! Switching to Approach.\n";
+                } else {
+                    // 待機中はその場で円を描いてパトロール
+                    swimTime_ += deltaTime;
+                    float patrolSpeed = swimSpeed * 0.5f;
+                    tr->rotation.y += patrolSpeed * 0.1f * deltaTime; 
+                    float realAngleY = tr->rotation.y - (modelRotationOffsetDeg.y * (3.14159265f / 180.0f));
+                    tr->position.x += std::sin(realAngleY) * patrolSpeed * deltaTime;
+                    tr->position.z += std::cos(realAngleY) * patrolSpeed * deltaTime;
                 }
                 break;
             case SharkState::Approach:
@@ -154,6 +162,7 @@ protected:
                 if (distToCam <= attackStartDistance) {
                     state_ = SharkState::Attack;
                     attackTimer_ = 0.0f;
+                    hasHit_ = false;
                     std::cout << "[SharkEnemyScript] Approaching -> Attack!\n";
                 }
                 break;
@@ -172,16 +181,16 @@ protected:
                 
                 attackTimer_ += deltaTime;
 
-                // 攻撃ヒット距離に入ったらダメージ処理＆クールダウンへ
-                if (distToCam <= attackHitDistance) {
+                // 攻撃ヒット距離に入ったらダメージ処理（1回のみ）
+                if (!hasHit_ && distToCam <= attackHitDistance) {
                     std::cout << "[SharkEnemyScript] Player HIT! Damage triggered.\n";
                     mainCamera->SetTag("pending_damage", 1);
-                    
-                    state_ = SharkState::Cooldown;
-                    cooldownTimer_ = cooldownDuration;
-                } else if (attackTimer_ >= maxAttackDuration) {
-                    // タイムアウトで空振り扱いとし、クールダウンへ
-                    std::cout << "[SharkEnemyScript] Attack Missed! Timeout.\n";
+                    hasHit_ = true;
+                }
+                
+                // タイムアウトでクールダウンへ（通り過ぎるのを待つ）
+                if (attackTimer_ >= maxAttackDuration) {
+                    std::cout << "[SharkEnemyScript] Attack Finished! To Cooldown.\n";
                     state_ = SharkState::Cooldown;
                     cooldownTimer_ = cooldownDuration;
                 }
@@ -243,6 +252,7 @@ private:
     float cooldownTimer_ = 0.0f;
     float attackTimer_ = 0.0f;
     float maxAttackDuration = 2.0f;
+    bool hasHit_ = false;
 };
 
 REGISTER_SCRIPT(SharkEnemyScript)

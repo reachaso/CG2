@@ -398,7 +398,39 @@ void EditorManager::DrawEntityNode(std::shared_ptr<Entity> e, Scene* currentScen
 #if RC_ENABLE_IMGUI
     if (!e || e->IsPendingDestroy()) return;
 
+    // 再帰的に子エンティティへ処理を適用するヘルパー
+    auto applyToChildren = [&](std::shared_ptr<Entity> parent, bool state, auto func) {
+        auto applyRecursive = [&](std::shared_ptr<Entity> node, auto& self) -> void {
+            if (!node) return;
+            func(node, state);
+            auto it = childrenMap.find(node->Guid());
+            if (it != childrenMap.end()) {
+                for (auto& child : it->second) {
+                    self(child, self);
+                }
+            }
+        };
+        auto it = childrenMap.find(parent->Guid());
+        if (it != childrenMap.end()) {
+            for (auto& child : it->second) {
+                applyRecursive(child, applyRecursive);
+            }
+        }
+    };
+
     ImGui::PushID(e->Id());
+
+    // --- アクティブ切り替え ---
+    {
+      bool active = e->IsActive();
+      if (ImGui::Checkbox("##active", &active)) {
+        e->SetActive(active);
+        if (e->IsFolder()) {
+            applyToChildren(e, active, [](std::shared_ptr<Entity> node, bool s) { node->SetActive(s); });
+        }
+      }
+    }
+    ImGui::SameLine(0, 4);
 
     // --- 目アイコン（可視切り替え） ---
     {
@@ -410,11 +442,19 @@ void EditorManager::DrawEntityNode(std::shared_ptr<Entity> e, Scene* currentScen
       ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.2f,0.2f,0.2f,0.7f));
       if (srv.ptr) {
         if (ImGui::ImageButton("##vis", (ImTextureID)srv.ptr, ImVec2(18, 18), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
-          e->SetVisible(!e->IsVisible());
+          bool newState = !e->IsVisible();
+          e->SetVisible(newState);
+          if (e->IsFolder()) {
+              applyToChildren(e, newState, [](std::shared_ptr<Entity> node, bool s) { node->SetVisible(s); });
+          }
         }
       } else {
         if (ImGui::SmallButton(e->IsVisible() ? "V" : "-")) {
-          e->SetVisible(!e->IsVisible());
+          bool newState = !e->IsVisible();
+          e->SetVisible(newState);
+          if (e->IsFolder()) {
+              applyToChildren(e, newState, [](std::shared_ptr<Entity> node, bool s) { node->SetVisible(s); });
+          }
         }
       }
       ImGui::PopStyleColor(3);
@@ -1158,6 +1198,13 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         std::function<void()> pendingRemove;
         char nameBuf[256];
         strncpy_s(nameBuf, sizeof(nameBuf), e->Name().c_str(), _TRUNCATE);
+        
+        bool active = e->IsActive();
+        if (ImGui::Checkbox("##InspectorActive", &active)) {
+            e->SetActive(active);
+        }
+        ImGui::SameLine();
+
         ImGui::Text("Entity:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);

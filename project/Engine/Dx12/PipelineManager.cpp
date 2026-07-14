@@ -954,7 +954,7 @@ void PipelineManager::RegisterDefaultPipelines() {
     // αブレンド ON / 深度テスト ON / 深度書き込み OFF / カリング無し
     GPipelineOptions opt{};
     opt.rootType = RootSignatureType::Water;
-    opt.enableDepth = true;
+    opt.enableDepth = false; // DSVをnullptrで描画できるように深度テストを無効化
     opt.enableDepthWrite = false;
     opt.enableAlphaBlend = true;
     opt.blendMode = kBlendModeNormal;

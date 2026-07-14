@@ -33,6 +33,14 @@ cbuffer WaterParams : register(b6)
     float  gSpecularPower;      // スペキュラ指数
     float  gNormalScrollSpeed;  // 法線マップスクロール速度
     float  gNormalStrength;     // 法線マップ強度
+
+    float4 gInvScreenSize;
+    float4 gCameraNearFar; // x: near, y: far
+    float4 gFoamParams;    // x: foamDepth, y: foamScale
+    float4 gFoamColor;
+
+    float4 gObstacles[4];  // xyz: pos, w: radius
+    float4 gObstacleCount; // x: count
 };
 
 Texture2D<float> gInteractiveWave : register(t4);
@@ -140,9 +148,45 @@ VertexShaderOutput main(VertexShaderInput input)
     // ワールド空間での頂点位置（波計算用）
     float4 worldPos = mul(input.position, gTransformationMatrix.World);
 
-    // Gerstner Wave を計算
+    // =========================
+    // 波と障害物の干渉計算
+    // =========================
+    // 基本の Gerstner Wave を計算
     GerstnerResult wave = ComputeGerstnerWave(worldPos.xyz, gTime);
-
+    
+    // 障害物による減衰と跳ね返り波
+    float bounceInfluence = 0.0f;
+    float3 bounceOffset = float3(0, 0, 0);
+    
+    int obstacleCount = (int)gObstacleCount.x;
+    for (int i = 0; i < obstacleCount; ++i) {
+        float3 obsPos = gObstacles[i].xyz;
+        float obsRadius = gObstacles[i].w * 1.5f; // 波への影響範囲を少し広めに取る
+        
+        float dist = distance(worldPos.xz, obsPos.xz);
+        if (dist < obsRadius) {
+            // 岩に近いほど影響大 (0.0 ~ 1.0)
+            float influence = 1.0f - (dist / obsRadius);
+            // サイン波で減衰カーブを滑らかに
+            influence = sin(influence * 1.5707f); 
+            bounceInfluence = max(bounceInfluence, influence);
+            
+            // 岩から外側に向かう方向（跳ね返りの向き）
+            float2 outDir = normalize(worldPos.xz - obsPos.xz);
+            
+            // 跳ね返り波の計算（岩から広がる波紋）
+            float bouncePhase = dist * 2.0f - gTime * 3.5f;
+            float bounceHeight = (sin(bouncePhase) * 0.5f) * influence * gWaveHeight * 1.5f;
+            
+            bounceOffset.y += bounceHeight;
+            bounceOffset.x += outDir.x * bounceHeight * 0.5f;
+            bounceOffset.z += outDir.y * bounceHeight * 0.5f;
+        }
+    }
+    
+    // 岩の近くでは本来の波の動きを減衰させ、跳ね返り波を足す
+    wave.offset = lerp(wave.offset, float3(0,0,0), bounceInfluence * 0.8f);
+    wave.offset += bounceOffset;
     // インタラクティブ波紋のサンプリング
     // WaterPlaneのワールドサイズ(100x100)に合わせたUV変換
     float2 waveUV = (worldPos.xz / 100.0f) + 0.5f;

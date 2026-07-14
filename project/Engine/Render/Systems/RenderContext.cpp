@@ -613,13 +613,21 @@ void RenderContext::Execute3DCommands() {
     dumpCommandOrder_ = false;
   }
 
-  // 1) プリミティブの頂点転送
-  if (prim3D_ && prim3D_->HasAny()) {
+  // 1) プリミティブの頂点転送 (メインパスのみ)
+  if (prim3D_ && prim3D_->HasAny() && !isShadowPass_) {
     prim3D_->TransferVertices();
   }
 
+  std::vector<RenderCommand3D> deferredCommands;
+
   // 2) キューに積まれたコマンドを順に実行
   for (auto &cmd : commandQueue3D_) {
+    // シャドウパス中はプリミティブ描画（デバッグ線など）をスキップし、メインパスへ持ち越す
+    if (cmd.type == RenderCommand3D::Primitive && isShadowPass_) {
+      deferredCommands.push_back(std::move(cmd));
+      continue;
+    }
+
     // 履歴に追加
     if (cmd.type == RenderCommand3D::Primitive) {
       AddCommandHistory("Primitive3D", -1, cmd.sortKey);
@@ -640,8 +648,8 @@ void RenderContext::Execute3DCommands() {
   }
 
   // 3) 実行後の後始末
-  Clear3DCommands();
-  if (prim3D_) {
+  commandQueue3D_ = std::move(deferredCommands);
+  if (prim3D_ && !isShadowPass_) {
     prim3D_->Clear();
   }
 }

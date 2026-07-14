@@ -143,7 +143,7 @@ private:
   TextureManager *texman_ = nullptr;   ///< テクスチャマネージャ
 
   std::vector<Slot> models_;           ///< モデルオブジェクトのリスト
-  std::unordered_map<std::string, std::weak_ptr<::ModelMesh>> meshCache_; ///< メッシュの共有キャッシュ
+  std::unordered_map<std::string, std::shared_ptr<::ModelMesh>> meshCache_; ///< メッシュの共有キャッシュ
 
   mutable std::recursive_mutex mtx_;   ///< 排他制御用ミューテックス
   std::unordered_map<std::string, std::shared_future<void>> loadingTasks_; ///< ロードタスクの管理
