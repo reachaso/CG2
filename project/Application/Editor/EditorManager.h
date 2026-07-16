@@ -63,6 +63,10 @@ public:
   /// @brief 再生状態を設定する（外部からのリセット用）
   void SetPlayState(PlayState state);
 
+  /// @brief 再起動（リスタート）がリクエストされたか
+  bool IsRestartRequested() const { return restartRequested_; }
+  void ClearRestartRequest() { restartRequested_ = false; }
+
   /// @brief 選択中のエンティティIDを取得する（未選択なら0）
   uint32_t GetSelectedEntityId() const;
 
@@ -98,10 +102,12 @@ private:
   bool isViewportHovered_ = false; ///< Viewportウィンドウがホバーされているか
   
   PlayState playState_; ///< エディタ上での現在の再生状態
+  bool restartRequested_ = false; ///< リスタート要求フラグ
 
   int playIconTex_ = -1;
   int pauseIconTex_ = -1;
   int stopIconTex_ = -1;
+  int restartIconTex_ = -1;
 
   int eyeVisibleTex_ = -1;
   int eyeHiddenTex_ = -1;

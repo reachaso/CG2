@@ -49,6 +49,9 @@ public:
   /// @details Use this for 2D drawing (DrawBox, DrawCircle, etc.)
   virtual void OnRender() {}
 
+  /// @brief Called during the overlay 3D phase to draw gizmos
+  virtual void OnDebugRender() {}
+
   /// @brief Called when a collision occurs with another entity
   /// @param other The entity that this entity collided with
   /// @param contactPoint The world position where the collision occurred

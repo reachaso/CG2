@@ -162,15 +162,27 @@ int App::Run() {
 
       // プレイ状態の同期
       PlayState currentPlayState = editorManager_.GetPlayState();
-      if (sceneCtx_.playState != currentPlayState) {
-          if (currentPlayState == PlayState::Playing && sceneCtx_.playState == PlayState::Stopped) {
-              // 停止中から再生開始した瞬間：現在のシーンのバックアップを取る
-              game_.BackupCurrentScene();
-          } else if (currentPlayState == PlayState::Stopped) {
-              // 停止された場合、バックアップからシーンを復元する
-              game_.RestoreCurrentScene(sceneCtx_);
+      
+      if (editorManager_.IsRestartRequested()) {
+          game_.RestoreCurrentScene(sceneCtx_);
+          editorManager_.ClearRestartRequest();
+          // リスタートしたら必ず再生状態になるようにする
+          currentPlayState = PlayState::Playing;
+          sceneCtx_.playState = PlayState::Playing;
+      } else {
+          if (sceneCtx_.playState != currentPlayState) {
+              if (currentPlayState == PlayState::Playing && sceneCtx_.playState == PlayState::Stopped) {
+                  // 停止中から再生開始した瞬間：現在のシーンのバックアップを取る
+                  game_.BackupCurrentScene();
+                  if (sceneCtx_.camera) {
+                      sceneCtx_.camera->SetUseDebug(false);
+                  }
+              } else if (currentPlayState == PlayState::Stopped) {
+                  // 停止された場合、バックアップからシーンを復元する
+                  game_.RestoreCurrentScene(sceneCtx_);
+              }
+              sceneCtx_.playState = currentPlayState;
           }
-          sceneCtx_.playState = currentPlayState;
       }
 #endif
 

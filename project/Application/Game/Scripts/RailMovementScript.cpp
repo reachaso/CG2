@@ -204,9 +204,13 @@ public:
             ImGui::PopID();
         }
 
-        // 選択時のみパスとウェイポイントを描画
+#endif
+    }
+
+    void OnDebugRender() override {
+#if RC_ENABLE_IMGUI
+        // 選択時（または全描画モード時）のみパスとウェイポイントを描画
         if (drawPath && waypoints.size() >= 1) {
-            RC::BeginOverlay3D(); // Skyboxの後に描画
             for (size_t i = 0; i < waypoints.size(); ++i) {
                 // 引数: center, radius, color, slices, stacks, depth
                 RC::DrawWireSphere3D(waypoints[i].pos, 0.5f, pathColor, 16, 16, true);
@@ -217,7 +221,6 @@ public:
             if (loop && waypoints.size() >= 2) {
                 RC::DrawLine3D(waypoints.back().pos, waypoints.front().pos, pathColor, true);
             }
-            RC::EndOverlay3D();
         }
 #endif
     }

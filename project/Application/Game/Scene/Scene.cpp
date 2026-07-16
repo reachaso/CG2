@@ -195,9 +195,9 @@ void Scene::DrawLightGizmos(uint32_t selectedEntityId) {
 
 void Scene::DrawCameraGizmos(uint32_t selectedEntityId, float aspect) {
 #if RC_ENABLE_IMGUI
-  if (selectedEntityId == 0) return;
+  if (selectedEntityId == 0 && !showAllGizmos_) return;
   for (auto& e : entities_) {
-    if (e->Id() != selectedEntityId) continue;
+    if (!showAllGizmos_ && e->Id() != selectedEntityId) continue;
     if (!e->IsVisible()) continue;
     auto* tr = e->GetComponent<TransformComponent>();
     auto* cam = e->GetComponent<CameraComponent>();
@@ -213,9 +213,9 @@ void Scene::DrawCameraGizmos(uint32_t selectedEntityId, float aspect) {
 
 void Scene::DrawColliderGizmos(uint32_t selectedEntityId) {
 #if RC_ENABLE_IMGUI
-  if (selectedEntityId == 0 && !showColliderGizmos_) return;
+  if (selectedEntityId == 0 && !showColliderGizmos_ && !showAllGizmos_) return;
   for (auto& e : entities_) {
-    if (!showColliderGizmos_ && e->Id() != selectedEntityId) continue;
+    if (!showColliderGizmos_ && !showAllGizmos_ && e->Id() != selectedEntityId) continue;
     if (!e || !e->IsActive() || e->IsPendingDestroy() || !e->IsVisible()) continue;
     auto* tr = e->GetComponent<TransformComponent>();
     auto* col = e->GetComponent<ColliderComponent>();

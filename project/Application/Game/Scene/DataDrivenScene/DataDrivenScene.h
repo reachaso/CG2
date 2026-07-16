@@ -77,6 +77,10 @@ public:
     if (ctx.input && ctx.input->IsKeyTrigger(DIK_F3)) {
         showColliderGizmos_ = !showColliderGizmos_;
     }
+    // F4 キーですべてのデバッグ描画をトグル
+    if (ctx.input && ctx.input->IsKeyTrigger(DIK_F4)) {
+        showAllGizmos_ = !showAllGizmos_;
+    }
 
     // NativeScriptComponent に Scene/Context 参照を設定
     for (auto& e : entities_) {
@@ -137,6 +141,9 @@ public:
                 }
             }
             if (auto* dirLight = e->GetComponent<DirectionalLightComponent>()) {
+                if (dirLight->lightHandle == -1) {
+                    dirLight->lightHandle = RC::CreateDirectionalLight(RC::LightActivateMode::Add);
+                }
                 if (auto* l = RC::GetDirectionalLightPtr(dirLight->lightHandle)) {
                     l->SetColor(dirLight->color);
                     l->SetDirection(dirLight->direction);
@@ -145,6 +152,9 @@ public:
                 }
             }
             if (auto* ptLight = e->GetComponent<PointLightComponent>()) {
+                if (ptLight->lightHandle == -1) {
+                    ptLight->lightHandle = RC::CreatePointLight(RC::LightActivateMode::Add);
+                }
                 if (auto* l = RC::GetPointLightPtr(ptLight->lightHandle)) {
                     l->SetColor(ptLight->color);
                     l->SetPosition(tr->position);
@@ -155,6 +165,9 @@ public:
                 }
             }
             if (auto* spLight = e->GetComponent<SpotLightComponent>()) {
+                if (spLight->lightHandle == -1) {
+                    spLight->lightHandle = RC::CreateSpotLight(RC::LightActivateMode::Add);
+                }
                 if (auto* l = RC::GetSpotLightPtr(spLight->lightHandle)) {
                     l->SetColor(spLight->color);
                     l->SetPosition(tr->position);
@@ -167,6 +180,9 @@ public:
                 }
             }
             if (auto* arLight = e->GetComponent<AreaLightComponent>()) {
+                if (arLight->lightHandle == -1) {
+                    arLight->lightHandle = RC::CreateAreaLight(RC::LightActivateMode::Add);
+                }
                 if (auto* l = RC::GetAreaLightPtr(arLight->lightHandle)) {
                     l->SetColor(arLight->color);
                     l->SetPosition(tr->position);
@@ -309,7 +325,9 @@ public:
 
         float aspect = float(ctx.app->width) / ctx.app->height;
         if (ctx.isPlaying()) {
-            ctx.camera->SetUseDebug(false);
+            if (ctx.input && ctx.input->IsKeyTrigger(DIK_F1)) {
+                ctx.camera->SetUseDebug(!ctx.camera->IsUsingDebug());
+            }
             ctx.camera->SetMainPosition(RC::Add(camTr->position, camComp->shakeOffset));
             ctx.camera->SetMainRotation(camTr->rotation);
             ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
@@ -466,6 +484,26 @@ public:
     DrawLightGizmos(selectedEntityId_);
     DrawCameraGizmos(selectedEntityId_, float(ctx.app->width) / ctx.app->height);
     DrawColliderGizmos(selectedEntityId_);
+
+    if (showAllGizmos_) {
+        for (auto& e : entities_) {
+            if (!e || e->IsPendingDestroy() || !e->IsActive()) continue;
+            if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {
+                for (auto& entry : nsc->scripts) {
+                    if (entry.instance) entry.instance->OnDebugRender();
+                }
+            }
+        }
+    } else if (selectedEntityId_ != 0) {
+        if (auto e = FindEntityById(selectedEntityId_)) {
+            if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {
+                for (auto& entry : nsc->scripts) {
+                    if (entry.instance) entry.instance->OnDebugRender();
+                }
+            }
+        }
+    }
+
     RC::EndOverlay3D();
 
     // ===========================================
@@ -671,6 +709,11 @@ private:
               case PrimitiveType::Cone: pm->meshHandle = RC::GenerateCone(1.0f, 1.0f, pm->texOverride); break;
               case PrimitiveType::Torus: pm->meshHandle = RC::GenerateTorus(1.0f, 0.3f, pm->texOverride); break;
               case PrimitiveType::Capsule: pm->meshHandle = RC::GenerateCapsule(0.5f, 1.0f, pm->texOverride); break;
+          }
+          if (pm->meshHandle >= 0) {
+              if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
+                  mat->color = pm->color;
+              }
           }
       }
       if (auto* dl = e.GetComponent<DirectionalLightComponent>()) {

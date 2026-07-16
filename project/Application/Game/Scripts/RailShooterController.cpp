@@ -1,11 +1,12 @@
 #include "ECS/ScriptableEntity.h"
 #include "ECS/ScriptRegistry.h"
-#include "Engine/Input/Input.h"
+#include "Input/Input.h"
 #include "Engine/Input/Controller/Controller.h"
 #include "RenderCommon.h"
 #include "Engine/Render/RenderContext.h"
 #include "Common/Math/MathUtils.h"
 #include "Application/Framework/App.h"
+#include "Common/Log/Log.h"
 
 #if RC_ENABLE_IMGUI
 #include "imgui/imgui.h"
@@ -16,7 +17,87 @@
 #include "ECS/NativeScriptComponent.h"
 #include "ECS/CameraComponent.h"
 #include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/ColliderComponent.h"
 #include "Scene.h"
+#include <algorithm>
+#include <utility>
+#include <cmath>
+
+namespace {
+    bool IntersectSegmentAABB(const RC::Vector3& p0, const RC::Vector3& p1, const RC::Vector3& min, const RC::Vector3& max) {
+        RC::Vector3 d = { p1.x - p0.x, p1.y - p0.y, p1.z - p0.z };
+        float tmin = 0.0f;
+        float tmax = 1.0f;
+        
+        // X axis
+        if (std::abs(d.x) < 0.00001f) {
+            if (p0.x < min.x || p0.x > max.x) return false;
+        } else {
+            float ood = 1.0f / d.x;
+            float t1 = (min.x - p0.x) * ood;
+            float t2 = (max.x - p0.x) * ood;
+            if (t1 > t2) std::swap(t1, t2);
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return false;
+        }
+        // Y axis
+        if (std::abs(d.y) < 0.00001f) {
+            if (p0.y < min.y || p0.y > max.y) return false;
+        } else {
+            float ood = 1.0f / d.y;
+            float t1 = (min.y - p0.y) * ood;
+            float t2 = (max.y - p0.y) * ood;
+            if (t1 > t2) std::swap(t1, t2);
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return false;
+        }
+        // Z axis
+        if (std::abs(d.z) < 0.00001f) {
+            if (p0.z < min.z || p0.z > max.z) return false;
+        } else {
+            float ood = 1.0f / d.z;
+            float t1 = (min.z - p0.z) * ood;
+            float t2 = (max.z - p0.z) * ood;
+            if (t1 > t2) std::swap(t1, t2);
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+            if (tmin > tmax) return false;
+        }
+        return true;
+    }
+
+    bool RaycastTerrain(Scene* scene, const RC::Vector3& start, const RC::Vector3& end) {
+        if (!scene) return false;
+        for (auto& e : scene->GetEntities()) {
+            if (e->GetTagInt("is_terrain", 0) == 1) {
+                auto* col = e->GetComponent<ColliderComponent>();
+                auto* tr = e->GetComponent<TransformComponent>();
+                if (col && tr && col->IsEnabled() && col->shape == ColliderComponent::Shape::AABB) {
+                    RC::Vector3 scaledSize = {
+                        std::abs(col->size.x * tr->scale.x),
+                        std::abs(col->size.y * tr->scale.y),
+                        std::abs(col->size.z * tr->scale.z)
+                    };
+                    RC::Vector3 halfSize = { scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f };
+                    RC::Vector3 center = {
+                        tr->position.x + col->center.x * tr->scale.x,
+                        tr->position.y + col->center.y * tr->scale.y,
+                        tr->position.z + col->center.z * tr->scale.z
+                    };
+                    RC::Vector3 minPos = { center.x - halfSize.x, center.y - halfSize.y, center.z - halfSize.z };
+                    RC::Vector3 maxPos = { center.x + halfSize.x, center.y + halfSize.y, center.z + halfSize.z };
+                    
+                    if (IntersectSegmentAABB(start, end, minPos, maxPos)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+}
 
 /// @brief レールシューティングにおける照準（レティクル）操作を担うスクリプト
 class RailShooterController : public ScriptableEntity {
@@ -63,6 +144,9 @@ public:
     int totalEnemyMaxHp = 0;
     bool isGameCleared = false;
 
+    // 水中状態フラグ
+    bool isUnderwater = false;
+
 private:
     uint64_t bulletsFolderGuid_ = 0;
 
@@ -98,6 +182,23 @@ protected:
             invincibleTimer -= deltaTime;
         }
 
+        // === 水中判定 ===
+        if (auto* tr = GetComponent<TransformComponent>()) {
+            bool currentUnderwater = (tr->position.y < 0.0f);
+            if (currentUnderwater != isUnderwater) {
+                isUnderwater = currentUnderwater;
+                if (Entity* self = GetEntity()) {
+                    self->SetTag("is_underwater", isUnderwater ? 1 : 0);
+                }
+                // イベント発火としてログを出力
+                if (isUnderwater) {
+                    Log::Print("[Event] Transition to Underwater (Dive)");
+                } else {
+                    Log::Print("[Event] Transition to Surface (Emerge)");
+                }
+            }
+        }
+
         // === ダメージ・スコア処理 ===
         Entity* self = GetEntity();
         if (self) {
@@ -118,7 +219,7 @@ protected:
         totalEnemyMaxHp = 0;
         if (Scene* scene = GetScene()) {
             for (auto& e : scene->GetEntities()) {
-                if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Shark") {
+                if (e->GetTagInt("is_enemy", 0) == 1) {
                     // タグが未設定なら初期化
                     int ehp = e->GetTagInt("current_hp", -1);
                     int eMaxHp = e->GetTagInt("max_hp", -1);
@@ -450,7 +551,7 @@ protected:
         if (Scene* scene = GetScene()) {
             RC::Matrix4x4 viewProj = Multiply(ctx.View(), ctx.Proj());
             for (auto& e : scene->GetEntities()) {
-                if (e->GetTagInt("is_enemy", 0) == 1 || e->GetName() == "Shark") {
+                if (e->GetTagInt("is_enemy", 0) == 1) {
                     int ehp = e->GetTagInt("current_hp", 30);
                     int eMaxHp = e->GetTagInt("max_hp", 30);
                     if (ehp <= 0 || eMaxHp <= 0) continue;
@@ -462,10 +563,19 @@ protected:
                     RC::Vector3 headPos = tr->position;
                     headPos.y += 1.2f; 
                     
-                    // w(深度)計算による背後判定 (一時的にコメントアウトして強制描画)
+                    // w(深度)計算による背後判定
                     float w = headPos.x * viewProj.m[0][3] + headPos.y * viewProj.m[1][3] +
                               headPos.z * viewProj.m[2][3] + 1.0f * viewProj.m[3][3];
-                    // if (w < 0.1f) continue; // コメントアウト
+                    if (w < 0.1f) continue; 
+                    
+                    // 地形（岩など）による遮蔽チェック
+                    RC::Vector3 cameraPos = { 0, 0, 0 };
+                    if (auto* myTr = GetComponent<TransformComponent>()) {
+                        cameraPos = myTr->position;
+                    }
+                    if (RaycastTerrain(scene, cameraPos, headPos)) {
+                        continue; // 岩に隠れている場合はHPバーを描画しない
+                    }
                     
                     // スクリーン座標へ変換
                     RC::Vector3 screenPos = RC::CameraMath::WorldToScreenPoint(

@@ -44,6 +44,7 @@ void EditorManager::Initialize() {
   playIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/play.png");
   pauseIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/pause.png");
   stopIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/stop.png");
+  restartIconTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/step_back.png");
 
   eyeVisibleTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/eye_visible.png");
   eyeHiddenTex_ = RC::GetRenderContext().Textures().LoadID("Resources/icons/eye_hidden.png");
@@ -263,10 +264,10 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
     }
 
     // ----------------------------
-    // 中央の Play / Pause / Stop ボタン
+    // 中央の Play / Pause / Stop / Restart ボタン
     // ----------------------------
     float playButtonWidth = 40.0f;
-    float playButtonsTotalWidth = playButtonWidth * 3.0f + ImGui::GetStyle().ItemSpacing.x * 2.0f;
+    float playButtonsTotalWidth = playButtonWidth * 4.0f + ImGui::GetStyle().ItemSpacing.x * 3.0f;
     ImGui::SameLine((ImGui::GetWindowWidth() - playButtonsTotalWidth) * 0.5f);
 
     // Play ボタン
@@ -292,6 +293,17 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
     ImTextureID pauseId = (ImTextureID)RC::GetRenderContext().Textures().GetSrv(pauseIconTex_).ptr;
     if (ImGui::ImageButton("##Pause", pauseId, ImVec2(16.0f, 16.0f))) {
       playState_ = PlayState::Paused;
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+
+    // Restart ボタン
+    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_Button));
+    ImTextureID restartId = (ImTextureID)RC::GetRenderContext().Textures().GetSrv(restartIconTex_).ptr;
+    if (ImGui::ImageButton("##Restart", restartId, ImVec2(16.0f, 16.0f))) {
+      restartRequested_ = true;
+      playState_ = PlayState::Playing;
     }
     ImGui::PopStyleColor();
 

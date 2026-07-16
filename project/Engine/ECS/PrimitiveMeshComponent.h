@@ -3,6 +3,7 @@
 #include "IComponent.h"
 #include <string>
 #include <nlohmann/json.hpp>
+#include "Math/MathTypes.h"
 
 /// @brief Primitive mesh shape type
 enum class PrimitiveType {
@@ -25,6 +26,7 @@ public:
   int roughnessMapOverride = -1; ///< Roughness Map texture override
   bool visible = true;    ///< Visibility flag
   PrimitiveType type = PrimitiveType::Sphere; ///< Shape type (for Inspector)
+  RC::Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; ///< Multiply color
   float environmentCoeff = 0.0f; ///< Environment map reflection coefficient
 
   /// @brief Check if a valid mesh is assigned
@@ -43,6 +45,7 @@ public:
       {"normalMapPath", normalMapPath},
       {"roughnessMapPath", roughnessMapPath},
       {"visible", visible},
+      {"color", {color.x, color.y, color.z, color.w}},
       {"environmentCoeff", environmentCoeff}
     };
   }
@@ -53,6 +56,10 @@ public:
     if (j.contains("normalMapPath")) normalMapPath = j["normalMapPath"].get<std::string>();
     if (j.contains("roughnessMapPath")) roughnessMapPath = j["roughnessMapPath"].get<std::string>();
     if (j.contains("visible")) visible = j["visible"].get<bool>();
+    if (j.contains("color")) {
+      auto& c = j["color"];
+      color = {c[0].get<float>(), c[1].get<float>(), c[2].get<float>(), c[3].get<float>()};
+    }
     if (j.contains("environmentCoeff")) environmentCoeff = j["environmentCoeff"].get<float>();
   }
 };

@@ -182,6 +182,7 @@ protected:
   std::unique_ptr<GameModeBase> gameMode_ = std::make_unique<GameModeBase>(); ///< ゲームルールの管理
   SceneContext* currentContext_ = nullptr; ///< 現在フレームのSceneContext
   bool showColliderGizmos_ = false; ///< コライダーを全描画するデバッグフラグ
+  bool showAllGizmos_ = false; ///< 全デバッグ描画（F4）フラグ
 
   /// @brief Update all active entities
   /// @details インデックスベースループを使用し、ループ中の entities_ push_back による

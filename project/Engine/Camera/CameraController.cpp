@@ -72,7 +72,7 @@ void CameraController::SetFollowBounds(float left, float right, float bottom,
 void CameraController::Update(float dt) {
 #ifdef _DEBUG
   // 切替
-  if (input_ && input_->IsKeyTrigger(DIK_TAB)) {
+  if (input_ && (input_->IsKeyTrigger(DIK_TAB) || input_->IsKeyTrigger(DIK_F1))) {
     useDebug_ = !useDebug_;
   }
 #endif
@@ -245,7 +245,7 @@ void CameraController::UpdateFollow_(float dt) {
 void CameraController::DrawImGui() {
 #if RC_ENABLE_IMGUI
 #if RC_ENABLE_IMGUI
-  ImGui::Begin("カメラモード : Tab");
+  ImGui::Begin("カメラモード : F1 / Tab");
 
   if (useDebug_) {
     ImGui::Text("デバッグカメラモード");
