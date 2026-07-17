@@ -22,6 +22,7 @@ const char* ToString(PostEffectType type) {
   case PostEffectType::RadialBlur: return "RadialBlur";
   case PostEffectType::Dissolve:   return "Dissolve";
   case PostEffectType::RandomNoise:return "RandomNoise";
+  case PostEffectType::Underwater: return "Underwater";
   case PostEffectType::None:      return "None";
   default:                        return "Unknown";
   }
@@ -80,6 +81,9 @@ void PostProcess::Initialize(Dx12Core *dxCore,
 
   pipelineRandom_ = pipelineManager_->Get("random.none");
   assert(pipelineRandom_ && "Failed to get random pipeline");
+
+  pipelineUnderwater_ = pipelineManager_->Get("underwater.none");
+  assert(pipelineUnderwater_ && "Failed to get underwater pipeline");
 
   // CBuffer 初期化
   D3D12_HEAP_PROPERTIES uploadHeap{D3D12_HEAP_TYPE_UPLOAD};
@@ -175,6 +179,44 @@ void PostProcess::Initialize(Dx12Core *dxCore,
       mappedRandom_->intensity = randomIntensity_;
     }
   }
+
+  // Underwater CBuffer 初期化
+  {
+    D3D12_HEAP_PROPERTIES uploadHeap{D3D12_HEAP_TYPE_UPLOAD};
+    D3D12_RESOURCE_DESC cbDescUnderwater{};
+    cbDescUnderwater.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    cbDescUnderwater.Width = (sizeof(UnderwaterData) + 255) & ~255;
+    cbDescUnderwater.Height = 1;
+    cbDescUnderwater.DepthOrArraySize = 1;
+    cbDescUnderwater.MipLevels = 1;
+    cbDescUnderwater.Format = DXGI_FORMAT_UNKNOWN;
+    cbDescUnderwater.SampleDesc.Count = 1;
+    cbDescUnderwater.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    cbDescUnderwater.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    hr = dxCore_->GetDevice()->CreateCommittedResource(
+        &uploadHeap, D3D12_HEAP_FLAG_NONE, &cbDescUnderwater,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+        IID_PPV_ARGS(&cbufferUnderwater_));
+    assert(SUCCEEDED(hr));
+    cbufferUnderwater_->Map(0, nullptr, reinterpret_cast<void **>(&mappedUnderwater_));
+
+    if (mappedUnderwater_) {
+      mappedUnderwater_->tintColor[0] = underwaterTintColor_[0];
+      mappedUnderwater_->tintColor[1] = underwaterTintColor_[1];
+      mappedUnderwater_->tintColor[2] = underwaterTintColor_[2];
+      mappedUnderwater_->tintColor[3] = underwaterTintColor_[3];
+      mappedUnderwater_->fogColor[0] = underwaterFogColor_[0];
+      mappedUnderwater_->fogColor[1] = underwaterFogColor_[1];
+      mappedUnderwater_->fogColor[2] = underwaterFogColor_[2];
+      mappedUnderwater_->fogColor[3] = underwaterFogColor_[3];
+      mappedUnderwater_->time = 0.0f;
+      mappedUnderwater_->distortionForce = underwaterDistortionForce_;
+      mappedUnderwater_->fogStart = underwaterFogStart_;
+      mappedUnderwater_->fogEnd = underwaterFogEnd_;
+      mappedUnderwater_->lerpFactor = underwaterLerpFactor_;
+    }
+  }
 }
 
 void PostProcess::Resize(uint32_t width, uint32_t height) {
@@ -191,11 +233,18 @@ void PostProcess::UpdateTime(float deltaTime) {
   if (mappedRandom_) {
     mappedRandom_->time = randomTime_;
   }
+  if (mappedUnderwater_) {
+    mappedUnderwater_->time = randomTime_;
+    mappedUnderwater_->lerpFactor = underwaterLerpFactor_;
+  }
 }
 
 void PostProcess::SetProjectionInverse(const float* projInv16) {
   if (mappedMaterial_) {
     memcpy(mappedMaterial_->projectionInverse, projInv16, sizeof(float) * 16);
+  }
+  if (mappedUnderwater_) {
+    memcpy(mappedUnderwater_->projectionInverse, projInv16, sizeof(float) * 16);
   }
 }
 
@@ -288,6 +337,30 @@ void PostProcess::SetRandomNoiseColor(float r, float g, float b) {
     mappedRandom_->color[0] = r;
     mappedRandom_->color[1] = g;
     mappedRandom_->color[2] = b;
+  }
+}
+
+// ============================================================================
+// Underwater パラメータ
+// ============================================================================
+
+void PostProcess::SetUnderwaterTintColor(float r, float g, float b, float a) {
+  underwaterTintColor_[0] = r;
+  underwaterTintColor_[1] = g;
+  underwaterTintColor_[2] = b;
+  underwaterTintColor_[3] = a;
+  if (mappedUnderwater_) {
+    mappedUnderwater_->tintColor[0] = r;
+    mappedUnderwater_->tintColor[1] = g;
+    mappedUnderwater_->tintColor[2] = b;
+    mappedUnderwater_->tintColor[3] = a;
+  }
+}
+
+void PostProcess::SetUnderwaterDistortionForce(float force) {
+  underwaterDistortionForce_ = force;
+  if (mappedUnderwater_) {
+    mappedUnderwater_->distortionForce = force;
   }
 }
 
@@ -394,6 +467,8 @@ GraphicsPipeline *PostProcess::GetPipelineForEffect(PostEffectType type) {
     return pipelineDissolve_;
   case PostEffectType::RandomNoise:
     return pipelineRandom_;
+  case PostEffectType::Underwater:
+    return pipelineUnderwater_;
   case PostEffectType::None:
   default:
     return pipelineCopy_;
@@ -479,6 +554,17 @@ void PostProcess::DrawSinglePass(ID3D12GraphicsCommandList *cmdList,
   if (effectType == PostEffectType::RandomNoise) {
     // params[3]: b1 (RandomNoise CBuffer)
     cmdList->SetGraphicsRootConstantBufferView(3, cbufferRandom_->GetGPUVirtualAddress());
+  }
+
+  if (effectType == PostEffectType::Underwater) {
+    if (!depthSrv_.IsValid()) {
+      depthSrv_ = dxCore_->SRVMan().CreateTexture2D(
+          dxCore_->GetDepthResource(), DXGI_FORMAT_R24_UNORM_X8_TYPELESS, 1);
+    }
+    // params[2]: t1 (Depth SRV)
+    cmdList->SetGraphicsRootDescriptorTable(2, depthSrv_.gpu);
+    // params[3]: b1 (Underwater CBuffer)
+    cmdList->SetGraphicsRootConstantBufferView(3, cbufferUnderwater_->GetGPUVirtualAddress());
   }
 
   // 全画面三角形（頂点バッファなし、SV_VertexID 使用）
@@ -750,6 +836,37 @@ void PostProcess::DrawImGui([[maybe_unused]] const char *label) {
           mappedRandom_->color[1] = randomColor_[1];
           mappedRandom_->color[2] = randomColor_[2];
         }
+      }
+      ImGui::Unindent();
+    }
+
+    bool underwater = HasEffect(PostEffectType::Underwater);
+    if (ImGui::Checkbox("Underwater", &underwater)) {
+      if (underwater) {
+        AddEffect(PostEffectType::Underwater);
+      } else {
+        RemoveEffect(PostEffectType::Underwater);
+      }
+    }
+    if (underwater) {
+      ImGui::Indent();
+      if (ImGui::ColorEdit4("Tint Color", underwaterTintColor_)) {
+        SetUnderwaterTintColor(underwaterTintColor_[0], underwaterTintColor_[1], underwaterTintColor_[2], underwaterTintColor_[3]);
+      }
+      if (ImGui::ColorEdit4("Fog Color", underwaterFogColor_)) {
+        SetUnderwaterFogColor(underwaterFogColor_[0], underwaterFogColor_[1], underwaterFogColor_[2], underwaterFogColor_[3]);
+      }
+      if (ImGui::SliderFloat("Fog Start", &underwaterFogStart_, 0.0f, 50.0f)) {
+        SetUnderwaterFogRange(underwaterFogStart_, underwaterFogEnd_);
+      }
+      if (ImGui::SliderFloat("Fog End", &underwaterFogEnd_, 10.0f, 300.0f)) {
+        SetUnderwaterFogRange(underwaterFogStart_, underwaterFogEnd_);
+      }
+      if (ImGui::SliderFloat("Distortion Force", &underwaterDistortionForce_, 0.0f, 0.1f)) {
+        SetUnderwaterDistortionForce(underwaterDistortionForce_);
+      }
+      if (ImGui::SliderFloat("Lerp Factor (Debug)", &underwaterLerpFactor_, 0.0f, 1.0f)) {
+        SetUnderwaterLerpFactor(underwaterLerpFactor_);
       }
       ImGui::Unindent();
     }

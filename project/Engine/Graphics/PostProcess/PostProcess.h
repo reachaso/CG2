@@ -24,6 +24,7 @@ enum class PostEffectType {
   RadialBlur, ///< ラジアルブラー
   Dissolve,   ///< ディゾルブ（ノイズマスクによる消失演出）
   RandomNoise,///< ランダムノイズ（時間経過によるプロシージャルノイズ）
+  Underwater, ///< 水中エフェクト（UV歪みと青み）
 };
 
 /// @class PostProcess
@@ -112,6 +113,16 @@ public:
   /// @brief RandomNoise の色を設定する (RGB)
   void SetRandomNoiseColor(float r, float g, float b);
 
+  // ===========================
+  // Underwater パラメータ
+  // ===========================
+
+  /// @brief Underwater の Tint Color を設定する (RGBA)
+  void SetUnderwaterTintColor(float r, float g, float b, float a);
+
+  /// @brief Underwater の歪みの強さを設定する
+  void SetUnderwaterDistortionForce(float force);
+
   /// @brief ポストエフェクトを1つだけ設定する
   /// @details 既存のエフェクトスタックをクリアして、指定されたエフェクトのみを設定します。
   /// @param type 設定するエフェクトの種類（None でエフェクトなし）
@@ -189,6 +200,7 @@ private:
   GraphicsPipeline *pipelineRadialBlur_ = nullptr;
   GraphicsPipeline *pipelineDissolve_ = nullptr;
   GraphicsPipeline *pipelineRandom_ = nullptr;
+  GraphicsPipeline *pipelineUnderwater_ = nullptr;
 
   std::vector<PostEffectType> activeEffects_; ///< アクティブなエフェクトスタック（適用順）
 
@@ -264,4 +276,47 @@ private:
   float randomTime_ = 0.0f;
   float randomIntensity_ = 1.0f;
   float randomColor_[3] = {1.0f, 1.0f, 1.0f};
+
+  // Underwater パラメータ
+  Microsoft::WRL::ComPtr<ID3D12Resource> cbufferUnderwater_;
+  struct UnderwaterData {
+    float projectionInverse[16];
+    float tintColor[4] = {0.2f, 0.5f, 1.0f, 1.0f};
+    float fogColor[4] = {0.0f, 0.3f, 0.6f, 1.0f};
+    float time = 0.0f;
+    float distortionForce = 0.01f;
+    float fogStart = 10.0f;
+    float fogEnd = 150.0f;
+    float lerpFactor = 1.0f;
+    float padding[3] = {0.0f, 0.0f, 0.0f};
+  };
+  UnderwaterData *mappedUnderwater_ = nullptr;
+  float underwaterTintColor_[4] = {0.2f, 0.5f, 1.0f, 1.0f};
+  float underwaterFogColor_[4] = {0.0f, 0.3f, 0.6f, 1.0f};
+  float underwaterDistortionForce_ = 0.01f;
+  float underwaterFogStart_ = 10.0f;
+
+  float underwaterFogEnd_ = 150.0f;
+  float underwaterLerpFactor_ = 1.0f;
+
+public:
+  void SetUnderwaterLerpFactor(float lf) { underwaterLerpFactor_ = lf; }
+  void SetUnderwaterFogColor(float r, float g, float b, float a = 1.0f) {
+      underwaterFogColor_[0] = r; underwaterFogColor_[1] = g;
+      underwaterFogColor_[2] = b; underwaterFogColor_[3] = a;
+      if (mappedUnderwater_) {
+          mappedUnderwater_->fogColor[0] = r;
+          mappedUnderwater_->fogColor[1] = g;
+          mappedUnderwater_->fogColor[2] = b;
+          mappedUnderwater_->fogColor[3] = a;
+      }
+  }
+  void SetUnderwaterFogRange(float start, float end) {
+      underwaterFogStart_ = start;
+      underwaterFogEnd_ = end;
+      if (mappedUnderwater_) {
+          mappedUnderwater_->fogStart = start;
+          mappedUnderwater_->fogEnd = end;
+      }
+  }
 };

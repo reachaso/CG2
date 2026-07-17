@@ -1121,6 +1121,21 @@ void PipelineManager::RegisterDefaultPipelines() {
                     InputLayoutType::None, opt);
   }
 
+  // underwater：水中エフェクト（歪み・青み）
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::PostProcess;
+    opt.enableDepth = false;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = false;
+    opt.cull = D3D12_CULL_MODE_NONE;
+
+    CreateFromFiles("underwater.none",
+                    fullscreenVs,
+                    L"Resources/Shader/Underwater/Underwater.PS.hlsl",
+                    InputLayoutType::None, opt);
+  }
+
   // ====================
   // Compute Shader
   // ====================

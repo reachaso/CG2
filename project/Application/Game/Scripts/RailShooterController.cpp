@@ -13,6 +13,7 @@
 #endif
 
 #include "Engine/Camera/CameraMath.h"
+#include "Engine/Graphics/PostProcess/PostProcess.h"
 #include "ECS/TransformComponent.h"
 #include "ECS/NativeScriptComponent.h"
 #include "ECS/CameraComponent.h"
@@ -146,6 +147,12 @@ public:
 
     // 水中状態フラグ
     bool isUnderwater = false;
+    float transitionTimer = 0.0f;
+    float transitionSpeed = 2.0f; // 0.5秒で完全に切り替わる
+    
+    RC::Vector4 underwaterFogColor = { 0.0f, 0.3f, 0.6f, 1.0f };
+    float underwaterFogStart = 10.0f;
+    float underwaterFogEnd = 150.0f;
 
 private:
     uint64_t bulletsFolderGuid_ = 0;
@@ -182,7 +189,7 @@ protected:
             invincibleTimer -= deltaTime;
         }
 
-        // === 水中判定 ===
+        // === 水中判定とトランジション ===
         if (auto* tr = GetComponent<TransformComponent>()) {
             bool currentUnderwater = (tr->position.y < 0.0f);
             if (currentUnderwater != isUnderwater) {
@@ -190,11 +197,38 @@ protected:
                 if (Entity* self = GetEntity()) {
                     self->SetTag("is_underwater", isUnderwater ? 1 : 0);
                 }
-                // イベント発火としてログを出力
                 if (isUnderwater) {
                     Log::Print("[Event] Transition to Underwater (Dive)");
+                    if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                        postProcess->AddEffect(PostEffectType::Underwater);
+                    }
                 } else {
                     Log::Print("[Event] Transition to Surface (Emerge)");
+                }
+            }
+        }
+
+        // トランジションの更新
+        float targetTransition = isUnderwater ? 1.0f : 0.0f;
+        if (transitionTimer != targetTransition) {
+            if (transitionTimer < targetTransition) {
+                transitionTimer += transitionSpeed * deltaTime;
+                if (transitionTimer > targetTransition) transitionTimer = targetTransition;
+            } else {
+                transitionTimer -= transitionSpeed * deltaTime;
+                if (transitionTimer < targetTransition) transitionTimer = targetTransition;
+            }
+
+            if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                // S字カーブ(SmoothStep)をかけても良いが、とりあえずLinear
+                float smoothedLerp = transitionTimer * transitionTimer * (3.0f - 2.0f * transitionTimer);
+                postProcess->SetUnderwaterLerpFactor(smoothedLerp);
+                postProcess->SetUnderwaterFogColor(underwaterFogColor.x, underwaterFogColor.y, underwaterFogColor.z, underwaterFogColor.w);
+                postProcess->SetUnderwaterFogRange(underwaterFogStart, underwaterFogEnd);
+                
+                // 完全に水上に戻りきったらエフェクト自体をRemoveする
+                if (transitionTimer == 0.0f && !isUnderwater) {
+                    postProcess->RemoveEffect(PostEffectType::Underwater);
                 }
             }
         }
@@ -536,16 +570,7 @@ protected:
             RC::DrawBox({ barX, barY }, { barX + barW, barY + barH }, { 1.0f, 1.0f, 1.0f, 0.5f }, kWire);
         }
 
-        // === Score display (tally circles) ===
-        float scoreX = 40.0f;
-        float scoreY = 40.0f;
-        if (drawPlayerUI) {
-            for (int i = 0; i < score && i < 20; ++i) {
-                float cx = scoreX + (i % 10) * 20.0f;
-                float cy = scoreY + (i / 10) * 20.0f;
-                RC::DrawCircle({ cx, cy }, 7.0f, { 0.3f, 0.7f, 1.0f, 0.9f });
-            }
-        }
+
 
         // === 敵ごとの個別HPバーを頭上に描画 ===
         if (Scene* scene = GetScene()) {
@@ -652,6 +677,29 @@ public:
             ImGui::End();
         }
 
+        // --- HUD Overlay (Score) ---
+        if (!isDead && !isGameCleared) {
+            auto& ctx = RC::GetRenderContext();
+            float screenW = 1280.0f;
+            float screenH = 720.0f;
+            if (ctx.Ctx() && ctx.Ctx()->app) {
+                screenW = static_cast<float>(ctx.Ctx()->app->width);
+                screenH = static_cast<float>(ctx.Ctx()->app->height);
+            }
+            ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.0f);
+            ImGui::Begin("HUDOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::SetWindowFontScale(2.5f);
+            
+            // ドロップシャドウ風
+            ImVec2 pos = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 2.5f, ImVec2(pos.x + 2, pos.y + 2), IM_COL32(0, 0, 0, 255), std::format("SCORE: {:06d}", score).c_str());
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "SCORE: %06d", score);
+            
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::End();
+        }
+
         ImGui::Text("Cursor Pos: (%.1f, %.1f)", cursorPosition.x, cursorPosition.y);
         
         ImGui::Separator();
@@ -675,6 +723,13 @@ public:
         ImGui::Text("Player Stats");
         ImGui::DragInt("HP", &hp, 1, 0, maxHp);
         ImGui::Text("Score: %d", score);
+
+        ImGui::Separator();
+        ImGui::Text("Underwater Settings");
+        ImGui::DragFloat("Transition Speed", &transitionSpeed, 0.1f, 0.1f, 10.0f);
+        ImGui::ColorEdit4("Fog Color", &underwaterFogColor.x);
+        ImGui::DragFloat("Fog Start", &underwaterFogStart, 1.0f, 0.0f, 50.0f);
+        ImGui::DragFloat("Fog End", &underwaterFogEnd, 1.0f, 50.0f, 500.0f);
 #endif
     }
 };

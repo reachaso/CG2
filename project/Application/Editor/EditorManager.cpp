@@ -8,6 +8,7 @@
 #include "RC.h"
 #include "../Game/Scene/Scene.h"
 #include "Render/RenderContext.h"
+#include "Graphics/PostProcess/PostProcess.h"
 #include "Graphics/Texture/TextureManager/TextureManager.h"
 #include "ECS/Entity.h"
 #include "ECS/TransformComponent.h"
@@ -146,6 +147,7 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
       ImGui::MenuItem("Render Queue", nullptr, &showRenderQueue_);
       ImGui::MenuItem("Particle Editor", nullptr, &showParticleEditor_);
       ImGui::MenuItem("Environment Settings", nullptr, &showEnvironmentWindow_);
+      ImGui::MenuItem("Post Effect Settings", nullptr, &showPostEffectWindow_);
       if (ImGui::MenuItem("Reset Layout")) {
         resetLayout_ = true;
       }
@@ -890,6 +892,18 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
             selectedEntity_ = e;
           }
         }
+      }
+    }
+    ImGui::End();
+  }
+
+  // Post Effect Settings パネル
+  if (showPostEffectWindow_) {
+    if (ImGui::Begin("Post Effect Settings", &showPostEffectWindow_)) {
+      if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+          postProcess->DrawImGui("Post Process Effects");
+      } else {
+          ImGui::Text("No PostProcess instance.");
       }
     }
     ImGui::End();
