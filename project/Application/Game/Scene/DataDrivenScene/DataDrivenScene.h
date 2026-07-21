@@ -633,6 +633,41 @@ public:
       if (loader.LoadFromFile(levelDataPath_)) {
         auto loaded = loader.TakeEntities();
         entities_.insert(entities_.end(), loaded.begin(), loaded.end());
+
+        // 自キャラに座標を反映
+        const auto& playerSpawns = loader.GetPlayerSpawns();
+        if (!playerSpawns.empty()) {
+          const auto& playerData = playerSpawns[0];
+          for (auto& e : entities_) {
+            if (e && e->GetName() == "player") {
+              if (auto* tr = e->GetComponent<TransformComponent>()) {
+                tr->position = playerData.translation;
+                tr->rotation = playerData.rotation;
+              }
+              break;
+            }
+          }
+        }
+
+        // 敵キャラの発生処理
+        const auto& enemySpawns = loader.GetEnemySpawns();
+        for (const auto& enemyData : enemySpawns) {
+          std::string entName = enemyData.fileName.empty() ? "Enemy" : enemyData.fileName;
+          auto enemy = std::make_shared<Entity>(entName);
+          
+          auto& tr = enemy->AddComponent<TransformComponent>();
+          tr.position = enemyData.translation;
+          tr.rotation = enemyData.rotation;
+
+          auto& nsc = enemy->AddComponent<NativeScriptComponent>();
+          if (entName == "Shark") {
+            nsc.AddScript("SharkEnemyScript");
+          } else {
+            nsc.AddScript("EnemyAI");
+          }
+
+          entities_.push_back(std::move(enemy));
+        }
       }
     }
 

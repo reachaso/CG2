@@ -13,6 +13,17 @@
 #include "ECS/ModelRendererComponent.h"
 #include "ECS/ColliderComponent.h"
 
+struct PlayerSpawnData {
+  RC::Vector3 translation = {0.0f, 0.0f, 0.0f};
+  RC::Vector3 rotation = {0.0f, 0.0f, 0.0f};
+};
+
+struct EnemySpawnData {
+  RC::Vector3 translation = {0.0f, 0.0f, 0.0f};
+  RC::Vector3 rotation = {0.0f, 0.0f, 0.0f};
+  std::string fileName;
+};
+
 /// @class LevelLoader
 /// @brief Blenderレベルエディタから出力されたJSONレベルデータを読み込み、
 ///        Entityのリストに変換するユーティリティクラス。
@@ -74,6 +85,41 @@ public:
 
       if (type == "MESH") {
         ParseObjectRecursive(object, 0);
+      } else if (type == "PlayerSpawn") {
+        PlayerSpawnData spawn;
+        if (object.contains("transform")) {
+          const auto& tr = object["transform"];
+          if (tr.contains("translation")) {
+            spawn.translation.x = tr["translation"][0].get<float>();
+            spawn.translation.y = tr["translation"][1].get<float>();
+            spawn.translation.z = tr["translation"][2].get<float>();
+          }
+          if (tr.contains("rotation")) {
+            spawn.rotation.x = tr["rotation"][0].get<float>();
+            spawn.rotation.y = tr["rotation"][1].get<float>();
+            spawn.rotation.z = tr["rotation"][2].get<float>();
+          }
+        }
+        playerSpawns_.push_back(spawn);
+      } else if (type == "EnemySpawn") {
+        EnemySpawnData spawn;
+        if (object.contains("transform")) {
+          const auto& tr = object["transform"];
+          if (tr.contains("translation")) {
+            spawn.translation.x = tr["translation"][0].get<float>();
+            spawn.translation.y = tr["translation"][1].get<float>();
+            spawn.translation.z = tr["translation"][2].get<float>();
+          }
+          if (tr.contains("rotation")) {
+            spawn.rotation.x = tr["rotation"][0].get<float>();
+            spawn.rotation.y = tr["rotation"][1].get<float>();
+            spawn.rotation.z = tr["rotation"][2].get<float>();
+          }
+        }
+        if (object.contains("file_name")) {
+            spawn.fileName = object["file_name"].get<std::string>();
+        }
+        enemySpawns_.push_back(spawn);
       }
     }
 
@@ -92,11 +138,27 @@ public:
     return std::move(entities_);
   }
 
+  /// @brief プレイヤースポーンデータのリストを取得する
+  const std::vector<PlayerSpawnData>& GetPlayerSpawns() const {
+    return playerSpawns_;
+  }
+
+  /// @brief 敵スポーンデータのリストを取得する
+  const std::vector<EnemySpawnData>& GetEnemySpawns() const {
+    return enemySpawns_;
+  }
+
 private:
   std::vector<std::shared_ptr<Entity>> entities_;
+  std::vector<PlayerSpawnData> playerSpawns_;
+  std::vector<EnemySpawnData> enemySpawns_;
   std::string modelBaseDir_ = "Resources/model/"; ///< モデルファイルの基準ディレクトリ
 
   void ParseObjectRecursive(const nlohmann::json& object, uint64_t parentGuid) {
+    if (object.contains("disabled") && object["disabled"].get<bool>()) {
+      return; // 無効フラグが立っている場合は読み込みをスキップする
+    }
+
     std::string name = object.contains("name") ? object["name"].get<std::string>() : "Unnamed";
     auto entity = std::make_shared<Entity>(name);
 
