@@ -73,27 +73,6 @@
       "components": [
         {
           "data": {
-            "position": [
-              0.0,
-              2.0,
-              -50.0
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
-        },
-        {
-          "data": {
             "scriptDataList": [
               {},
               {
@@ -175,6 +154,27 @@
           },
           "enabled": true,
           "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              0.0,
+              2.0,
+              -50.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
         },
         {
           "data": {
@@ -312,24 +312,23 @@
       "components": [
         {
           "data": {
-            "position": [
-              2.0,
-              0.10000000149011612,
-              27.0
+            "center": [
+              0.0,
+              0.0,
+              0.0
             ],
-            "rotation": [
-              3.1415927410125732,
-              1.3962633609771729,
-              3.1415927410125732
-            ],
-            "scale": [
-              3.99999737739563,
-              4.0,
-              3.99999737739563
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 0.5,
+            "shape": 0,
+            "size": [
+              0.4000000059604645,
+              0.4000000059604645,
+              1.0
             ]
           },
           "enabled": true,
-          "type": "TransformComponent"
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -357,6 +356,27 @@
           },
           "enabled": true,
           "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              2.0,
+              0.09999999403953552,
+              27.0
+            ],
+            "rotation": [
+              -3.141592502593994,
+              1.3962632417678833,
+              -3.141592502593994
+            ],
+            "scale": [
+              3.99999737739563,
+              4.0,
+              3.99999737739563
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
         },
         {
           "data": {
@@ -395,6 +415,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               -5.0,
               0.0,
@@ -413,26 +453,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -468,6 +488,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               8.0,
               0.0,
@@ -486,26 +526,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -541,6 +561,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               -6.0,
               0.0,
@@ -559,26 +599,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -614,24 +634,23 @@
       "components": [
         {
           "data": {
-            "position": [
-              8.0,
-              0.10000000149011612,
-              -5.0
+            "center": [
+              0.0,
+              0.0,
+              0.0
             ],
-            "rotation": [
-              3.1415927410125732,
-              1.3962633609771729,
-              3.1415927410125732
-            ],
-            "scale": [
-              3.99999737739563,
-              4.0,
-              3.99999737739563
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              0.4000000059604645,
+              0.4000000059604645,
+              1.0
             ]
           },
           "enabled": true,
-          "type": "TransformComponent"
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -659,6 +678,27 @@
           },
           "enabled": true,
           "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              8.0,
+              0.10000000149011612,
+              -5.0
+            ],
+            "rotation": [
+              -3.141592502593994,
+              1.3962632417678833,
+              -3.141592502593994
+            ],
+            "scale": [
+              3.99999737739563,
+              4.0,
+              3.99999737739563
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
         },
         {
           "data": {
@@ -697,6 +737,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               0.0,
               -20.0,
@@ -715,26 +775,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -770,6 +810,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               0.0,
               -25.0,
@@ -788,26 +848,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -843,6 +883,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               -10.0,
               -10.0,
@@ -861,26 +921,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -916,6 +956,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               12.0,
               -12.0,
@@ -934,26 +994,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -989,6 +1029,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               -8.09057331085205,
               -15.0,
@@ -1007,26 +1067,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -1062,6 +1102,26 @@
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               5.0,
               -18.0,
@@ -1080,26 +1140,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
         },
         {
           "data": {

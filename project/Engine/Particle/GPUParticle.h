@@ -92,6 +92,10 @@ public:
   /// @brief プレビューモードを設定する（Render 時に即時描画を行うか）
   void SetPreviewMode(bool isPreview) { isPreview_ = isPreview; }
 
+  /// @brief 使用するグラフィックスパイプラインのプレフィックスを設定する
+  void SetPipelinePrefix(const std::string& prefix) { pipelinePrefix_ = prefix; }
+  const std::string& GetPipelinePrefix() const { return pipelinePrefix_; }
+
   // --- Particle Editor 用パラメータ ---
   float minLifeTime_ = 3.0f;     ///< 最小寿命
   float maxLifeTime_ = 8.0f;     ///< 最大寿命
@@ -171,6 +175,7 @@ private:
   bool visible_ = true;
   bool isPreview_ = false;    ///< プレビューモードか（trueなら即時描画）
   bool needsCSInit_ = false;  ///< CS 初期化を初回フレームに遅延実行するフラグ
+  std::string pipelinePrefix_ = "gpu_particle"; ///< パイプラインのプレフィックス
 
   uint32_t maxParticles_ = 1024; ///< 現在の最大パーティクル数
 

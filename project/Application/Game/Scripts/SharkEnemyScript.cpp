@@ -1,7 +1,9 @@
 #include "EnemyBaseScript.h"
 #include "ECS/ScriptRegistry.h"
+#include "Common/Log/Log.h"
 #include "ECS/TransformComponent.h"
 #include "ECS/CameraComponent.h"
+#include "ECS/ColliderComponent.h"
 #include "Scene.h"
 #include <iostream>
 
@@ -60,7 +62,7 @@ protected:
 
     void OnCreate() override {
         EnemyBaseScript::OnCreate();
-        std::cout << "[SharkEnemyScript] OnCreate\n";
+        Log::Print("[SharkEnemyScript] OnCreate");
         state_ = SharkState::Wait;
         hp = 20; // サメのHP調整
         maxHp = 20;
@@ -69,6 +71,16 @@ protected:
             tr->rotation.x = modelRotationOffsetDeg.x * (3.14159265f / 180.0f);
             tr->rotation.y = modelRotationOffsetDeg.y * (3.14159265f / 180.0f);
             tr->rotation.z = modelRotationOffsetDeg.z * (3.14159265f / 180.0f);
+        }
+
+        // コライダーがなければ追加
+        if (Entity* self = GetEntity()) {
+            if (!self->HasComponent<ColliderComponent>()) {
+                auto* col = &self->AddComponent<ColliderComponent>();
+                col->shape = ColliderComponent::Shape::Sphere;
+                col->radius = 1.0f; // スケールが4倍されているので半径1(直径2)でも十分大きい
+                col->isTrigger = false;
+            }
         }
     }
 
@@ -111,13 +123,23 @@ protected:
         };
         float distToCam = std::sqrt(toCam.x * toCam.x + toCam.z * toCam.z);
 
+        // カメラの前方にいるかどうかの判定（XZ平面での内積）
+        float camCy = std::cos(camTr->rotation.y);
+        float camSy = std::sin(camTr->rotation.y);
+        float dotXZ = 0.0f;
+        if (distToCam > 0.01f) {
+            dotXZ = (camSy * (-toCam.x / distToCam)) + (camCy * (-toCam.z / distToCam));
+        }
+        // dotXZ > 0.2f は前方約150度以内。見えない横や後ろから攻撃されないようにする。
+        bool isInFront = (dotXZ > 0.2f);
+
         // State Machine
         switch (state_) {
             case SharkState::Wait:
-                // プレイヤーが一定距離に入ったらアクティブ(Approach)になる
-                if (distToCam <= detectDistance) {
+                // プレイヤーが一定距離に入り、かつカメラの視界内にいる場合のみアクティブ(Approach)になる
+                if (distToCam <= detectDistance && isInFront) {
                     state_ = SharkState::Approach;
-                    std::cout << "[SharkEnemyScript] Detected player! Switching to Approach.\n";
+                    Log::Print("[SharkEnemyScript] Detected player! Switching to Approach.");
                 } else {
                     // 待機中はその場で円を描いてパトロール
                     swimTime_ += deltaTime;
@@ -158,12 +180,17 @@ protected:
                     tr->position.z += velocity.z * deltaTime;
                 }
 
-                // 攻撃開始距離に入ったらAttack状態へ
-                if (distToCam <= attackStartDistance) {
+                // 攻撃開始距離に入り、かつ視界内にいるならAttack状態へ
+                if (distToCam <= attackStartDistance && isInFront) {
                     state_ = SharkState::Attack;
                     attackTimer_ = 0.0f;
                     hasHit_ = false;
-                    std::cout << "[SharkEnemyScript] Approaching -> Attack!\n";
+                    Log::Print("[SharkEnemyScript] Approaching -> Attack!");
+                } else if (distToCam <= attackStartDistance && !isInFront) {
+                    // 近づいたが視界外の場合、理不尽な攻撃を避けるためにクールダウン（逃げる）状態へ移行
+                    state_ = SharkState::Cooldown;
+                    cooldownTimer_ = cooldownDuration;
+                    Log::Print("[SharkEnemyScript] Player looking away. Switching to Cooldown.");
                 }
                 break;
             case SharkState::Attack:
@@ -183,14 +210,14 @@ protected:
 
                 // 攻撃ヒット距離に入ったらダメージ処理（1回のみ）
                 if (!hasHit_ && distToCam <= attackHitDistance) {
-                    std::cout << "[SharkEnemyScript] Player HIT! Damage triggered.\n";
+                    Log::Print("[SharkEnemyScript] Player HIT! Damage triggered.");
                     mainCamera->SetTag("pending_damage", 1);
                     hasHit_ = true;
                 }
                 
                 // タイムアウトでクールダウンへ（通り過ぎるのを待つ）
                 if (attackTimer_ >= maxAttackDuration) {
-                    std::cout << "[SharkEnemyScript] Attack Finished! To Cooldown.\n";
+                    Log::Print("[SharkEnemyScript] Attack Finished! To Cooldown.");
                     state_ = SharkState::Cooldown;
                     cooldownTimer_ = cooldownDuration;
                 }
@@ -221,7 +248,7 @@ protected:
     }
 
     void OnDestroy() override {
-        std::cout << "[SharkEnemyScript] OnDestroy\n";
+        Log::Print("[SharkEnemyScript] OnDestroy");
     }
 
 public:

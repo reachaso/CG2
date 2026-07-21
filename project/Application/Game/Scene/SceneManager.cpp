@@ -207,7 +207,11 @@ void Scene::SceneManager::Init(SceneContext &ctx) {
   camera_ = std::make_unique<RC::CameraController>();
   camera_->Initialize(ctx.input, RC::Vector3{0.0f, 0.35f, -15.0f},
                       RC::Vector3{0, 0, 0}, 0.45f, width / height, 0.1f, 100.0f);
+#if RC_ENABLE_IMGUI
   camera_->SetUseDebug(true);
+#else
+  camera_->SetUseDebug(false);
+#endif
   ctx.camera = camera_.get();
 
   // Fadeコンポーネントを初期化

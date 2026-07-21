@@ -1202,6 +1202,34 @@ void PipelineManager::RegisterDefaultPipelines() {
     }
   }
 
+  // gpu_particle_bubble: GPU Particle Bubble 描画用（ブレンドモード別）
+  {
+    const std::wstring bubblePtlVs = L"Resources/Shader/Particle/GPUParticle.VS.hlsl";
+    const std::wstring bubblePtlPs = L"Resources/Shader/Particle/BubbleParticle.PS.hlsl";
+
+    for (int m = (int)kBlendModeNone; m <= (int)kBlendModePremultiplied; ++m) {
+      const BlendMode mode = (BlendMode)m;
+
+      // 通常版（深度テストON）
+      GPipelineOptions opt{};
+      opt.rootType = RootSignatureType::GPUParticle;
+      opt.enableDepth = true;
+      opt.enableDepthWrite = false;
+      opt.enableAlphaBlend = (mode != kBlendModeNone);
+      opt.blendMode = mode;
+      opt.cull = D3D12_CULL_MODE_NONE;
+
+      CreateFromFiles(MakeKey("gpu_particle_bubble", mode), bubblePtlVs, bubblePtlPs,
+                      InputLayoutType::Particle, opt);
+
+      // プレビュー版（深度テストOFF）
+      GPipelineOptions optNoDepth = opt;
+      optNoDepth.enableDepth = false;
+      CreateFromFiles(MakeKey("gpu_particle_bubble_nodepth", mode), bubblePtlVs, bubblePtlPs,
+                      InputLayoutType::Particle, optNoDepth);
+    }
+  }
+
   Log::Print(std::format("[PipelineManager] デフォルトパイプライン登録完了 (Graphics: {}, Compute: {})", pipelines_.size(), computePipelines_.size()));
 
   // キャッシュ保存

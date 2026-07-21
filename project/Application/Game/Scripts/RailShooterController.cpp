@@ -260,21 +260,6 @@ protected:
                     if (ehp == -1) { ehp = 30; e->SetTag("current_hp", 30); }
                     if (eMaxHp == -1) { eMaxHp = 30; e->SetTag("max_hp", 30); }
 
-                    // ダメージ処理（敵側のスクリプトが停止していてもここで処理する）
-                    int dmg = e->GetTagInt("pending_damage", 0);
-                    if (dmg > 0) {
-                        ehp -= dmg;
-                        if (ehp < 0) ehp = 0;
-                        e->SetTag("current_hp", ehp);
-                        e->ClearTag("pending_damage");
-                    }
-
-                    // 死亡処理
-                    if (ehp <= 0 && !e->IsPendingDestroy()) {
-                        e->SetTag("enemy_defeated", 1);
-                        e->Destroy(); // 敵を破壊する
-                    }
-
                     totalEnemyHp += ehp;
                     totalEnemyMaxHp += eMaxHp;
                 }

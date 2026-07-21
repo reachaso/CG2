@@ -322,7 +322,7 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
 
   if (ctx.isPlaying() && csSet.ready) {
     // 毎フレーム EmitParticle CS を Dispatch（emitCount_ 個射出）
-    if (perFrameCB_) {
+    if (perFrameCB_ && emitCount_ > 0) {
       csSet.emit.Bind(cl);
       csSet.emit.SetUAV(cl, 0, uavHandle_.gpu);
       csSet.emit.SetUAV(cl, 1, freeListIndexUavHandle_.gpu);
@@ -358,7 +358,7 @@ void GPUParticle::Render(SceneContext &ctx, ID3D12GraphicsCommandList *cl) {
   // パイプライン取得
   GraphicsPipeline *pso = nullptr;
   if (ctx.pipelineManager) {
-    std::string prefix = isPreview_ ? "gpu_particle_nodepth" : "gpu_particle";
+    std::string prefix = isPreview_ ? (pipelinePrefix_ + "_nodepth") : pipelinePrefix_;
     pso = ctx.pipelineManager->Get(
         PipelineManager::MakeKey(prefix, blendMode_));
     if (!pso && blendMode_ != kBlendModeNormal) {
@@ -528,6 +528,7 @@ void GPUParticle::SaveToJson(const std::string& filepath) const {
   j["emitCount"] = emitCount_;
   j["particleType"] = static_cast<int>(currentType_);
   j["blendMode"] = static_cast<int>(blendMode_);
+  j["pipelinePrefix"] = pipelinePrefix_;
   j["texturePath"] = texturePath_;
 
   j["minLifeTime"] = minLifeTime_;
@@ -572,6 +573,7 @@ void GPUParticle::LoadFromJson(const std::string& filepath) {
     if (j.contains("emitCount")) emitCount_ = j["emitCount"].get<uint32_t>();
     if (j.contains("particleType")) SetParticleType(static_cast<ParticleType>(j["particleType"].get<int>()));
     if (j.contains("blendMode")) blendMode_ = static_cast<BlendMode>(j["blendMode"].get<int>());
+    if (j.contains("pipelinePrefix")) SetPipelinePrefix(j["pipelinePrefix"].get<std::string>());
     if (j.contains("texturePath")) SetTexture(j["texturePath"].get<std::string>());
 
     if (j.contains("minLifeTime")) minLifeTime_ = j["minLifeTime"].get<float>();

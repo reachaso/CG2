@@ -4,6 +4,8 @@
 #include "ECS/PrimitiveMeshComponent.h"
 #include "RenderCommon.h"
 #include "Scene.h"
+#include "ECS/GPUParticleComponent.h"
+#include "Particle/GPUParticle.h"
 #include <cmath>
 
 /// @brief Visual splash particle: flies outward and fades
@@ -394,3 +396,66 @@ private:
 };
 
 REGISTER_SCRIPT(BubbleParticle)
+
+/// @brief GPUBubbleEmitter: Emits GPU bubble particles and destroys itself
+class GPUBubbleEmitter : public ScriptableEntity {
+protected:
+    void OnCreate() override {
+        elapsed_ = 0.0f;
+        lifetime_ = 2.0f; // 2秒間エミッターとして存在
+
+        if (Entity* self = GetEntity()) {
+            if (auto* gpu = self->GetComponent<GPUParticleComponent>()) {
+                if (gpu->particleSystem) {
+                    gpu->particleSystem->SetMaxParticles(1024);
+                    gpu->particleSystem->SetParticleType(ParticleType::Explosion);
+                    gpu->particleSystem->SetBlendMode(kBlendModeNormal);
+                    gpu->particleSystem->minScale_ = 0.5f;
+                    gpu->particleSystem->maxScale_ = 1.5f;
+                    // 色付きの泡など、基本は白
+                    gpu->particleSystem->startColor_ = {1.0f, 1.0f, 1.0f, 1.0f}; 
+                    gpu->particleSystem->endColor_ = {1.0f, 1.0f, 1.0f, 0.0f};
+                    gpu->particleSystem->SetEmitCount(100); // 最初の一瞬で一気に出す
+                    gpu->particleSystem->minLifeTime_ = 1.0f;
+                    gpu->particleSystem->maxLifeTime_ = 2.5f;
+                    gpu->particleSystem->gravity_ = -3.0f; // 上に向かって浮上
+                    gpu->particleSystem->baseVelocity_ = {0.0f, 2.0f, 0.0f};
+                    gpu->particleSystem->velocityVariance_ = 0.5f;
+                    gpu->particleSystem->emitterShape_ = EmitterShape::Sphere;
+                    gpu->particleSystem->shapeRadius_ = 1.0f;
+                }
+            }
+        }
+    }
+
+    void OnUpdate(float deltaTime) override {
+        if (markedForDestroy_) return;
+
+        elapsed_ += deltaTime;
+
+        // 生成後すぐに emitCount を 0 にして放出を止める（バースト放出のシミュレート）
+        if (elapsed_ > 0.1f) {
+            if (Entity* self = GetEntity()) {
+                if (auto* gpu = self->GetComponent<GPUParticleComponent>()) {
+                    if (gpu->particleSystem) {
+                        gpu->particleSystem->SetEmitCount(0);
+                    }
+                }
+            }
+        }
+
+        if (elapsed_ >= lifetime_) {
+            markedForDestroy_ = true;
+            if (Entity* self = GetEntity()) {
+                self->Destroy(); // 自身を破棄
+            }
+        }
+    }
+
+private:
+    float elapsed_ = 0.0f;
+    float lifetime_ = 2.0f;
+    bool markedForDestroy_ = false;
+};
+
+REGISTER_SCRIPT(GPUBubbleEmitter)

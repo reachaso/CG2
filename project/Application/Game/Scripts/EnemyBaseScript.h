@@ -2,11 +2,16 @@
 #include "ECS/ScriptableEntity.h"
 #include "ECS/ScriptRegistry.h"
 #include "ECS/TransformComponent.h"
+#include "Scene.h"
 #include "ECS/ModelRendererComponent.h"
 #include "ECS/PrimitiveMeshComponent.h"
+#include "ECS/GPUParticleComponent.h"
+#include "ECS/NativeScriptComponent.h"
+#include "Particle/GPUParticle.h"
 #include "RenderCommon.h"
-#include "Scene.h"
 #include <iostream>
+#include <format>
+#include "Common/Log/Log.h"
 
 #if RC_ENABLE_IMGUI
 #include "imgui/imgui.h"
@@ -14,6 +19,7 @@
 
 #include "Engine/Camera/CameraMath.h"
 #include "ECS/CameraComponent.h"
+#include "ECS/ColliderComponent.h"
 #include "Engine/Render/RenderContext.h"
 
 
@@ -71,6 +77,14 @@ protected:
     void OnCreate() override {
         if (Entity* self = GetEntity()) {
             self->SetTag("is_enemy", 1);
+            
+            // コライダーがなければフェールセーフとして追加
+            if (!self->HasComponent<ColliderComponent>()) {
+                auto* col = &self->AddComponent<ColliderComponent>();
+                col->shape = ColliderComponent::Shape::Sphere;
+                col->radius = 1.0f; // スケール依存
+                col->isTrigger = false;
+            }
         }
     }
 
@@ -121,10 +135,12 @@ public:
         if (isDead) return;
         hp -= damage;
         
+        Log::Print(std::format("[{}] Took {} damage! HP left: {}/{}", GetEntity()->GetName(), damage, hp, maxHp));
+        
         // ダメージを受けた時に赤色にフラッシュさせる
         SaveOriginalColor();
         ApplyColor({1.0f, 0.2f, 0.2f, 1.0f}); // 一時的に赤色に
-        flashTimer = 0.1f; // 0.1秒後に元の色に戻る
+        flashTimer = 0.2f; // 0.2秒後に元の色に戻る
 
         if (hp <= 0) {
             hp = 0;
@@ -133,6 +149,32 @@ public:
             // タグでシーン側に撃破を通知
             if (Entity* self = GetEntity()) {
                 self->SetTag("enemy_defeated", 1);
+                
+                // 撃破後は弾が当たらないようにする
+                self->ClearTag("is_enemy");
+                if (auto* col = self->GetComponent<ColliderComponent>()) {
+                    col->SetEnabled(false);
+                }
+
+                // GPU泡パーティクル発生
+                if (Scene* scene = GetScene()) {
+                    auto emitter = scene->CreateEntity("GPUBubbleEmitter");
+                    auto* tr = &emitter->AddComponent<TransformComponent>();
+                    if (auto* myTr = self->GetComponent<TransformComponent>()) {
+                        tr->position = myTr->position;
+                    }
+                    auto* gpu = &emitter->AddComponent<GPUParticleComponent>();
+                    if (gpu->particleSystem) {
+                        gpu->particleSystem->SetPipelinePrefix("gpu_particle_bubble");
+                    }
+                    
+                    auto* nsc = &emitter->AddComponent<NativeScriptComponent>();
+                    nsc->AddScript("GPUBubbleEmitter");
+                    nsc->SetScene(scene);
+                    if (GetSceneContext()) nsc->SetSceneContext(GetSceneContext());
+
+                    scene->InitDynamicEntityRuntime(*emitter);
+                }
             }
         }
     }

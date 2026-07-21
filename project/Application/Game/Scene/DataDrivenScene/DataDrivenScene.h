@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 #include "Common/Log/Log.h"
 #include "Input/Input.h"
+#include "ECS/LevelLoader.h"
 
 // All component headers (for factory registration)
 #include "ECS/TransformComponent.h"
@@ -29,6 +30,7 @@
 #include "Graphics/Light/Point/PointLightSource.h"
 #include "Graphics/Light/Spot/SpotLightSource.h"
 #include "Graphics/Light/Area/AreaLightSource.h"
+#include "ECS/GPUParticleComponent.h"
 
 /// @class DataDrivenScene
 /// @brief Generic Scene class that builds scenes from JSON files.
@@ -239,6 +241,21 @@ public:
     // 水面の累積時間を更新
     waterTime_ += ctx.deltaTime;
     RC::SetWaterTime(waterTime_);
+
+    // GPUParticle の更新
+    for (auto& e : entities_) {
+        if (!e->IsVisible() || !e->IsActive()) continue;
+        if (auto* gpu = e->GetComponent<GPUParticleComponent>()) {
+            if (gpu->isInitialized && gpu->particleSystem) {
+                if (auto* tr = e->GetComponent<TransformComponent>()) {
+                    gpu->particleSystem->emitterPosition_ = tr->position;
+                }
+                if (ctx.camera) {
+                    gpu->particleSystem->Update(ctx.camera->GetView(), ctx.camera->GetProjection(), ctx.deltaTime);
+                }
+            }
+        }
+    }
 
     float updateDt = ctx.isPlaying() ? ctx.deltaTime : 0.0f;
 
@@ -479,6 +496,16 @@ public:
         }
     }
 
+    // GPUParticle の描画
+    for (auto& e : entities_) {
+        if (!e->IsVisible() || !e->IsActive()) continue;
+        if (auto* gpu = e->GetComponent<GPUParticleComponent>()) {
+            if (gpu->isInitialized && gpu->particleSystem) {
+                gpu->particleSystem->Render(ctx, cl);
+            }
+        }
+    }
+
     // === ギズモ描画（オーバーレイ: モデルの上に常に描画） ===
     RC::BeginOverlay3D();
     DrawLightGizmos(selectedEntityId_);
@@ -601,6 +628,14 @@ public:
       }
     }
 
+    if (!levelDataPath_.empty()) {
+      LevelLoader loader;
+      if (loader.LoadFromFile(levelDataPath_)) {
+        auto loaded = loader.TakeEntities();
+        entities_.insert(entities_.end(), loaded.begin(), loaded.end());
+      }
+    }
+
     Log::Print("[DataDrivenScene] Loaded: " + filePath_ +
                " (" + std::to_string(entities_.size()) + " entities)");
     return true;
@@ -611,6 +646,9 @@ public:
 
   /// @brief Change scene name
   void SetSceneName(const std::string& name) { sceneName_ = name; }
+
+  /// @brief Set additional level data JSON path
+  void SetLevelDataPath(const std::string& path) { levelDataPath_ = path; }
 
   /// @brief Backup the current state of entities to memory
   void BackupState() {
@@ -661,6 +699,7 @@ public:
 private:
   std::string sceneName_;
   std::string filePath_;
+  std::string levelDataPath_; ///< Blenderからエクスポートした追加レベルデータのパス
   float waterTime_ = 0.0f; ///< 水面アニメーション用累積時間
   nlohmann::json backupJson_; ///< メモリ上へのバックアップ用
 
@@ -688,6 +727,7 @@ private:
     Entity::ComponentFactory::Register<WaterComponent>("WaterComponent");
     Entity::ComponentFactory::Register<RigidbodyComponent>("RigidbodyComponent");
     Entity::ComponentFactory::Register<NativeScriptComponent>("NativeScriptComponent");
+    Entity::ComponentFactory::Register<GPUParticleComponent>("GPUParticleComponent");
   }
 
   void InitializeRuntimeResources(Entity& e, SceneContext& ctx) {
@@ -786,6 +826,13 @@ private:
           water->meshHandle = RC::GenerateWaterPlane(
               water->planeWidth, water->planeHeight, water->segments, normalMap);
       }
+      if (auto* gpu = e.GetComponent<GPUParticleComponent>()) {
+          if (gpu->particleSystem) {
+              gpu->particleSystem->SetTexture(gpu->texturePath);
+              gpu->particleSystem->Initialize(ctx);
+              gpu->isInitialized = true;
+          }
+      }
   }
 
   void ReleaseRuntimeResources(Entity& e) {
@@ -818,6 +865,12 @@ private:
       }
       if (auto* water = e.GetComponent<WaterComponent>()) {
           if (water->meshHandle >= 0) { RC::UnloadWater(water->meshHandle); water->meshHandle = -1; }
+      }
+      if (auto* gpu = e.GetComponent<GPUParticleComponent>()) {
+          if (gpu->particleSystem) {
+              gpu->particleSystem->Finalize();
+          }
+          gpu->isInitialized = false;
       }
   }
 };

@@ -2291,6 +2291,18 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
           peParticle_->SetBlendMode(static_cast<BlendMode>(blendInt));
         }
 
+        // Pipeline Prefix
+        ImGui::Separator();
+        ImGui::Text("Pipeline");
+        const char* pipelineNames[] = {"gpu_particle", "gpu_particle_bubble"};
+        int currentPipelineInt = 0;
+        if (peParticle_->GetPipelinePrefix() == "gpu_particle_bubble") {
+            currentPipelineInt = 1;
+        }
+        if (ImGui::Combo("Pipeline Prefix", &currentPipelineInt, pipelineNames, IM_ARRAYSIZE(pipelineNames))) {
+            peParticle_->SetPipelinePrefix(pipelineNames[currentPipelineInt]);
+        }
+
         // テクスチャ変更
         ImGui::Separator();
         ImGui::Text("Texture");

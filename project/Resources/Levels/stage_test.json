@@ -1,0 +1,125 @@
+{
+    "name": "scene",
+    "objects": [
+        {
+            "type": "MESH",
+            "name": "Ground",
+            "transform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            },
+            "file_name": "terrain.obj"
+        },
+        {
+            "type": "MESH",
+            "name": "Player",
+            "transform": {
+                "translation": [0.0, 1.0, 0.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            },
+            "file_name": "player.obj",
+            "collider": {
+                "type": "BOX",
+                "center": [0.0, 0.0, 0.0],
+                "size": [2.0, 2.0, 2.0]
+            }
+        },
+        {
+            "type": "MESH",
+            "name": "Enemy1",
+            "transform": {
+                "translation": [5.0, 1.0, 3.0],
+                "rotation": [0.0, 45.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            },
+            "file_name": "enemy.obj",
+            "collider": {
+                "type": "BOX",
+                "center": [0.0, 0.0, 0.0],
+                "size": [2.0, 2.0, 2.0]
+            }
+        },
+        {
+            "type": "MESH",
+            "name": "Enemy2",
+            "transform": {
+                "translation": [-4.0, 1.0, 6.0],
+                "rotation": [0.0, -90.0, 0.0],
+                "scaling": [1.5, 1.5, 1.5]
+            },
+            "file_name": "enemy.obj",
+            "collider": {
+                "type": "BOX",
+                "center": [0.0, 0.0, 0.0],
+                "size": [3.0, 3.0, 3.0]
+            }
+        },
+        {
+            "type": "MESH",
+            "name": "EnemyGroup",
+            "transform": {
+                "translation": [10.0, 0.0, -5.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            },
+            "file_name": "enemy.obj",
+            "collider": {
+                "type": "BOX",
+                "center": [0.0, 0.0, 0.0],
+                "size": [2.0, 2.0, 2.0]
+            },
+            "children": [
+                {
+                    "type": "MESH",
+                    "name": "EnemyChild1",
+                    "transform": {
+                        "translation": [2.0, 0.0, 0.0],
+                        "rotation": [0.0, 0.0, 0.0],
+                        "scaling": [0.8, 0.8, 0.8]
+                    },
+                    "file_name": "enemy.obj",
+                    "collider": {
+                        "type": "BOX",
+                        "center": [0.0, 0.0, 0.0],
+                        "size": [1.6, 1.6, 1.6]
+                    }
+                },
+                {
+                    "type": "MESH",
+                    "name": "EnemyChild2",
+                    "transform": {
+                        "translation": [-2.0, 0.0, 0.0],
+                        "rotation": [0.0, 180.0, 0.0],
+                        "scaling": [0.8, 0.8, 0.8]
+                    },
+                    "file_name": "enemy.obj",
+                    "collider": {
+                        "type": "BOX",
+                        "center": [0.0, 0.0, 0.0],
+                        "size": [1.6, 1.6, 1.6]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "LIGHT",
+            "name": "Light",
+            "transform": {
+                "translation": [0.0, 10.0, 0.0],
+                "rotation": [37.261, 106.936, 3.163],
+                "scaling": [1.0, 1.0, 1.0]
+            }
+        },
+        {
+            "type": "CAMERA",
+            "name": "Camera",
+            "transform": {
+                "translation": [0.0, 5.0, -10.0],
+                "rotation": [63.559, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            }
+        }
+    ]
+}
