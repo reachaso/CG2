@@ -7,17 +7,15 @@
 
 namespace RC {
 
-Animation LoadAnimationFile(const std::string& filePath) {
+namespace {
+/// @brief 内部共通: 指定インデックスのアニメーションをパースする
+Animation ParseAnimation_(const aiScene* scene, int animIndex) {
     Animation animation;
-    Assimp::Importer importer;
-
-    const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_MakeLeftHanded);
-    if (!scene || scene->mNumAnimations == 0) {
-        // アニメーションが無い場合は空のAnimationを返す（assertで落とさない）
+    if (!scene || animIndex < 0 || static_cast<unsigned>(animIndex) >= scene->mNumAnimations) {
         return animation;
     }
 
-    aiAnimation* animationAssimp = scene->mAnimations[0]; // 最初のアニメーションだけ採用
+    aiAnimation* animationAssimp = scene->mAnimations[animIndex];
     animation.duration = float(animationAssimp->mDuration / animationAssimp->mTicksPerSecond);
 
     // NodeAnimationを解析する
@@ -30,7 +28,7 @@ Animation LoadAnimationFile(const std::string& filePath) {
             aiVectorKey& keyAssimp = nodeAnimationAssimp->mPositionKeys[keyIndex];
             KeyframeVector3 keyframe;
             keyframe.time = float(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
-            keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z }; // aiProcess_MakeLeftHanded で変換済み
+            keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z };
             nodeAnimation.translate.push_back(keyframe);
         }
 
@@ -39,7 +37,6 @@ Animation LoadAnimationFile(const std::string& filePath) {
             aiQuatKey& keyAssimp = nodeAnimationAssimp->mRotationKeys[keyIndex];
             KeyframeQuaternion keyframe;
             keyframe.time = float(keyAssimp.mTime / animationAssimp->mTicksPerSecond);
-            // aiProcess_MakeLeftHanded で変換済みのため手動反転不要
             keyframe.value = { keyAssimp.mValue.x, keyAssimp.mValue.y, keyAssimp.mValue.z, keyAssimp.mValue.w };
             nodeAnimation.rotate.push_back(keyframe);
         }
@@ -55,6 +52,24 @@ Animation LoadAnimationFile(const std::string& filePath) {
     }
 
     return animation;
+}
+} // namespace
+
+Animation LoadAnimationFile(const std::string& filePath) {
+    return LoadAnimationFile(filePath, 0);
+}
+
+Animation LoadAnimationFile(const std::string& filePath, int animIndex) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_MakeLeftHanded);
+    return ParseAnimation_(scene, animIndex);
+}
+
+int GetAnimationCount(const std::string& filePath) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_MakeLeftHanded);
+    if (!scene) return 0;
+    return static_cast<int>(scene->mNumAnimations);
 }
 
 Vector3 CalculateValue(const std::vector<KeyframeVector3>& keyframes, float time) {

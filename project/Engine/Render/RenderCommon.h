@@ -398,10 +398,34 @@ void AttachModelAnimation(int modelHandle);
 /// @param filePath アニメーションファイルのパス
 void AttachModelAnimation(int modelHandle, const std::string& filePath);
 
+/// @brief アニメーションを別ファイルからインデックス指定でアタッチする
+/// @param modelHandle モデルハンドル
+/// @param filePath アニメーションファイルのパス
+/// @param animIndex アニメーションインデックス（0始まり）
+void AttachModelAnimation(int modelHandle, const std::string& filePath, int animIndex);
+
+/// @brief 別のファイルからロードしたアニメーションへクロスフェードで滑らかに遷移させる
+/// @param modelHandle モデルハンドル
+/// @param filePath 新しく再生するアニメーションファイルのパス
+/// @param blendDuration 切り替えに要するブレンド時間（秒）（デフォルト0.2秒）
+void CrossfadeModelAnimation(int modelHandle, const std::string& filePath, float blendDuration = 0.2f);
+
+/// @brief 別のファイルからインデックス指定でアニメーションをロードし、クロスフェードで滑らかに遷移させる
+/// @param modelHandle モデルハンドル
+/// @param filePath アニメーションファイルのパス
+/// @param animIndex アニメーションインデックス（0始まり）
+/// @param blendDuration 切り替えに要するブレンド時間（秒）（デフォルト0.2秒）
+void CrossfadeModelAnimation(int modelHandle, const std::string& filePath, int animIndex, float blendDuration = 0.2f);
+
 /// @brief モデルのアニメーション状態を更新する
 /// @param modelHandle モデルハンドル
 /// @param dt 経過時間 (負の値ならエンジンの deltaTime を自動使用)
 void UpdateModelAnimation(int modelHandle, float dt = -1.0f);
+
+/// @brief モデルにアタッチされているアニメーションの再生時間（秒）を取得する
+/// @param modelHandle モデルハンドル
+/// @return 再生時間（秒）
+float GetModelAnimationDuration(int modelHandle);
 
 /// @brief モデルのスケルトンをデバッグ描画する（Joint球 + Bone線）
 /// @param modelHandle モデルハンドル
@@ -411,6 +435,11 @@ void DrawModelSkeleton(int modelHandle);
 /// @param modelHandle モデルハンドル
 /// @return スキンデータが存在すれば true
 bool HasModelSkinData(int modelHandle);
+
+/// @brief モデルにスケルトン構造が含まれているかを返す（ボーンウェイト無しの階層アニメーションも含む）
+/// @param modelHandle モデルハンドル
+/// @return スケルトン構造が存在すれば true
+bool HasModelSkeleton(int modelHandle);
 /// @brief モデルのライティングモードを設定する
 /// @param modelHandle モデルハンドル
 /// @param m ライティングモード

@@ -1,0 +1,307 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.5
+            ],
+            "intensity": 1.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "DirectionalLightComponent"
+        }
+      ],
+      "guid": 17663892314587863526,
+      "isFolder": false,
+      "locked": false,
+      "name": "Directional Light",
+      "parentGuid": 0,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              1.101508040335375e-08,
+              3.0,
+              -8.0
+            ],
+            "rotation": [
+              0.244978666305542,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "farZ": 100.0,
+            "fovY": 0.44999998807907104,
+            "isMain": true,
+            "nearZ": 0.10000000149011612
+          },
+          "enabled": true,
+          "type": "CameraComponent"
+        }
+      ],
+      "guid": 18092012943661864353,
+      "isFolder": false,
+      "locked": false,
+      "name": "Main Camera",
+      "parentGuid": 0,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.5,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              0.5,
+              1.0,
+              0.5
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
+            "position": [
+              1.101508040335375e-08,
+              -0.07294921576976776,
+              1.1015076850640071e-08
+            ],
+            "rotation": [
+              -3.141592502593994,
+              -8.742277657347586e-08,
+              -3.141592502593994
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "animAttack": 3,
+                "animIdle1": 4,
+                "animIdle2": 1,
+                "animRun": 2,
+                "animWalk": 0,
+                "blendDuration": 0.20000000298023224,
+                "cameraDeadZoneX": 1.5,
+                "cameraDistance": 8.0,
+                "cameraHeight": 3.0,
+                "cameraLookHeight": 1.0,
+                "idleTimeout": 5.0,
+                "runSpeed": 8.0,
+                "walkSpeed": 3.0
+              }
+            ],
+            "scriptTypeName": "FarmerController",
+            "scriptTypeNames": [
+              "FarmerController"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/farmers/farmer.glb",
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        },
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        }
+      ],
+      "guid": 10978614716754420043,
+      "isFolder": false,
+      "locked": false,
+      "name": "Farmer",
+      "parentGuid": 0,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              10.0,
+              10.0,
+              10.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "skyboxPath": "Resources/SkyBox/skybox.dds",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "SkyboxComponent"
+        }
+      ],
+      "guid": 14871260829876168159,
+      "isFolder": false,
+      "locked": false,
+      "name": "Skybox",
+      "parentGuid": 0,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              -0.3121985197067261,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              10.0,
+              0.5,
+              10.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
+            "type": 1,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "guid": 13511340377571299254,
+      "isFolder": false,
+      "locked": false,
+      "name": "Cube",
+      "parentGuid": 0,
+      "tags": {},
+      "visible": false
+    }
+  ],
+  "sceneName": "CG4"
+}

@@ -270,9 +270,29 @@ public:
   /// @param filePath アニメーションファイル(.gltf等)のパス
   void AttachAnimation(const std::string& filePath);
 
+  /// @brief 指定したファイルからインデックス指定でアニメーションをロード・アタッチする
+  /// @param filePath アニメーションファイル(.gltf/.glb等)のパス
+  /// @param animIndex アニメーションインデックス（0始まり）
+  void AttachAnimation(const std::string& filePath, int animIndex);
+
+  /// @brief 指定したファイルからアニメーションをロードし、現在のアニメーションからクロスフェード（ブレンド）して切り替える
+  /// @param filePath 新しいアニメーションファイル(.gltf等)のパス
+  /// @param blendDuration 切り替えにかけるブレンド秒数 (例: 0.2f)
+  void CrossfadeAnimation(const std::string& filePath, float blendDuration = 0.2f);
+
+  /// @brief 指定したファイルからインデックス指定でアニメーションをロードし、クロスフェードで切り替える
+  /// @param filePath アニメーションファイル(.gltf/.glb等)のパス
+  /// @param animIndex アニメーションインデックス（0始まり）
+  /// @param blendDuration 切り替えにかけるブレンド秒数 (例: 0.2f)
+  void CrossfadeAnimation(const std::string& filePath, int animIndex, float blendDuration = 0.2f);
+
   /// @brief アニメーションを更新し、Skeletonに適用する
   /// @param dt 経過時間
   void UpdateAnimation(float dt);
+
+  /// @brief 現在ロードしているアニメーションの再生時間（秒）を取得する
+  /// @return 再生時間（秒）
+  float GetAnimationDuration() const { return animation_.duration; }
 
   /// @brief スケルトンのデバッグ描画を行う
   /// @details 各Jointを球で、親子関係のあるJoint同士を線で描画する
@@ -288,10 +308,16 @@ public:
   const std::vector<RC::Matrix4x4> &GetSkinMatrices() const { return skinMatrices_; }
 
 private:
-  RC::Animation animation_;   ///< ロードしたアニメーションデータ
+  RC::Animation animation_;   ///< ロードしたアニメーションデータ（現在・切り替え後）
   float animationTime_ = 0.0f;///< アニメーション再生時間
   bool isAnimated_ = false;   ///< アニメーションが有効かどうか
   bool animationRequested_ = false; ///< AttachAnimationが呼ばれたか（遅延ロード用）
+
+  // === アニメーション補間（クロスフェード）関連 ===
+  RC::Animation prevAnimation_;       ///< 切り替え前のアニメーションデータ (ブレンド用A)
+  float prevAnimationTime_ = 0.0f;    ///< 切り替え前のアニメーション再生時間
+  float blendFactor_ = 1.0f;          ///< ブレンド割合 t (0.0=Aのみ, 1.0=B/完了)
+  float blendDuration_ = 0.2f;        ///< クロスフェードの所要時間 (秒)
 
   Skeleton skeleton_;          ///< スケルトンデータ
   bool hasSkeleton_ = false;   ///< スケルトンが構築済みか
@@ -299,3 +325,4 @@ private:
   // === スキニング関連 ===
   std::vector<RC::Matrix4x4> skinMatrices_; ///< スキンクラスター行列パレット (T_i = IBP_i * SSM_i)
 };
+

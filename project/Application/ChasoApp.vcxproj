@@ -175,6 +175,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\Application\Game\Scripts\SharkEnemyScript.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\WaterBullet.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\SplashParticle.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\FarmerController.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Scene.cpp" />
     <ClCompile Include="..\Application\Game\Scene\SceneManager.cpp" />

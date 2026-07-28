@@ -261,10 +261,34 @@ void ModelManager::AttachAnimation(int handle, const std::string& filePath) {
   models_[handle].ptr->AttachAnimation(filePath);
 }
 
+void ModelManager::AttachAnimation(int handle, const std::string& filePath, int animIndex) {
+  std::lock_guard<std::recursive_mutex> lock(mtx_);
+  if (!IsValid(handle)) return;
+  models_[handle].ptr->AttachAnimation(filePath, animIndex);
+}
+
+void ModelManager::CrossfadeAnimation(int handle, const std::string& filePath, float blendDuration) {
+  std::lock_guard<std::recursive_mutex> lock(mtx_);
+  if (!IsValid(handle)) return;
+  models_[handle].ptr->CrossfadeAnimation(filePath, blendDuration);
+}
+
+void ModelManager::CrossfadeAnimation(int handle, const std::string& filePath, int animIndex, float blendDuration) {
+  std::lock_guard<std::recursive_mutex> lock(mtx_);
+  if (!IsValid(handle)) return;
+  models_[handle].ptr->CrossfadeAnimation(filePath, animIndex, blendDuration);
+}
+
 void ModelManager::UpdateAnimation(int handle, float dt) {
   std::lock_guard<std::recursive_mutex> lock(mtx_);
   if (!IsValid(handle)) return;
   models_[handle].ptr->UpdateAnimation(dt);
+}
+
+float ModelManager::GetAnimationDuration(int handle) const {
+  std::lock_guard<std::recursive_mutex> lock(mtx_);
+  if (!IsValid(handle)) return 0.0f;
+  return models_[handle].ptr->GetAnimationDuration();
 }
 
 void ModelManager::ResetAllBatchCursors() {

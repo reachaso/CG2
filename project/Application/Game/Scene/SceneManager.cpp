@@ -399,6 +399,7 @@ bool Scene::SceneManager::CreateNewScene(const std::string& name, const std::str
         tr->position = {0.0f, 1.0f, -10.0f};
     }
 
+    scene->FlushPendingEntities();
     scene->Save();
   }
 

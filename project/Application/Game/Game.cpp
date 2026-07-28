@@ -15,11 +15,11 @@ void Game::Init(SceneContext &ctx) {
 
   // Here we decide the first scene to boot into (Game's responsibility)
 #if defined(RC_DEVELOPMENT)
-  const char *boot = "Select";
+  const char *boot = "CG4";
 #elif defined(_DEBUG)
-  const char *boot = "Game";
+  const char *boot = "CG4";
 #else
-  const char *boot = "Select";
+  const char *boot = "CG4";
 #endif
   sceneMgr_.ChangeImmediately(boot, ctx);
 }

@@ -118,7 +118,7 @@ public:
                 if (ren->HasModel()) {
                     if (auto* modelTr = RC::GetModelTransformPtr(ren->modelHandle)) {
                         auto* anim = e->GetComponent<AnimationComponent>();
-                        if (anim && anim->attached_ && !RC::HasModelSkinData(ren->modelHandle)) {
+                        if (anim && anim->attached_ && !RC::HasModelSkinData(ren->modelHandle) && !RC::HasModelSkeleton(ren->modelHandle) && !e->GetComponent<NativeScriptComponent>()) {
                             // Node animation case: animation controls the root transform.
                             // Read back from modelTr to TransformComponent to keep them in sync,
                             // and avoid overwriting the animation frame.
@@ -271,6 +271,24 @@ public:
 
     UpdateEntities(updateDt);
     ResolveCollisions();
+
+    // スクリプト更新および物理衝突解決後の最新座標・回転をモデルへ同期
+    for (auto& e : entities_) {
+        if (auto* tr = e->GetComponent<TransformComponent>()) {
+            if (auto* ren = e->GetComponent<ModelRendererComponent>()) {
+                if (ren->HasModel()) {
+                    if (auto* modelTr = RC::GetModelTransformPtr(ren->modelHandle)) {
+                        auto* anim = e->GetComponent<AnimationComponent>();
+                        if (anim && anim->attached_ && !RC::HasModelSkinData(ren->modelHandle) && !RC::HasModelSkeleton(ren->modelHandle) && !e->GetComponent<NativeScriptComponent>()) {
+                            tr->SetFromTransform(*modelTr);
+                        } else {
+                            *modelTr = tr->ToTransform();
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // === ゲーム結果判定（プレイ中のみ） ===
     if (ctx.isPlaying() && !resultTriggered_) {
@@ -570,7 +588,8 @@ public:
   // =================================================================
 
   /// @brief Save current scene state to JSON file
-  bool Save() const {
+  bool Save() {
+    FlushPendingEntities();
     nlohmann::json root;
     root["sceneName"] = sceneName_;
     nlohmann::json entitiesJson = nlohmann::json::array();

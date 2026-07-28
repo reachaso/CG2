@@ -23,7 +23,7 @@ struct AppConfig {
   bool vsync = true; ///< 垂直同期 (V-Sync) を有効にするか
 
 #if defined(RC_DEVELOPMENT)
-  std::string title = "CG3"; ///< 開発ビルド時のタイトル
+  std::string title = "LE3B_03_オオシマ_タイガ_CG4"; ///< 開発ビルド時のタイトル
 #elif defined(_DEBUG)
   std::string title = "ChasoEngine"; ///< デバッグビルド時のタイトル
 #else

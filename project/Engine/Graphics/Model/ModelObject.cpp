@@ -467,6 +467,51 @@ static void ApplyAnimation(Skeleton& skeleton,
 }
 
 // ------------------------------------------------------------------
+// ApplyAnimationBlend: 2つのAnimationを同時に進めて t でブレンド適用する (回転は球面線形補間)
+// ------------------------------------------------------------------
+static void ApplyAnimationBlend(Skeleton& skeleton,
+                                const RC::Animation& animA, float timeA,
+                                const RC::Animation& animB, float timeB,
+                                float t) {
+    for (Joint& joint : skeleton.joints) {
+        auto itA = animA.nodeAnimations.find(joint.name);
+        auto itB = animB.nodeAnimations.find(joint.name);
+        
+        bool hasA = (itA != animA.nodeAnimations.end());
+        bool hasB = (itB != animB.nodeAnimations.end());
+
+        if (hasA && hasB) {
+            const RC::NodeAnimation& nodeAnimA = itA->second;
+            const RC::NodeAnimation& nodeAnimB = itB->second;
+
+            RC::Vector3 posA = RC::CalculateValue(nodeAnimA.translate, timeA);
+            RC::Vector3 posB = RC::CalculateValue(nodeAnimB.translate, timeB);
+            RC::Quaternion rotA = RC::CalculateValue(nodeAnimA.rotate, timeA);
+            RC::Quaternion rotB = RC::CalculateValue(nodeAnimB.rotate, timeB);
+            RC::Vector3 sclA = RC::CalculateValue(nodeAnimA.scale, timeA);
+            RC::Vector3 sclB = RC::CalculateValue(nodeAnimB.scale, timeB);
+
+            // 補間: tB + (1-t)A （回転は Slerp）
+            joint.transform.translate = Lerp(posA, posB, t);
+            joint.transform.rotate    = Slerp(rotA, rotB, t);
+            joint.transform.scale     = Lerp(sclA, sclB, t);
+        } else if (hasB) {
+            // 次のアニメーションにしかキーが無い場合はBのみ適用
+            const RC::NodeAnimation& nodeAnimB = itB->second;
+            joint.transform.translate = RC::CalculateValue(nodeAnimB.translate, timeB);
+            joint.transform.rotate    = RC::CalculateValue(nodeAnimB.rotate, timeB);
+            joint.transform.scale     = RC::CalculateValue(nodeAnimB.scale, timeB);
+        } else if (hasA) {
+            // 前のアニメーションにしかキーが無い場合はAのみ適用
+            const RC::NodeAnimation& nodeAnimA = itA->second;
+            joint.transform.translate = RC::CalculateValue(nodeAnimA.translate, timeA);
+            joint.transform.rotate    = RC::CalculateValue(nodeAnimA.rotate, timeA);
+            joint.transform.scale     = RC::CalculateValue(nodeAnimA.scale, timeA);
+        }
+    }
+}
+
+// ------------------------------------------------------------------
 // AttachAnimation
 // ------------------------------------------------------------------
 
@@ -480,11 +525,16 @@ void ModelObject::AttachAnimation() {
 }
 
 void ModelObject::AttachAnimation(const std::string& filePath) {
+    AttachAnimation(filePath, 0);
+}
+
+void ModelObject::AttachAnimation(const std::string& filePath, int animIndex) {
     if (filePath.empty()) return;
     animationRequested_ = true;
-    animation_ = RC::LoadAnimationFile(filePath);
+    animation_ = RC::LoadAnimationFile(filePath, animIndex);
     isAnimated_ = (animation_.duration > 0.0f && !animation_.nodeAnimations.empty());
     animationTime_ = 0.0f;
+    blendFactor_ = 1.0f; // 新しくアタッチされたらブレンドなし
 
     // メッシュが既にロード済みならSkeletonを即座に構築
     if (resource_.GetMesh() && resource_.GetMesh()->Ready()) {
@@ -493,6 +543,48 @@ void ModelObject::AttachAnimation(const std::string& filePath) {
         hasSkeleton_ = true;
     }
     // メッシュ未ロードの場合、UpdateAnimation内で遅延構築する
+}
+
+// ------------------------------------------------------------------
+// CrossfadeAnimation: 前のAnimationとブレンド切り替え
+// ------------------------------------------------------------------
+void ModelObject::CrossfadeAnimation(const std::string& filePath, float blendDuration) {
+    CrossfadeAnimation(filePath, 0, blendDuration);
+}
+
+void ModelObject::CrossfadeAnimation(const std::string& filePath, int animIndex, float blendDuration) {
+    if (filePath.empty()) return;
+
+    // まだアニメーションが未再生、またはブレンド秒数がほぼ0の場合は通常アタッチ
+    if (!isAnimated_ || blendDuration <= 0.001f) {
+        AttachAnimation(filePath, animIndex);
+        return;
+    }
+
+    // 現在の Animation (A) を退避
+    prevAnimation_ = animation_;
+    prevAnimationTime_ = animationTime_;
+    blendDuration_ = blendDuration;
+    blendFactor_ = 0.0f; // 補間割合 0.0 (=前アニメーション A から開始)
+    animationRequested_ = true;
+
+    // 次の Animation (B) をロード
+    animation_ = RC::LoadAnimationFile(filePath, animIndex);
+    animationTime_ = 0.0f;
+    isAnimated_ = (animation_.duration > 0.0f && !animation_.nodeAnimations.empty());
+
+    if (!isAnimated_) {
+        // 読み込み失敗時は補間をスキップして終了
+        blendFactor_ = 1.0f;
+        return;
+    }
+
+    // メッシュが既にロード済みでスケルトン未作成なら構築
+    if (resource_.GetMesh() && resource_.GetMesh()->Ready() && !hasSkeleton_) {
+        skeleton_ = CreateSkeleton(resource_.GetMesh()->RootNode());
+        UpdateSkeleton(skeleton_);
+        hasSkeleton_ = true;
+    }
 }
 
 // ------------------------------------------------------------------
@@ -525,7 +617,24 @@ void ModelObject::UpdateAnimation(float dt) {
         hasSkeleton_ = true;
     }
 
-    // アニメーション時間を進める
+    // 切り替え補間中の場合：前のアニメーション(A)も「同時に再生しておく」
+    if (blendFactor_ < 1.0f) {
+        prevAnimationTime_ += dt;
+        if (prevAnimation_.duration > 1e-6f) {
+            prevAnimationTime_ = std::fmod(prevAnimationTime_, prevAnimation_.duration);
+        } else {
+            prevAnimationTime_ = 0.0f;
+        }
+
+        // 補間割合 t を進行
+        blendFactor_ += dt / blendDuration_;
+        if (blendFactor_ >= 1.0f) {
+            blendFactor_ = 1.0f;
+            prevAnimation_ = RC::Animation(); // 切り替え完了、前のデータ解放
+        }
+    }
+
+    // 次のアニメーション(B)時間を進める
     animationTime_ += dt;
     if (animation_.duration > 1e-6f) {
         animationTime_ = std::fmod(animationTime_, animation_.duration);
@@ -535,7 +644,13 @@ void ModelObject::UpdateAnimation(float dt) {
 
     // Skeleton パス: 全Jointの階層行列を更新
     if (hasSkeleton_) {
-        ApplyAnimation(skeleton_, animation_, animationTime_);
+        if (blendFactor_ < 1.0f && !prevAnimation_.nodeAnimations.empty()) {
+            // 2つのAnimationを同時に再生＆ tB + (1-t)A ブレンド（回転はSlerp）
+            ApplyAnimationBlend(skeleton_, prevAnimation_, prevAnimationTime_, animation_, animationTime_, blendFactor_);
+        } else {
+            // 単一アニメーションの適用
+            ApplyAnimation(skeleton_, animation_, animationTime_);
+        }
         UpdateSkeleton(skeleton_);
 
         // スキニング行列パレット計算: T_i = InverseBindPose_i * SkeletonSpaceMatrix_i
@@ -563,13 +678,26 @@ void ModelObject::UpdateAnimation(float dt) {
 
     // レガシーパス: アニメーションチャンネルが1つだけの場合
     // （AnimatedCube等の単純アニメーション）は transform_ に適用する。
-    // 複数チャンネルの場合は骨格アニメーションなのでtransform_は変更しない。
-    if (animation_.nodeAnimations.size() == 1) {
+    if (!hasSkeleton_ && !HasSkinData() && animation_.nodeAnimations.size() == 1) {
         auto it = animation_.nodeAnimations.begin();
         RC::NodeAnimation& rootNodeAnim = it->second;
-        transform_.translation = RC::CalculateValue(rootNodeAnim.translate, animationTime_);
-        transform_.rotation = QuaternionToEuler(RC::CalculateValue(rootNodeAnim.rotate, animationTime_));
-        transform_.scale = RC::CalculateValue(rootNodeAnim.scale, animationTime_);
+        if (blendFactor_ < 1.0f && prevAnimation_.nodeAnimations.size() == 1) {
+            auto prevIt = prevAnimation_.nodeAnimations.begin();
+            RC::Vector3 posA = RC::CalculateValue(prevIt->second.translate, prevAnimationTime_);
+            RC::Vector3 posB = RC::CalculateValue(rootNodeAnim.translate, animationTime_);
+            RC::Quaternion rotA = RC::CalculateValue(prevIt->second.rotate, prevAnimationTime_);
+            RC::Quaternion rotB = RC::CalculateValue(rootNodeAnim.rotate, animationTime_);
+            RC::Vector3 sclA = RC::CalculateValue(prevIt->second.scale, prevAnimationTime_);
+            RC::Vector3 sclB = RC::CalculateValue(rootNodeAnim.scale, animationTime_);
+
+            transform_.translation = Lerp(posA, posB, blendFactor_);
+            transform_.rotation = QuaternionToEuler(Slerp(rotA, rotB, blendFactor_));
+            transform_.scale = Lerp(sclA, sclB, blendFactor_);
+        } else {
+            transform_.translation = RC::CalculateValue(rootNodeAnim.translate, animationTime_);
+            transform_.rotation = QuaternionToEuler(RC::CalculateValue(rootNodeAnim.rotate, animationTime_));
+            transform_.scale = RC::CalculateValue(rootNodeAnim.scale, animationTime_);
+        }
     }
 }
 

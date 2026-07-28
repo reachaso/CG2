@@ -109,10 +109,34 @@ public:
   /// @param filePath アニメーションファイルのパス
   void AttachAnimation(int handle, const std::string& filePath);
 
+  /// @brief アニメーションを別ファイルからインデックス指定でアタッチする
+  /// @param handle モデルハンドル
+  /// @param filePath アニメーションファイルのパス
+  /// @param animIndex アニメーションインデックス（0始まり）
+  void AttachAnimation(int handle, const std::string& filePath, int animIndex);
+
+  /// @brief 別ファイルのアニメーションへクロスフェードでスムーズに切り替える
+  /// @param handle モデルハンドル
+  /// @param filePath 新しいアニメーションファイルのパス
+  /// @param blendDuration 切り替えにかけるブレンド秒数 (デフォルト: 0.2秒)
+  void CrossfadeAnimation(int handle, const std::string& filePath, float blendDuration = 0.2f);
+
+  /// @brief 別ファイルのインデックス指定アニメーションへクロスフェードでスムーズに切り替える
+  /// @param handle モデルハンドル
+  /// @param filePath アニメーションファイルのパス
+  /// @param animIndex アニメーションインデックス（0始まり）
+  /// @param blendDuration 切り替えにかけるブレンド秒数 (デフォルト: 0.2秒)
+  void CrossfadeAnimation(int handle, const std::string& filePath, int animIndex, float blendDuration = 0.2f);
+
   /// @brief モデルのアニメーション状態を更新する
   /// @param handle モデルハンドル
   /// @param dt 経過時間
   void UpdateAnimation(int handle, float dt);
+
+  /// @brief モデルにアタッチされているアニメーションの再生時間（秒）を取得する
+  /// @param handle モデルハンドル
+  /// @return 再生時間（秒）
+  float GetAnimationDuration(int handle) const;
 
   /// @brief 管理している全モデルのバッチカーソルをリセットする
   /// 毎フレームの描画開始前に呼び出すことを想定しています。

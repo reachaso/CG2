@@ -785,6 +785,18 @@ void AttachModelAnimation(int modelHandle, const std::string& filePath) {
   GetRenderContext().Models().AttachAnimation(modelHandle, filePath);
 }
 
+void AttachModelAnimation(int modelHandle, const std::string& filePath, int animIndex) {
+  GetRenderContext().Models().AttachAnimation(modelHandle, filePath, animIndex);
+}
+
+void CrossfadeModelAnimation(int modelHandle, const std::string& filePath, float blendDuration) {
+  GetRenderContext().Models().CrossfadeAnimation(modelHandle, filePath, blendDuration);
+}
+
+void CrossfadeModelAnimation(int modelHandle, const std::string& filePath, int animIndex, float blendDuration) {
+  GetRenderContext().Models().CrossfadeAnimation(modelHandle, filePath, animIndex, blendDuration);
+}
+
 void UpdateModelAnimation(int modelHandle, float dt) {
   if (dt < 0.0f) {
     if (auto* ctx = GetRenderContext().Ctx()) {
@@ -794,6 +806,10 @@ void UpdateModelAnimation(int modelHandle, float dt) {
     }
   }
   GetRenderContext().Models().UpdateAnimation(modelHandle, dt);
+}
+
+float GetModelAnimationDuration(int modelHandle) {
+  return GetRenderContext().Models().GetAnimationDuration(modelHandle);
 }
 
 void DrawModelSkeleton(int modelHandle) {
@@ -808,6 +824,13 @@ bool HasModelSkinData(int modelHandle) {
   auto *m = ctx.Models().Get(modelHandle);
   if (!m) return false;
   return m->HasSkinData();
+}
+
+bool HasModelSkeleton(int modelHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return false;
+  return m->HasSkeleton();
 }
 
 Material *GetModelMaterialPtr(int modelHandle) {
