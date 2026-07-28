@@ -807,6 +807,13 @@ private:
           if (pm->meshHandle >= 0) {
               if (auto* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
                   mat->color = pm->color;
+                  mat->lightingMode = pm->lightingMode;
+                  mat->shininess = pm->shininess;
+                  mat->uvTransform = MakeIdentity4x4();
+                  mat->uvTransform.m[0][0] = pm->uvTiling.x;
+                  mat->uvTransform.m[1][1] = pm->uvTiling.y;
+                  mat->uvTransform.m[3][0] = pm->uvOffset.x;
+                  mat->uvTransform.m[3][1] = pm->uvOffset.y;
               }
           }
       }

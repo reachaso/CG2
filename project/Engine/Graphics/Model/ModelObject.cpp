@@ -8,6 +8,9 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <optional>
+#include <string>
+#include <vector>
 
 using namespace RC;
 namespace fs = std::filesystem;
@@ -442,13 +445,121 @@ static void UpdateSkeleton(Skeleton& skeleton) {
 }
 
 // ------------------------------------------------------------------
+// ルートモーション除去
+// ------------------------------------------------------------------
+// Walk / Run などのアニメーションには、キーフレーム自体に前進移動
+// （ルートモーション）が焼き込まれている場合がある。スクリプト側で
+// TransformComponent を動かして移動させる設計では、これが二重適用となり
+//   ・メッシュだけがコライダー（Transform位置）より前に進んでいく
+//   ・アニメーションがループした瞬間に Transform 位置までワープして戻る
+// という不具合になる。
+//
+// ここでは「最終キー − 先頭キー」＝1ループでの純移動量を、経過時間に対して
+// 線形に差し引くことでドリフト成分のみを打ち消す。この方式には次の利点がある。
+//   ・純移動量が 0 のアニメーション（Idle / Attack 等）は一切影響を受けない
+//   ・上下の揺れや溜めなどのオシレーションはそのまま残る
+//   ・t=0 と t=duration で補正量が首尾一致するため、ループの継ぎ目が跳ねない
+// なお、GLB を再エクスポートする必要はない（読み込み後の実行時補正）。
+
+static constexpr float kRootMotionDriftThreshold = 0.02f; ///< これ以下の純移動量は誤差として無視する
+static constexpr int32_t kRootMotionMaxDepth = 4;         ///< ルート系と見なす階層の深さ上限
+
+/// @brief Jointのスケルトンルートからの階層の深さを求める
+static int32_t GetJointDepth(const Skeleton& skeleton, const Joint& joint) {
+    int32_t depth = 0;
+    std::optional<int32_t> parent = joint.parent;
+    while (parent && depth <= kRootMotionMaxDepth) {
+        ++depth;
+        parent = skeleton.joints[*parent].parent;
+    }
+    return depth;
+}
+
+/// @brief 指定Animationでルートモーションを担っているJoint名を探す
+/// @return 該当Joint名。ルートモーションが無ければ空文字列
+/// @details jointsは必ず親が先に並んでいるため、先頭から走査して最初に
+///          条件を満たしたものが階層最上位のルートモーションJointとなる。
+///          手足のボーンを誤って対象にしないよう、階層の深さで絞り込む。
+static std::string FindRootMotionJointName(const Skeleton& skeleton,
+                                           const RC::Animation& animation) {
+    for (const Joint& joint : skeleton.joints) {
+        if (GetJointDepth(skeleton, joint) > kRootMotionMaxDepth) continue;
+
+        auto it = animation.nodeAnimations.find(joint.name);
+        if (it == animation.nodeAnimations.end()) continue;
+
+        const std::vector<RC::KeyframeVector3>& keys = it->second.translate;
+        if (keys.size() < 2) continue;
+
+        const RC::Vector3& head = keys.front().value;
+        const RC::Vector3& tail = keys.back().value;
+        if (std::abs(tail.x - head.x) > kRootMotionDriftThreshold ||
+            std::abs(tail.y - head.y) > kRootMotionDriftThreshold ||
+            std::abs(tail.z - head.z) > kRootMotionDriftThreshold) {
+            return joint.name;
+        }
+    }
+    return std::string();
+}
+
+/// @brief ルートモーション分の線形ドリフトを差し引いた移動量を返す
+/// @param nodeAnim 対象JointのNodeAnimation
+/// @param time 現在の再生時刻（秒）
+/// @param raw 補正前の補間済み translation
+static RC::Vector3 RemoveRootMotionDrift(const RC::NodeAnimation& nodeAnim,
+                                         float time,
+                                         const RC::Vector3& raw) {
+    const std::vector<RC::KeyframeVector3>& keys = nodeAnim.translate;
+    if (keys.size() < 2) return raw;
+
+    const float startTime = keys.front().time;
+    const float endTime = keys.back().time;
+    const float span = endTime - startTime;
+    if (span <= 1e-6f) return raw;
+
+    // 経過割合（0.0〜1.0）にクランプ
+    float ratio = (time - startTime) / span;
+    if (ratio < 0.0f) ratio = 0.0f;
+    if (ratio > 1.0f) ratio = 1.0f;
+
+    const RC::Vector3& head = keys.front().value;
+    const RC::Vector3& tail = keys.back().value;
+    return RC::Vector3{
+        raw.x - (tail.x - head.x) * ratio,
+        raw.y - (tail.y - head.y) * ratio,
+        raw.z - (tail.z - head.z) * ratio
+    };
+}
+
+// ------------------------------------------------------------------
+// ResolveRootMotionJoint_: ルートモーション担当Jointの遅延判定
+// ------------------------------------------------------------------
+void ModelObject::ResolveRootMotionJoint_() {
+    if (rootMotionResolved_) return;
+    if (!hasSkeleton_) return; // スケルトン構築後にのみ判定できる
+
+    // 対象はスキン付きモデル（キャラクター）のみに限定する。
+    // AnimatedCube のような単一ノードアニメーションのプロップは、
+    // 移動そのものがアニメーションの意図なので触ってはいけない。
+    const auto mesh = resource_.GetMesh();
+    const bool skinned = (mesh && mesh->HasSkinData());
+
+    rootMotionJointName_ = (removeRootMotion_ && skinned)
+        ? FindRootMotionJointName(skeleton_, animation_)
+        : std::string();
+    rootMotionResolved_ = true;
+}
+
+// ------------------------------------------------------------------
 // ApplyAnimation: SkeletonにAnimationを適用する
 // ------------------------------------------------------------------
 // 全Jointをループし、対象のJointにNodeAnimationがあれば
 // キーフレーム補間して transform に書き込む。
+// rootMotionJoint に一致するJointは、焼き込まれた移動量を差し引いて適用する。
 static void ApplyAnimation(Skeleton& skeleton,
                            const RC::Animation& animation,
-                           float animationTime) {
+                           float animationTime,
+                           const std::string& rootMotionJoint) {
     for (Joint& joint : skeleton.joints) {
         // 対象のJointのAnimationがあれば、値の適用を行う
         // C++17の初期化付きif文
@@ -456,8 +567,13 @@ static void ApplyAnimation(Skeleton& skeleton,
             it != animation.nodeAnimations.end()) {
             const RC::NodeAnimation& nodeAnim = it->second;
 
-            joint.transform.translate =
+            RC::Vector3 translate =
                 RC::CalculateValue(nodeAnim.translate, animationTime);
+            if (!rootMotionJoint.empty() && joint.name == rootMotionJoint) {
+                translate = RemoveRootMotionDrift(nodeAnim, animationTime, translate);
+            }
+
+            joint.transform.translate = translate;
             joint.transform.rotate =
                 RC::CalculateValue(nodeAnim.rotate, animationTime);
             joint.transform.scale =
@@ -472,13 +588,19 @@ static void ApplyAnimation(Skeleton& skeleton,
 static void ApplyAnimationBlend(Skeleton& skeleton,
                                 const RC::Animation& animA, float timeA,
                                 const RC::Animation& animB, float timeB,
-                                float t) {
+                                float t,
+                                const std::string& rootMotionJointA,
+                                const std::string& rootMotionJointB) {
     for (Joint& joint : skeleton.joints) {
         auto itA = animA.nodeAnimations.find(joint.name);
         auto itB = animB.nodeAnimations.find(joint.name);
-        
+
         bool hasA = (itA != animA.nodeAnimations.end());
         bool hasB = (itB != animB.nodeAnimations.end());
+
+        // ルートモーション除去の対象Jointか（A/Bで別々に判定する）
+        const bool isRootA = (!rootMotionJointA.empty() && joint.name == rootMotionJointA);
+        const bool isRootB = (!rootMotionJointB.empty() && joint.name == rootMotionJointB);
 
         if (hasA && hasB) {
             const RC::NodeAnimation& nodeAnimA = itA->second;
@@ -486,6 +608,8 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
 
             RC::Vector3 posA = RC::CalculateValue(nodeAnimA.translate, timeA);
             RC::Vector3 posB = RC::CalculateValue(nodeAnimB.translate, timeB);
+            if (isRootA) posA = RemoveRootMotionDrift(nodeAnimA, timeA, posA);
+            if (isRootB) posB = RemoveRootMotionDrift(nodeAnimB, timeB, posB);
             RC::Quaternion rotA = RC::CalculateValue(nodeAnimA.rotate, timeA);
             RC::Quaternion rotB = RC::CalculateValue(nodeAnimB.rotate, timeB);
             RC::Vector3 sclA = RC::CalculateValue(nodeAnimA.scale, timeA);
@@ -498,13 +622,17 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
         } else if (hasB) {
             // 次のアニメーションにしかキーが無い場合はBのみ適用
             const RC::NodeAnimation& nodeAnimB = itB->second;
-            joint.transform.translate = RC::CalculateValue(nodeAnimB.translate, timeB);
+            RC::Vector3 posB = RC::CalculateValue(nodeAnimB.translate, timeB);
+            if (isRootB) posB = RemoveRootMotionDrift(nodeAnimB, timeB, posB);
+            joint.transform.translate = posB;
             joint.transform.rotate    = RC::CalculateValue(nodeAnimB.rotate, timeB);
             joint.transform.scale     = RC::CalculateValue(nodeAnimB.scale, timeB);
         } else if (hasA) {
             // 前のアニメーションにしかキーが無い場合はAのみ適用
             const RC::NodeAnimation& nodeAnimA = itA->second;
-            joint.transform.translate = RC::CalculateValue(nodeAnimA.translate, timeA);
+            RC::Vector3 posA = RC::CalculateValue(nodeAnimA.translate, timeA);
+            if (isRootA) posA = RemoveRootMotionDrift(nodeAnimA, timeA, posA);
+            joint.transform.translate = posA;
             joint.transform.rotate    = RC::CalculateValue(nodeAnimA.rotate, timeA);
             joint.transform.scale     = RC::CalculateValue(nodeAnimA.scale, timeA);
         }
@@ -535,6 +663,11 @@ void ModelObject::AttachAnimation(const std::string& filePath, int animIndex) {
     isAnimated_ = (animation_.duration > 0.0f && !animation_.nodeAnimations.empty());
     animationTime_ = 0.0f;
     blendFactor_ = 1.0f; // 新しくアタッチされたらブレンドなし
+
+    // ルートモーション担当Jointはアニメーションごとに異なるため再判定させる
+    rootMotionResolved_ = false;
+    rootMotionJointName_.clear();
+    prevRootMotionJointName_.clear();
 
     // メッシュが既にロード済みならSkeletonを即座に構築
     if (resource_.GetMesh() && resource_.GetMesh()->Ready()) {
@@ -568,14 +701,24 @@ void ModelObject::CrossfadeAnimation(const std::string& filePath, int animIndex,
     blendFactor_ = 0.0f; // 補間割合 0.0 (=前アニメーション A から開始)
     animationRequested_ = true;
 
+    // 現在のルートモーション担当Joint (A) を退避してから再判定させる。
+    // Attach 直後（UpdateAnimation を1度も通らずに）Crossfade された場合は
+    // A 側が未判定のままなので、ここで先に解決しておく。これを省くと
+    // ブレンド中だけ A の焼き込み移動が復活し、一瞬ドリフトして見える。
+    ResolveRootMotionJoint_();
+    prevRootMotionJointName_ = rootMotionJointName_;
+    rootMotionJointName_.clear();
+    rootMotionResolved_ = false;
+
     // 次の Animation (B) をロード
     animation_ = RC::LoadAnimationFile(filePath, animIndex);
     animationTime_ = 0.0f;
     isAnimated_ = (animation_.duration > 0.0f && !animation_.nodeAnimations.empty());
 
     if (!isAnimated_) {
-        // 読み込み失敗時は補間をスキップして終了
+        // 読み込み失敗時は補間をスキップして終了（退避した状態も破棄する）
         blendFactor_ = 1.0f;
+        prevRootMotionJointName_.clear();
         return;
     }
 
@@ -617,6 +760,9 @@ void ModelObject::UpdateAnimation(float dt) {
         hasSkeleton_ = true;
     }
 
+    // ルートモーション担当Jointの判定（アニメーション or スケルトン更新後に一度だけ）
+    ResolveRootMotionJoint_();
+
     // 切り替え補間中の場合：前のアニメーション(A)も「同時に再生しておく」
     if (blendFactor_ < 1.0f) {
         prevAnimationTime_ += dt;
@@ -631,6 +777,7 @@ void ModelObject::UpdateAnimation(float dt) {
         if (blendFactor_ >= 1.0f) {
             blendFactor_ = 1.0f;
             prevAnimation_ = RC::Animation(); // 切り替え完了、前のデータ解放
+            prevRootMotionJointName_.clear();
         }
     }
 
@@ -646,10 +793,11 @@ void ModelObject::UpdateAnimation(float dt) {
     if (hasSkeleton_) {
         if (blendFactor_ < 1.0f && !prevAnimation_.nodeAnimations.empty()) {
             // 2つのAnimationを同時に再生＆ tB + (1-t)A ブレンド（回転はSlerp）
-            ApplyAnimationBlend(skeleton_, prevAnimation_, prevAnimationTime_, animation_, animationTime_, blendFactor_);
+            ApplyAnimationBlend(skeleton_, prevAnimation_, prevAnimationTime_, animation_, animationTime_, blendFactor_,
+                                prevRootMotionJointName_, rootMotionJointName_);
         } else {
             // 単一アニメーションの適用
-            ApplyAnimation(skeleton_, animation_, animationTime_);
+            ApplyAnimation(skeleton_, animation_, animationTime_, rootMotionJointName_);
         }
         UpdateSkeleton(skeleton_);
 

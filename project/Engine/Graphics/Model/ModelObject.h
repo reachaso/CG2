@@ -244,6 +244,10 @@ private:
   /// @brief ライティング設定を GPU リソースに反映する（準備完了時のみ）
   void ApplyLightingIfReady_();
 
+  /// @brief 現在のアニメーションのルートモーション担当Jointを（未判定なら）解決する
+  /// @details スケルトン構築後に一度だけ判定し、結果を rootMotionJointName_ に保持する
+  void ResolveRootMotionJoint_();
+
 private:
   ModelResource resource_; ///< 描画リソース・ロジック本体
 
@@ -307,6 +311,26 @@ public:
   /// @brief スキニング行列パレットを取得する
   const std::vector<RC::Matrix4x4> &GetSkinMatrices() const { return skinMatrices_; }
 
+  /// @brief ルートモーション（アニメーションに焼き込まれた移動量）の除去を切り替える
+  /// @param enable true でルートモーションを打ち消し、その場アニメーションとして再生する
+  /// @details Walk/Run などのアニメーションにはキーフレーム自体に前進移動が
+  ///          含まれている場合がある。スクリプト側で Transform を動かしていると
+  ///          二重適用になり、見た目だけが先に進んでループの瞬間に Transform
+  ///          位置へ戻る現象が起きるため、既定では除去する。
+  void SetRemoveRootMotion(bool enable) {
+    if (removeRootMotion_ == enable) return;
+    removeRootMotion_ = enable;
+    rootMotionJointName_.clear();
+    rootMotionResolved_ = false; // 次回更新時に再判定させる
+  }
+
+  /// @brief ルートモーション除去が有効かどうか
+  bool IsRemoveRootMotion() const { return removeRootMotion_; }
+
+  /// @brief 現在のアニメーションでルートモーション担当と判定された Joint 名
+  /// @return 該当なしなら空文字列
+  const std::string &GetRootMotionJointName() const { return rootMotionJointName_; }
+
 private:
   RC::Animation animation_;   ///< ロードしたアニメーションデータ（現在・切り替え後）
   float animationTime_ = 0.0f;///< アニメーション再生時間
@@ -321,6 +345,12 @@ private:
 
   Skeleton skeleton_;          ///< スケルトンデータ
   bool hasSkeleton_ = false;   ///< スケルトンが構築済みか
+
+  // === ルートモーション除去関連 ===
+  bool removeRootMotion_ = true;      ///< アニメーションに焼き込まれた移動量を打ち消すか
+  bool rootMotionResolved_ = false;   ///< 現アニメのルートモーション担当Jointを判定済みか
+  std::string rootMotionJointName_;      ///< 現アニメ(B)のルートモーション担当Joint名（無ければ空）
+  std::string prevRootMotionJointName_;  ///< クロスフェード元(A)のルートモーション担当Joint名
 
   // === スキニング関連 ===
   std::vector<RC::Matrix4x4> skinMatrices_; ///< スキンクラスター行列パレット (T_i = IBP_i * SSM_i)

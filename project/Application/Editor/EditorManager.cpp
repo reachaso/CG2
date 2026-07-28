@@ -1611,19 +1611,27 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
                // -- GPU Material properties --
                if (Material* mat = RC::GetPrimitiveMeshMaterialPtr(pm->meshHandle)) {
                    // Base Color
-                   ImGui::ColorEdit4("Base Color (基本色)##PM", &mat->color.x);
+                   // NOTE: コンポーネント側 (pm->color) を編集元にする。
+                   //       GPU側 Material のみを書き換えるとシリアライズ対象外になり、
+                   //       Scene保存時に色が失われる（毎回白に戻る）ため。
+                   if (ImGui::ColorEdit4("Base Color (基本色)##PM", &pm->color.x)) {
+                       mat->color = pm->color;
+                   }
 
                    // Lighting Mode
                    const char* lightingModes[] = { "None", "Lambert", "Half Lambert" };
-                   int lightMode = mat->lightingMode;
+                   int lightMode = pm->lightingMode;
                    if (lightMode < 0) lightMode = 0;
                    if (lightMode > 2) lightMode = 2;
                    if (ImGui::Combo("Lighting (ライティング)##PM", &lightMode, lightingModes, 3)) {
+                       pm->lightingMode = lightMode;
                        mat->lightingMode = lightMode;
                    }
 
                    // Shininess
-                   ImGui::DragFloat("Shininess (光沢)##PM", &mat->shininess, 1.0f, 0.0f, 512.0f);
+                   if (ImGui::DragFloat("Shininess (光沢)##PM", &pm->shininess, 1.0f, 0.0f, 512.0f)) {
+                       mat->shininess = pm->shininess;
+                   }
 
                    // Environment Reflection
                    if (ImGui::DragFloat("Env Reflection (環境反射)##PM", &mat->environmentCoefficient, 0.01f, 0.0f, 1.0f)) {
@@ -1634,19 +1642,13 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
 
                    // -- UV Transform (Tiling & Offset) --
                    ImGui::Text("UV Transform (UV変換)");
-                   float tilingX = mat->uvTransform.m[0][0];
-                   float tilingY = mat->uvTransform.m[1][1];
-                   float tiling[2] = { tilingX, tilingY };
-                   if (ImGui::DragFloat2("Tiling (タイリング)##PM", tiling, 0.01f)) {
-                       mat->uvTransform.m[0][0] = tiling[0];
-                       mat->uvTransform.m[1][1] = tiling[1];
+                   if (ImGui::DragFloat2("Tiling (タイリング)##PM", &pm->uvTiling.x, 0.01f)) {
+                       mat->uvTransform.m[0][0] = pm->uvTiling.x;
+                       mat->uvTransform.m[1][1] = pm->uvTiling.y;
                    }
-                   float offsetX = mat->uvTransform.m[3][0];
-                   float offsetY = mat->uvTransform.m[3][1];
-                   float offset[2] = { offsetX, offsetY };
-                   if (ImGui::DragFloat2("Offset (オフセット)##PM", offset, 0.01f)) {
-                       mat->uvTransform.m[3][0] = offset[0];
-                       mat->uvTransform.m[3][1] = offset[1];
+                   if (ImGui::DragFloat2("Offset (オフセット)##PM", &pm->uvOffset.x, 0.01f)) {
+                       mat->uvTransform.m[3][0] = pm->uvOffset.x;
+                       mat->uvTransform.m[3][1] = pm->uvOffset.y;
                    }
                }
 

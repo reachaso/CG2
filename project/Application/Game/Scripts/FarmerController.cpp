@@ -58,8 +58,8 @@ protected:
         currentAnimIndex_ = -1; // 未設定
         isCameraInitialized_ = false;
         if (auto* tr = GetComponent<TransformComponent>()) {
-            // モデル初期回転補正（180度反転してカメラ前方+Z側を向かせる）
-            tr->rotation.y = facingAngle_ + 3.14159265f;
+            // 初期向き: 画面奥（+Z / Wキーの前進方向）を向かせる
+            tr->rotation.y = facingAngle_;
         }
     }
 
@@ -84,10 +84,11 @@ protected:
         bool shiftHeld = false;
         bool attackTriggered = false;
 
-        // W=前進（カメラから離れる方向）／S=後退（カメラに近づく方向）
-        // ワールドZ軸とカメラの追従オフセットの向きが逆だったため、ここで反転して補正
-        if (input->IsKeyPressed(DIK_W)) moveZ -= 1.0f;
-        if (input->IsKeyPressed(DIK_S)) moveZ += 1.0f;
+        // W=前進（カメラから離れる＝画面奥方向）／S=後退（カメラに近づく＝画面手前方向）
+        // カメラはプレイヤーの -Z 側に位置し Yaw=0（+Z を向く）ため、
+        // 画面奥 = ワールド +Z、画面手前 = ワールド -Z となる
+        if (input->IsKeyPressed(DIK_W)) moveZ += 1.0f;
+        if (input->IsKeyPressed(DIK_S)) moveZ -= 1.0f;
         if (input->IsKeyPressed(DIK_D)) moveX += 1.0f;
         if (input->IsKeyPressed(DIK_A)) moveX -= 1.0f;
 
@@ -166,15 +167,17 @@ protected:
             tr->position.z += moveZ * speed * deltaTime;
 
             // 移動方向に向きを回転（Y軸周り）
-            float targetAngle = std::atan2(moveX, moveZ);
+            // Y軸回転の向きがワールドX軸と逆手のため、X成分の符号を反転させる
+            // （これを入れないと前後は正しく、左右だけ反転して見える）
+            float targetAngle = std::atan2(-moveX, moveZ);
             // 角度の最短経路補間
             float diff = targetAngle - facingAngle_;
             while (diff > 3.14159265f) diff -= 6.28318530f;
             while (diff < -3.14159265f) diff += 6.28318530f;
             facingAngle_ += diff * (std::min)(1.0f, rotationSpeed * deltaTime);
 
-            // 180度（PI）のオフセットを加算し、モデル正面を移動方向（facingAngle_）に向かせる
-            tr->rotation.y = facingAngle_ + 3.14159265f;
+            // モデル正面を移動方向（facingAngle_）に向かせる
+            tr->rotation.y = facingAngle_;
         }
 
         // --- カメラ追従 ---

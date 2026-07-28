@@ -5,6 +5,25 @@
       "components": [
         {
           "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.5
+            ],
+            "intensity": 1.0,
+            "visible": true
+          },
+          "enabled": true,
+          "type": "DirectionalLightComponent"
+        },
+        {
+          "data": {
             "position": [
               0.0,
               0.0,
@@ -23,25 +42,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "color": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ],
-            "direction": [
-              0.0,
-              -1.0,
-              0.5
-            ],
-            "intensity": 1.0,
-            "visible": true
-          },
-          "enabled": true,
-          "type": "DirectionalLightComponent"
         }
       ],
       "guid": 17663892314587863526,
@@ -55,6 +55,16 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "farZ": 100.0,
+            "fovY": 0.44999998807907104,
+            "isMain": true,
+            "nearZ": 0.10000000149011612
+          },
+          "enabled": true,
+          "type": "CameraComponent"
+        },
         {
           "data": {
             "position": [
@@ -75,16 +85,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "farZ": 100.0,
-            "fovY": 0.44999998807907104,
-            "isMain": true,
-            "nearZ": 0.10000000149011612
-          },
-          "enabled": true,
-          "type": "CameraComponent"
         }
       ],
       "guid": 18092012943661864353,
@@ -98,6 +98,35 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "animationPath": "",
+            "playing": true,
+            "showSkeleton": true,
+            "speed": 1.0
+          },
+          "enabled": true,
+          "type": "AnimationComponent"
+        },
+        {
+          "data": {
+            "blendMode": 0,
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "modelPath": "Resources/model/farmers/farmer.glb",
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "texturePath": "",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "ModelRendererComponent"
+        },
         {
           "data": {
             "center": [
@@ -117,27 +146,6 @@
           },
           "enabled": true,
           "type": "ColliderComponent"
-        },
-        {
-          "data": {
-            "position": [
-              1.101508040335375e-08,
-              -0.07294921576976776,
-              1.1015076850640071e-08
-            ],
-            "rotation": [
-              -3.141592502593994,
-              -8.742277657347586e-08,
-              -3.141592502593994
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
         },
         {
           "data": {
@@ -168,32 +176,38 @@
         },
         {
           "data": {
-            "blendMode": 0,
-            "color": [
-              1.0,
+            "position": [
+              1.101508040335375e-08,
+              0.0,
+              1.1015076850640071e-08
+            ],
+            "rotation": [
+              -3.141592502593994,
+              3.1415927410125732,
+              -3.141592502593994
+            ],
+            "scale": [
               1.0,
               1.0,
               1.0
-            ],
-            "environmentCoeff": 0.0,
-            "modelPath": "Resources/model/farmers/farmer.glb",
-            "normalMapPath": "",
-            "roughnessMapPath": "",
-            "texturePath": "",
-            "visible": true
+            ]
           },
           "enabled": true,
-          "type": "ModelRendererComponent"
+          "type": "TransformComponent"
         },
         {
           "data": {
-            "animationPath": "",
-            "playing": true,
-            "showSkeleton": true,
-            "speed": 1.0
+            "isKinematic": false,
+            "mass": 1.0,
+            "useGravity": true,
+            "velocity": [
+              0.0,
+              0.0,
+              0.0
+            ]
           },
           "enabled": true,
-          "type": "AnimationComponent"
+          "type": "RigidbodyComponent"
         }
       ],
       "guid": 10978614716754420043,
@@ -207,6 +221,20 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "color": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "skyboxPath": "Resources/SkyBox/skybox.dds",
+            "visible": true
+          },
+          "enabled": true,
+          "type": "SkyboxComponent"
+        },
         {
           "data": {
             "position": [
@@ -227,20 +255,6 @@
           },
           "enabled": true,
           "type": "TransformComponent"
-        },
-        {
-          "data": {
-            "color": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ],
-            "skyboxPath": "Resources/SkyBox/skybox.dds",
-            "visible": true
-          },
-          "enabled": true,
-          "type": "SkyboxComponent"
         }
       ],
       "guid": 14871260829876168159,
@@ -249,16 +263,36 @@
       "name": "Skybox",
       "parentGuid": 0,
       "tags": {},
-      "visible": true
+      "visible": false
     },
     {
       "active": true,
       "components": [
         {
           "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
             "position": [
               0.0,
-              -0.3121985197067261,
+              -0.30000001192092896,
               0.0
             ],
             "rotation": [
@@ -278,16 +312,26 @@
         {
           "data": {
             "color": [
-              1.0,
-              1.0,
-              1.0,
+              0.0784313753247261,
+              0.11764705926179886,
+              0.3137255012989044,
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -297,10 +341,264 @@
       "guid": 13511340377571299254,
       "isFolder": false,
       "locked": false,
-      "name": "Cube",
+      "name": "ground",
+      "parentGuid": 14502557360173836915,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
+            "position": [
+              -5.0,
+              2.200000047683716,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              0.5,
+              5.0,
+              10.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.0784313753247261,
+              0.11764705926179886,
+              0.3137255012989044,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "lightingMode": 2,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "shininess": 32.0,
+            "texturePath": "",
+            "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "guid": 9451679402981529723,
+      "isFolder": false,
+      "locked": false,
+      "name": "wall1",
+      "parentGuid": 14502557360173836915,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [],
+      "guid": 14502557360173836915,
+      "isFolder": true,
+      "locked": false,
+      "name": "Field",
       "parentGuid": 0,
       "tags": {},
-      "visible": false
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
+            "position": [
+              0.0,
+              2.200000047683716,
+              5.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              10.0,
+              5.0,
+              0.5
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.0784313753247261,
+              0.11764705926179886,
+              0.3137255012989044,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "lightingMode": 2,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "shininess": 32.0,
+            "texturePath": "",
+            "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "guid": 4577546815446760586,
+      "isFolder": false,
+      "locked": false,
+      "name": "wall2",
+      "parentGuid": 14502557360173836915,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
+        },
+        {
+          "data": {
+            "position": [
+              5.0,
+              2.200000047683716,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              0.5,
+              5.0,
+              10.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.0784313753247261,
+              0.11764705926179886,
+              0.3137255012989044,
+              1.0
+            ],
+            "environmentCoeff": 0.0,
+            "lightingMode": 2,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "shininess": 32.0,
+            "texturePath": "",
+            "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "guid": 2623828175935264820,
+      "isFolder": false,
+      "locked": false,
+      "name": "wall3",
+      "parentGuid": 14502557360173836915,
+      "tags": {},
+      "visible": true
     }
   ],
   "sceneName": "CG4"
