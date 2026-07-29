@@ -516,4 +516,8 @@ public:
           mappedUnderwater_->fogEnd = end;
       }
   }
+
+  void SetRadialBlurWidth(float w) { radialBlurWidth_ = w; }
+  void SetRadialBlurCenter(float x, float y) { radialBlurCenter_.x = x; radialBlurCenter_.y = y; }
+  void SetRadialBlurSamples(int samples) { radialBlurSamples_ = samples; }
 };

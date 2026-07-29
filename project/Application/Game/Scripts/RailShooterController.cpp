@@ -162,6 +162,11 @@ public:
     float dropletDistortion = 0.06f;
     float dropletScale = 1.5f;
 
+    // ダイブ時のスピードブラー演出 (RadialBlur) タイマー
+    float radialBlurTimer = 0.0f;
+    float radialBlurDuration = 0.45f;
+    float radialBlurMaxWidth = 0.035f;
+
 private:
     uint64_t bulletsFolderGuid_ = 0;
 
@@ -183,6 +188,14 @@ protected:
     void OnCreate() override {
         if (Entity* self = GetEntity()) {
             self->SetTag("is_player", 1);
+        }
+        // 推奨3: 全体的な視認性向上（照準時や奥深くの敵・地形の輪郭把握を助けるため）として
+        // 深度ベースアウトライン (DepthBasedOutline) を常時有効化
+        if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+            postProcess->AddEffect(PostEffectType::DepthBasedOutline);
+            float outlineColor[4] = {0.04f, 0.08f, 0.16f, 0.85f};
+            postProcess->SetOutlineColor(outlineColor);
+            postProcess->SetOutlineThickness(1.0f);
         }
     }
 
@@ -217,6 +230,14 @@ protected:
                         postProcess->AddEffect(PostEffectType::Caustics);
                         postProcess->AddEffect(PostEffectType::Underwater);
                         
+                        // 推奨2: 水中での「密閉感・深海感・水圧」演出としての Vignette 追加
+                        postProcess->AddEffect(PostEffectType::Vignette);
+                        
+                        // 推奨1: 水中突入（ダイブ）時の強烈な勢い・スピード感演出としての RadialBlur スタック
+                        postProcess->AddEffect(PostEffectType::RadialBlur);
+                        radialBlurTimer = radialBlurDuration;
+                        postProcess->SetRadialBlurWidth(radialBlurMaxWidth);
+
                         // 遷移時（Dive/水上→水中）に気泡・水滴が「上に向かって」昇って消えていく演出
                         postProcess->AddEffect(PostEffectType::ScreenDroplets);
                         dropletTimer = dropletDuration;
@@ -226,6 +247,11 @@ protected:
                 } else {
                     Log::Print("[Event] Transition to Surface (Emerge)");
                     if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                        // 出水（浮上）時も一時的にスピードブラーを発生させ離脱の爽快な衝撃を演出
+                        postProcess->AddEffect(PostEffectType::RadialBlur);
+                        radialBlurTimer = radialBlurDuration * 0.7f;
+                        postProcess->SetRadialBlurWidth(radialBlurMaxWidth * 0.7f);
+
                         // 出水時（Emerge/水中→水上）は水滴が重力に従って「下に向かって」したたり落ちて消える演出
                         postProcess->AddEffect(PostEffectType::ScreenDroplets);
                         dropletTimer = dropletDuration;
@@ -263,6 +289,21 @@ protected:
                     postProcess->RemoveEffect(PostEffectType::Underwater);
                     postProcess->RemoveEffect(PostEffectType::Caustics);
                     postProcess->RemoveEffect(PostEffectType::LightShaft);
+                    postProcess->RemoveEffect(PostEffectType::Vignette); // 水上に上がったら Vignette 解除
+                }
+            }
+        }
+
+        // === RadialBlur タイマーの減衰更新 ===
+        if (radialBlurTimer > 0.0f) {
+            radialBlurTimer -= deltaTime;
+            if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                if (radialBlurTimer <= 0.0f) {
+                    radialBlurTimer = 0.0f;
+                    postProcess->RemoveEffect(PostEffectType::RadialBlur);
+                } else {
+                    float progress = radialBlurTimer / radialBlurDuration;
+                    postProcess->SetRadialBlurWidth(radialBlurMaxWidth * progress * progress);
                 }
             }
         }
