@@ -142,6 +142,14 @@
                       70.0
                     ],
                     "waitTime": 0.0
+                  },
+                  {
+                    "pos": [
+                      0.0,
+                      2.0,
+                      90.0
+                    ],
+                    "waitTime": 0.0
                   }
                 ]
               }
@@ -365,9 +373,9 @@
               27.0
             ],
             "rotation": [
-              -3.141592502593994,
-              1.3962632417678833,
-              -3.141592502593994
+              3.1415927410125732,
+              1.3962633609771729,
+              3.1415927410125732
             ],
             "scale": [
               3.99999737739563,
@@ -463,10 +471,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -536,10 +554,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -609,10 +637,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -687,9 +725,9 @@
               -5.0
             ],
             "rotation": [
-              -3.141592502593994,
-              1.3962632417678833,
-              -3.141592502593994
+              3.1415927410125732,
+              1.3962633609771729,
+              3.1415927410125732
             ],
             "scale": [
               3.99999737739563,
@@ -785,10 +823,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -858,10 +906,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -931,10 +989,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -1004,10 +1072,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -1077,10 +1155,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,
@@ -1150,10 +1238,20 @@
               1.0
             ],
             "environmentCoeff": 0.0,
+            "lightingMode": 2,
             "normalMapPath": "",
             "roughnessMapPath": "",
+            "shininess": 32.0,
             "texturePath": "",
             "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
             "visible": true
           },
           "enabled": true,

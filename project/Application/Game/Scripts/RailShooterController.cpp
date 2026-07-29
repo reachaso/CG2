@@ -154,6 +154,14 @@ public:
     float underwaterFogStart = 10.0f;
     float underwaterFogEnd = 150.0f;
 
+    // 水滴演出（ Screen Droplets ）タイマーと設定
+    float dropletTimer = 0.0f;
+    float dropletDuration = 2.2f; // 着水・出水時から水滴が残りつづける秒数
+    float dropletMaxIntensity = 1.0f;
+    float dropletSpeed = 1.2f;
+    float dropletDistortion = 0.06f;
+    float dropletScale = 1.5f;
+
 private:
     uint64_t bulletsFolderGuid_ = 0;
 
@@ -200,10 +208,30 @@ protected:
                 if (isUnderwater) {
                     Log::Print("[Event] Transition to Underwater (Dive)");
                     if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                        // 追加順 = 適用順。Underwater が最後に来るようにする。
+                        // Underwater は UV を歪めるため、それより後に Caustics や
+                        // LightShaft を乗せるとジオメトリと模様の位置がズレる。
+                        // 先に光を乗せてから Underwater でまとめて歪めることで
+                        // 位置が一致し、かつ模様自体も水で揺らぐようになる。
+                        postProcess->AddEffect(PostEffectType::LightShaft);
+                        postProcess->AddEffect(PostEffectType::Caustics);
                         postProcess->AddEffect(PostEffectType::Underwater);
+                        
+                        // 遷移時（Dive/水上→水中）に気泡・水滴が「上に向かって」昇って消えていく演出
+                        postProcess->AddEffect(PostEffectType::ScreenDroplets);
+                        dropletTimer = dropletDuration;
+                        dropletSpeed = -1.3f; // 負のスピード値で上方向に昇るようにスクロール
+                        postProcess->SetScreenDropletsSpeed(dropletSpeed);
                     }
                 } else {
                     Log::Print("[Event] Transition to Surface (Emerge)");
+                    if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                        // 出水時（Emerge/水中→水上）は水滴が重力に従って「下に向かって」したたり落ちて消える演出
+                        postProcess->AddEffect(PostEffectType::ScreenDroplets);
+                        dropletTimer = dropletDuration;
+                        dropletSpeed = 1.3f; // 正のスピード値で下方向に滴る
+                        postProcess->SetScreenDropletsSpeed(dropletSpeed);
+                    }
                 }
             }
         }
@@ -225,10 +253,35 @@ protected:
                 postProcess->SetUnderwaterLerpFactor(smoothedLerp);
                 postProcess->SetUnderwaterFogColor(underwaterFogColor.x, underwaterFogColor.y, underwaterFogColor.z, underwaterFogColor.w);
                 postProcess->SetUnderwaterFogRange(underwaterFogStart, underwaterFogEnd);
-                
+
+                // 水中光の演出も同じカーブでフェードさせる
+                postProcess->SetCausticsLerpFactor(smoothedLerp);
+                postProcess->SetLightShaftLerpFactor(smoothedLerp);
+
                 // 完全に水上に戻りきったらエフェクト自体をRemoveする
                 if (transitionTimer == 0.0f && !isUnderwater) {
                     postProcess->RemoveEffect(PostEffectType::Underwater);
+                    postProcess->RemoveEffect(PostEffectType::Caustics);
+                    postProcess->RemoveEffect(PostEffectType::LightShaft);
+                }
+            }
+        }
+
+        // === レンズ水滴タイマーの減衰更新 ===
+        if (dropletTimer > 0.0f) {
+            dropletTimer -= deltaTime;
+            if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                if (dropletTimer <= 0.0f) {
+                    dropletTimer = 0.0f;
+                    postProcess->RemoveEffect(PostEffectType::ScreenDroplets);
+                } else {
+                    float progress = dropletTimer / dropletDuration;
+                    // イーズアウト（滑らかで自然な乾燥と減衰曲線）
+                    float currentIntensity = progress * progress * dropletMaxIntensity;
+                    postProcess->SetScreenDropletsIntensity(currentIntensity);
+                    postProcess->SetScreenDropletsSpeed(dropletSpeed);
+                    postProcess->SetScreenDropletsDistortion(dropletDistortion);
+                    postProcess->SetScreenDropletsScale(dropletScale);
                 }
             }
         }
@@ -715,6 +768,30 @@ public:
         ImGui::ColorEdit4("Fog Color", &underwaterFogColor.x);
         ImGui::DragFloat("Fog Start", &underwaterFogStart, 1.0f, 0.0f, 50.0f);
         ImGui::DragFloat("Fog End", &underwaterFogEnd, 1.0f, 50.0f, 500.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Screen Droplets Settings (レンズ水滴・気泡演出)");
+        ImGui::DragFloat("Droplet Duration", &dropletDuration, 0.1f, 0.5f, 10.0f);
+        ImGui::SliderFloat("Max Intensity", &dropletMaxIntensity, 0.0f, 1.0f);
+        ImGui::SliderFloat("Speed (正:下向き / 負:上向き)", &dropletSpeed, -5.0f, 5.0f);
+        ImGui::SliderFloat("Distortion", &dropletDistortion, 0.0f, 0.2f);
+        ImGui::SliderFloat("Scale", &dropletScale, 0.5f, 5.0f);
+        if (ImGui::Button("Test Emerge Splash (水中→水上: 下に向かって滴り消える)")) {
+            if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                postProcess->AddEffect(PostEffectType::ScreenDroplets);
+                dropletTimer = dropletDuration;
+                dropletSpeed = 1.3f;
+                postProcess->SetScreenDropletsSpeed(dropletSpeed);
+            }
+        }
+        if (ImGui::Button("Test Dive Splash (水上→水中: 上に向かって気泡が昇り消える)")) {
+            if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+                postProcess->AddEffect(PostEffectType::ScreenDroplets);
+                dropletTimer = dropletDuration;
+                dropletSpeed = -1.3f;
+                postProcess->SetScreenDropletsSpeed(dropletSpeed);
+            }
+        }
 #endif
     }
 };

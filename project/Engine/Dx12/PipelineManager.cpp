@@ -1136,6 +1136,51 @@ void PipelineManager::RegisterDefaultPipelines() {
                     InputLayoutType::None, opt);
   }
 
+  // caustics：水面から差す光の網目模様（深度からワールド座標を復元して投影）
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::PostProcess;
+    opt.enableDepth = false;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = false;
+    opt.cull = D3D12_CULL_MODE_NONE;
+
+    CreateFromFiles("caustics.none",
+                    fullscreenVs,
+                    L"Resources/Shader/Caustics/Caustics.PS.hlsl",
+                    InputLayoutType::None, opt);
+  }
+
+  // lightshaft：水中の降り注ぐ光（レイマーチ型 volumetric light shaft）
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::PostProcess;
+    opt.enableDepth = false;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = false;
+    opt.cull = D3D12_CULL_MODE_NONE;
+
+    CreateFromFiles("lightshaft.none",
+                    fullscreenVs,
+                    L"Resources/Shader/LightShaft/LightShaft.PS.hlsl",
+                    InputLayoutType::None, opt);
+  }
+
+  // screendroplets：レンズ水滴（水上⇔水中の遷移時に画面を流れる水滴）
+  {
+    GPipelineOptions opt{};
+    opt.rootType = RootSignatureType::PostProcess;
+    opt.enableDepth = false;
+    opt.enableDepthWrite = false;
+    opt.enableAlphaBlend = false;
+    opt.cull = D3D12_CULL_MODE_NONE;
+
+    CreateFromFiles("screendroplets.none",
+                    fullscreenVs,
+                    L"Resources/Shader/ScreenDroplets/ScreenDroplets.PS.hlsl",
+                    InputLayoutType::None, opt);
+  }
+
   // ====================
   // Compute Shader
   // ====================

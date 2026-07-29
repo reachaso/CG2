@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <format>
+#include <utility> // std::swap (MoveEffect)
 
 namespace {
 const char* ToString(PostEffectType type) {
@@ -23,6 +24,9 @@ const char* ToString(PostEffectType type) {
   case PostEffectType::Dissolve:   return "Dissolve";
   case PostEffectType::RandomNoise:return "RandomNoise";
   case PostEffectType::Underwater: return "Underwater";
+  case PostEffectType::Caustics:  return "Caustics";
+  case PostEffectType::LightShaft:return "LightShaft";
+  case PostEffectType::ScreenDroplets:return "ScreenDroplets";
   case PostEffectType::None:      return "None";
   default:                        return "Unknown";
   }
@@ -84,6 +88,15 @@ void PostProcess::Initialize(Dx12Core *dxCore,
 
   pipelineUnderwater_ = pipelineManager_->Get("underwater.none");
   assert(pipelineUnderwater_ && "Failed to get underwater pipeline");
+
+  pipelineCaustics_ = pipelineManager_->Get("caustics.none");
+  assert(pipelineCaustics_ && "Failed to get caustics pipeline");
+
+  pipelineLightShaft_ = pipelineManager_->Get("lightshaft.none");
+  assert(pipelineLightShaft_ && "Failed to get lightshaft pipeline");
+
+  pipelineScreenDroplets_ = pipelineManager_->Get("screendroplets.none");
+  assert(pipelineScreenDroplets_ && "Failed to get screendroplets pipeline");
 
   // CBuffer 初期化
   D3D12_HEAP_PROPERTIES uploadHeap{D3D12_HEAP_TYPE_UPLOAD};
@@ -217,11 +230,158 @@ void PostProcess::Initialize(Dx12Core *dxCore,
       mappedUnderwater_->lerpFactor = underwaterLerpFactor_;
     }
   }
+
+  // Caustics CBuffer 初期化
+  {
+    D3D12_HEAP_PROPERTIES uploadHeap{D3D12_HEAP_TYPE_UPLOAD};
+    D3D12_RESOURCE_DESC cbDescCaustics{};
+    cbDescCaustics.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    cbDescCaustics.Width = (sizeof(CausticsData) + 255) & ~255;
+    cbDescCaustics.Height = 1;
+    cbDescCaustics.DepthOrArraySize = 1;
+    cbDescCaustics.MipLevels = 1;
+    cbDescCaustics.Format = DXGI_FORMAT_UNKNOWN;
+    cbDescCaustics.SampleDesc.Count = 1;
+    cbDescCaustics.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    cbDescCaustics.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    hr = dxCore_->GetDevice()->CreateCommittedResource(
+        &uploadHeap, D3D12_HEAP_FLAG_NONE, &cbDescCaustics,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+        IID_PPV_ARGS(&cbufferCaustics_));
+    assert(SUCCEEDED(hr));
+    cbufferCaustics_->Map(0, nullptr, reinterpret_cast<void **>(&mappedCaustics_));
+
+    if (mappedCaustics_) {
+      // 行列は SetProjectionInverse / SetViewInverse が来るまで単位行列にしておく
+      // （初フレームで壊れた値を読まないようにするため）
+      const float identity[16] = {1.0f, 0.0f, 0.0f, 0.0f,
+                                  0.0f, 1.0f, 0.0f, 0.0f,
+                                  0.0f, 0.0f, 1.0f, 0.0f,
+                                  0.0f, 0.0f, 0.0f, 1.0f};
+      memcpy(mappedCaustics_->projectionInverse, identity, sizeof(identity));
+      memcpy(mappedCaustics_->viewInverse, identity, sizeof(identity));
+
+      mappedCaustics_->causticsColor[0] = causticsColor_[0];
+      mappedCaustics_->causticsColor[1] = causticsColor_[1];
+      mappedCaustics_->causticsColor[2] = causticsColor_[2];
+      mappedCaustics_->causticsColor[3] = 1.0f;
+      mappedCaustics_->time = 0.0f;
+      mappedCaustics_->intensity = causticsIntensity_;
+      mappedCaustics_->scale = causticsScale_;
+      mappedCaustics_->speed = causticsSpeed_;
+      mappedCaustics_->contrast = causticsContrast_;
+      mappedCaustics_->chromaticOffset = causticsChromaticOffset_;
+      mappedCaustics_->waterHeight = causticsWaterHeight_;
+      mappedCaustics_->depthFadeDistance = causticsDepthFadeDistance_;
+      mappedCaustics_->upwardBias = causticsUpwardBias_;
+      mappedCaustics_->distanceFadeStart = causticsDistanceFadeStart_;
+      mappedCaustics_->distanceFadeEnd = causticsDistanceFadeEnd_;
+      mappedCaustics_->lerpFactor = causticsLerpFactor_;
+    }
+  }
+
+  // LightShaft CBuffer 初期化
+  {
+    D3D12_HEAP_PROPERTIES uploadHeap{D3D12_HEAP_TYPE_UPLOAD};
+    D3D12_RESOURCE_DESC cbDescLightShaft{};
+    cbDescLightShaft.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    cbDescLightShaft.Width = (sizeof(LightShaftData) + 255) & ~255;
+    cbDescLightShaft.Height = 1;
+    cbDescLightShaft.DepthOrArraySize = 1;
+    cbDescLightShaft.MipLevels = 1;
+    cbDescLightShaft.Format = DXGI_FORMAT_UNKNOWN;
+    cbDescLightShaft.SampleDesc.Count = 1;
+    cbDescLightShaft.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    cbDescLightShaft.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    hr = dxCore_->GetDevice()->CreateCommittedResource(
+        &uploadHeap, D3D12_HEAP_FLAG_NONE, &cbDescLightShaft,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+        IID_PPV_ARGS(&cbufferLightShaft_));
+    assert(SUCCEEDED(hr));
+    cbufferLightShaft_->Map(0, nullptr, reinterpret_cast<void **>(&mappedLightShaft_));
+
+    if (mappedLightShaft_) {
+      const float identity[16] = {1.0f, 0.0f, 0.0f, 0.0f,
+                                  0.0f, 1.0f, 0.0f, 0.0f,
+                                  0.0f, 0.0f, 1.0f, 0.0f,
+                                  0.0f, 0.0f, 0.0f, 1.0f};
+      memcpy(mappedLightShaft_->projectionInverse, identity, sizeof(identity));
+      memcpy(mappedLightShaft_->viewInverse, identity, sizeof(identity));
+
+      mappedLightShaft_->shaftColor[0] = lightShaftColor_[0];
+      mappedLightShaft_->shaftColor[1] = lightShaftColor_[1];
+      mappedLightShaft_->shaftColor[2] = lightShaftColor_[2];
+      mappedLightShaft_->shaftColor[3] = 1.0f;
+      mappedLightShaft_->time = 0.0f;
+      mappedLightShaft_->intensity = lightShaftIntensity_;
+      mappedLightShaft_->contrast = lightShaftContrast_;
+      mappedLightShaft_->density = lightShaftDensity_;
+      mappedLightShaft_->maxDistance = lightShaftMaxDistance_;
+      mappedLightShaft_->sampleCount = lightShaftSampleCount_;
+      mappedLightShaft_->ditherStrength = lightShaftDitherStrength_;
+      mappedLightShaft_->lerpFactor = lightShaftLerpFactor_;
+      mappedLightShaft_->_padding = 0.0f;
+
+      // scale / speed / waterHeight は Caustics と共有する必要がある
+      mappedLightShaft_->scale = causticsScale_;
+      mappedLightShaft_->speed = causticsSpeed_;
+      mappedLightShaft_->waterHeight = causticsWaterHeight_;
+    }
+  }
+
+  // ScreenDroplets CBuffer 初期化
+  {
+    D3D12_HEAP_PROPERTIES uploadHeap{D3D12_HEAP_TYPE_UPLOAD};
+    D3D12_RESOURCE_DESC cbDescScreenDroplets{};
+    cbDescScreenDroplets.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    cbDescScreenDroplets.Width = (sizeof(ScreenDropletsData) + 255) & ~255;
+    cbDescScreenDroplets.Height = 1;
+    cbDescScreenDroplets.DepthOrArraySize = 1;
+    cbDescScreenDroplets.MipLevels = 1;
+    cbDescScreenDroplets.Format = DXGI_FORMAT_UNKNOWN;
+    cbDescScreenDroplets.SampleDesc.Count = 1;
+    cbDescScreenDroplets.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    cbDescScreenDroplets.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    hr = dxCore_->GetDevice()->CreateCommittedResource(
+        &uploadHeap, D3D12_HEAP_FLAG_NONE, &cbDescScreenDroplets,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+        IID_PPV_ARGS(&cbufferScreenDroplets_));
+    assert(SUCCEEDED(hr));
+    cbufferScreenDroplets_->Map(0, nullptr, reinterpret_cast<void **>(&mappedScreenDroplets_));
+
+    if (mappedScreenDroplets_) {
+      mappedScreenDroplets_->time = 0.0f;
+      mappedScreenDroplets_->intensity = screenDropletsIntensity_;
+      mappedScreenDroplets_->speed = screenDropletsSpeed_;
+      mappedScreenDroplets_->distortion = screenDropletsDistortion_;
+      mappedScreenDroplets_->scale = screenDropletsScale_;
+      screenDropletsAspectRatio_ = (height_ > 0) ? (static_cast<float>(width_) / static_cast<float>(height_)) : 1.777f;
+      mappedScreenDroplets_->aspectRatio = screenDropletsAspectRatio_;
+      mappedScreenDroplets_->padding[0] = 0.0f;
+      mappedScreenDroplets_->padding[1] = 0.0f;
+    }
+  }
 }
 
 void PostProcess::Resize(uint32_t width, uint32_t height) {
   width_ = width;
   height_ = height;
+  screenDropletsAspectRatio_ = (height_ > 0) ? (static_cast<float>(width_) / static_cast<float>(height_)) : 1.777f;
+  if (mappedScreenDroplets_) {
+    mappedScreenDroplets_->aspectRatio = screenDropletsAspectRatio_;
+  }
+
+  // DepthStencil::Resize は深度リソース自体を作り直すため、
+  // キャッシュ済みの深度SRVは破棄しないと解放済みリソースを指したままになる。
+  // (DepthBasedOutline / Underwater / Caustics が共有している)
+  if (depthSrv_.IsValid()) {
+    dxCore_->SRVMan().Free(depthSrv_);
+    depthSrv_ = {};
+  }
+
   if (pingPongInitialized_) {
     pingPongA_->Initialize(dxCore_, width_, height_);
     pingPongB_->Initialize(dxCore_, width_, height_);
@@ -237,6 +397,19 @@ void PostProcess::UpdateTime(float deltaTime) {
     mappedUnderwater_->time = randomTime_;
     mappedUnderwater_->lerpFactor = underwaterLerpFactor_;
   }
+  if (mappedCaustics_) {
+    mappedCaustics_->time = randomTime_;
+    mappedCaustics_->lerpFactor = causticsLerpFactor_;
+  }
+  if (mappedLightShaft_) {
+    // Caustics と同じ time を渡すことで床の網目と光柱の位相が揃う
+    mappedLightShaft_->time = randomTime_;
+    mappedLightShaft_->lerpFactor = lightShaftLerpFactor_;
+  }
+  if (mappedScreenDroplets_) {
+    mappedScreenDroplets_->time = randomTime_;
+    mappedScreenDroplets_->intensity = screenDropletsIntensity_;
+  }
 }
 
 void PostProcess::SetProjectionInverse(const float* projInv16) {
@@ -245,6 +418,21 @@ void PostProcess::SetProjectionInverse(const float* projInv16) {
   }
   if (mappedUnderwater_) {
     memcpy(mappedUnderwater_->projectionInverse, projInv16, sizeof(float) * 16);
+  }
+  if (mappedCaustics_) {
+    memcpy(mappedCaustics_->projectionInverse, projInv16, sizeof(float) * 16);
+  }
+  if (mappedLightShaft_) {
+    memcpy(mappedLightShaft_->projectionInverse, projInv16, sizeof(float) * 16);
+  }
+}
+
+void PostProcess::SetViewInverse(const float* viewInv16) {
+  if (mappedCaustics_) {
+    memcpy(mappedCaustics_->viewInverse, viewInv16, sizeof(float) * 16);
+  }
+  if (mappedLightShaft_) {
+    memcpy(mappedLightShaft_->viewInverse, viewInv16, sizeof(float) * 16);
   }
 }
 
@@ -365,6 +553,197 @@ void PostProcess::SetUnderwaterDistortionForce(float force) {
 }
 
 // ============================================================================
+// Caustics パラメータ
+// ============================================================================
+
+void PostProcess::SetCausticsColor(float r, float g, float b) {
+  causticsColor_[0] = r;
+  causticsColor_[1] = g;
+  causticsColor_[2] = b;
+  if (mappedCaustics_) {
+    mappedCaustics_->causticsColor[0] = r;
+    mappedCaustics_->causticsColor[1] = g;
+    mappedCaustics_->causticsColor[2] = b;
+  }
+}
+
+void PostProcess::SetCausticsIntensity(float intensity) {
+  causticsIntensity_ = intensity;
+  if (mappedCaustics_) {
+    mappedCaustics_->intensity = intensity;
+  }
+}
+
+void PostProcess::SetCausticsScale(float scale) {
+  causticsScale_ = scale;
+  if (mappedCaustics_) {
+    mappedCaustics_->scale = scale;
+  }
+  // 光柱の断面と床の網目は同じパターンなので密度を揃える
+  SyncLightShaftWithCaustics();
+}
+
+void PostProcess::SetCausticsSpeed(float speed) {
+  causticsSpeed_ = speed;
+  if (mappedCaustics_) {
+    mappedCaustics_->speed = speed;
+  }
+  SyncLightShaftWithCaustics();
+}
+
+void PostProcess::SetCausticsWater(float waterHeight, float fadeDistance) {
+  causticsWaterHeight_ = waterHeight;
+  causticsDepthFadeDistance_ = fadeDistance;
+  if (mappedCaustics_) {
+    mappedCaustics_->waterHeight = waterHeight;
+    mappedCaustics_->depthFadeDistance = fadeDistance;
+  }
+  SyncLightShaftWithCaustics();
+}
+
+void PostProcess::SetCausticsContrast(float contrast) {
+  causticsContrast_ = contrast;
+  if (mappedCaustics_) {
+    mappedCaustics_->contrast = contrast;
+  }
+}
+
+void PostProcess::SetCausticsChromaticOffset(float offset) {
+  causticsChromaticOffset_ = offset;
+  if (mappedCaustics_) {
+    mappedCaustics_->chromaticOffset = offset;
+  }
+}
+
+void PostProcess::SetCausticsUpwardBias(float bias) {
+  causticsUpwardBias_ = bias;
+  if (mappedCaustics_) {
+    mappedCaustics_->upwardBias = bias;
+  }
+}
+
+void PostProcess::SetCausticsDistanceFade(float start, float end) {
+  causticsDistanceFadeStart_ = start;
+  causticsDistanceFadeEnd_ = end;
+  if (mappedCaustics_) {
+    mappedCaustics_->distanceFadeStart = start;
+    mappedCaustics_->distanceFadeEnd = end;
+  }
+}
+
+void PostProcess::SetCausticsLerpFactor(float lerpFactor) {
+  causticsLerpFactor_ = lerpFactor;
+  if (mappedCaustics_) {
+    mappedCaustics_->lerpFactor = lerpFactor;
+  }
+}
+
+// ============================================================================
+// LightShaft パラメータ
+// ============================================================================
+
+void PostProcess::SetLightShaftColor(float r, float g, float b) {
+  lightShaftColor_[0] = r;
+  lightShaftColor_[1] = g;
+  lightShaftColor_[2] = b;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->shaftColor[0] = r;
+    mappedLightShaft_->shaftColor[1] = g;
+    mappedLightShaft_->shaftColor[2] = b;
+  }
+}
+
+void PostProcess::SetLightShaftIntensity(float intensity) {
+  lightShaftIntensity_ = intensity;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->intensity = intensity;
+  }
+}
+
+void PostProcess::SetLightShaftDensity(float density) {
+  lightShaftDensity_ = density;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->density = density;
+  }
+}
+
+void PostProcess::SetLightShaftContrast(float contrast) {
+  lightShaftContrast_ = contrast;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->contrast = contrast;
+  }
+}
+
+void PostProcess::SetLightShaftDitherStrength(float strength) {
+  lightShaftDitherStrength_ = strength;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->ditherStrength = strength;
+  }
+}
+
+void PostProcess::SetLightShaftMaxDistance(float maxDistance) {
+  lightShaftMaxDistance_ = maxDistance;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->maxDistance = maxDistance;
+  }
+}
+
+void PostProcess::SetLightShaftSampleCount(int sampleCount) {
+  // 0 以下だとシェーダー側で除算が壊れるためクランプする
+  lightShaftSampleCount_ = (sampleCount < 1) ? 1 : sampleCount;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->sampleCount = lightShaftSampleCount_;
+  }
+}
+
+void PostProcess::SetLightShaftLerpFactor(float lerpFactor) {
+  lightShaftLerpFactor_ = lerpFactor;
+  if (mappedLightShaft_) {
+    mappedLightShaft_->lerpFactor = lerpFactor;
+  }
+}
+
+void PostProcess::SyncLightShaftWithCaustics() {
+  if (mappedLightShaft_) {
+    mappedLightShaft_->scale = causticsScale_;
+    mappedLightShaft_->speed = causticsSpeed_;
+    mappedLightShaft_->waterHeight = causticsWaterHeight_;
+  }
+}
+
+// ============================================================================
+// ScreenDroplets パラメータ
+// ============================================================================
+
+void PostProcess::SetScreenDropletsIntensity(float intensity) {
+  screenDropletsIntensity_ = intensity;
+  if (mappedScreenDroplets_) {
+    mappedScreenDroplets_->intensity = intensity;
+  }
+}
+
+void PostProcess::SetScreenDropletsSpeed(float speed) {
+  screenDropletsSpeed_ = speed;
+  if (mappedScreenDroplets_) {
+    mappedScreenDroplets_->speed = speed;
+  }
+}
+
+void PostProcess::SetScreenDropletsDistortion(float distortion) {
+  screenDropletsDistortion_ = distortion;
+  if (mappedScreenDroplets_) {
+    mappedScreenDroplets_->distortion = distortion;
+  }
+}
+
+void PostProcess::SetScreenDropletsScale(float scale) {
+  screenDropletsScale_ = scale;
+  if (mappedScreenDroplets_) {
+    mappedScreenDroplets_->scale = scale;
+  }
+}
+
+// ============================================================================
 void PostProcess::InitDissolveNoiseTextures() {
   if (dissolveNoiseInitialized_) return;
   dissolveNoiseInitialized_ = true;
@@ -438,6 +817,20 @@ void PostProcess::ClearEffects() {
   }
 }
 
+bool PostProcess::MoveEffect(size_t index, int offset) {
+  if (index >= activeEffects_.size()) {
+    return false;
+  }
+  const int target = static_cast<int>(index) + offset;
+  if (target < 0 || target >= static_cast<int>(activeEffects_.size())) {
+    return false;
+  }
+  std::swap(activeEffects_[index], activeEffects_[static_cast<size_t>(target)]);
+  Log::Print(std::format("[PostProcess] MoveEffect (Active: {})",
+                         ActiveEffectsToString(activeEffects_)));
+  return true;
+}
+
 bool PostProcess::HasEffect(PostEffectType type) const {
   return std::find(activeEffects_.begin(), activeEffects_.end(), type) !=
          activeEffects_.end();
@@ -469,6 +862,12 @@ GraphicsPipeline *PostProcess::GetPipelineForEffect(PostEffectType type) {
     return pipelineRandom_;
   case PostEffectType::Underwater:
     return pipelineUnderwater_;
+  case PostEffectType::Caustics:
+    return pipelineCaustics_;
+  case PostEffectType::LightShaft:
+    return pipelineLightShaft_;
+  case PostEffectType::ScreenDroplets:
+    return pipelineScreenDroplets_;
   case PostEffectType::None:
   default:
     return pipelineCopy_;
@@ -565,6 +964,33 @@ void PostProcess::DrawSinglePass(ID3D12GraphicsCommandList *cmdList,
     cmdList->SetGraphicsRootDescriptorTable(2, depthSrv_.gpu);
     // params[3]: b1 (Underwater CBuffer)
     cmdList->SetGraphicsRootConstantBufferView(3, cbufferUnderwater_->GetGPUVirtualAddress());
+  }
+
+  if (effectType == PostEffectType::Caustics) {
+    if (!depthSrv_.IsValid()) {
+      depthSrv_ = dxCore_->SRVMan().CreateTexture2D(
+          dxCore_->GetDepthResource(), DXGI_FORMAT_R24_UNORM_X8_TYPELESS, 1);
+    }
+    // params[2]: t1 (Depth SRV)
+    cmdList->SetGraphicsRootDescriptorTable(2, depthSrv_.gpu);
+    // params[3]: b1 (Caustics CBuffer)
+    cmdList->SetGraphicsRootConstantBufferView(3, cbufferCaustics_->GetGPUVirtualAddress());
+  }
+
+  if (effectType == PostEffectType::LightShaft) {
+    if (!depthSrv_.IsValid()) {
+      depthSrv_ = dxCore_->SRVMan().CreateTexture2D(
+          dxCore_->GetDepthResource(), DXGI_FORMAT_R24_UNORM_X8_TYPELESS, 1);
+    }
+    // params[2]: t1 (Depth SRV)
+    cmdList->SetGraphicsRootDescriptorTable(2, depthSrv_.gpu);
+    // params[3]: b1 (LightShaft CBuffer)
+    cmdList->SetGraphicsRootConstantBufferView(3, cbufferLightShaft_->GetGPUVirtualAddress());
+  }
+
+  if (effectType == PostEffectType::ScreenDroplets) {
+    // params[3]: b1 (ScreenDroplets CBuffer)
+    cmdList->SetGraphicsRootConstantBufferView(3, cbufferScreenDroplets_->GetGPUVirtualAddress());
   }
 
   // 全画面三角形（頂点バッファなし、SV_VertexID 使用）
@@ -871,12 +1297,250 @@ void PostProcess::DrawImGui([[maybe_unused]] const char *label) {
       ImGui::Unindent();
     }
 
-    // 現在のスタック表示
+    bool caustics = HasEffect(PostEffectType::Caustics);
+    if (ImGui::Checkbox("Caustics", &caustics)) {
+      if (caustics) {
+        AddEffect(PostEffectType::Caustics);
+      } else {
+        RemoveEffect(PostEffectType::Caustics);
+      }
+    }
+    if (caustics) {
+      ImGui::Indent();
+
+      if (ImGui::ColorEdit3("Caustics Color", causticsColor_)) {
+        SetCausticsColor(causticsColor_[0], causticsColor_[1], causticsColor_[2]);
+      }
+      if (ImGui::SliderFloat("Caustics Intensity", &causticsIntensity_, 0.0f, 3.0f)) {
+        SetCausticsIntensity(causticsIntensity_);
+      }
+      if (ImGui::SliderFloat("Caustics Scale", &causticsScale_, 0.02f, 2.0f)) {
+        SetCausticsScale(causticsScale_);
+      }
+      if (ImGui::SliderFloat("Caustics Speed", &causticsSpeed_, 0.0f, 3.0f)) {
+        SetCausticsSpeed(causticsSpeed_);
+      }
+      if (ImGui::SliderFloat("Caustics Contrast", &causticsContrast_, 1.0f, 12.0f)) {
+        SetCausticsContrast(causticsContrast_);
+      }
+      if (ImGui::SliderFloat("Chromatic Offset", &causticsChromaticOffset_, 0.0f, 2.0f)) {
+        SetCausticsChromaticOffset(causticsChromaticOffset_);
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::DragFloat("Water Height (Y)", &causticsWaterHeight_, 0.1f)) {
+        SetCausticsWater(causticsWaterHeight_, causticsDepthFadeDistance_);
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "水面のワールドY座標。\n"
+            "これより上のピクセルには caustics が落ちない。\n"
+            "※何も見えない場合はまずこの値を疑うこと\n"
+            "  （床が Water Height より上にあると全く描かれない）");
+      }
+      if (ImGui::SliderFloat("Depth Fade Distance", &causticsDepthFadeDistance_, 1.0f, 500.0f)) {
+        SetCausticsWater(causticsWaterHeight_, causticsDepthFadeDistance_);
+      }
+      if (ImGui::SliderFloat("Upward Bias", &causticsUpwardBias_, 0.0f, 1.0f)) {
+        SetCausticsUpwardBias(causticsUpwardBias_);
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "1.0 = 上向きの面にだけ落ちる（床）\n"
+            "0.0 = 面の向きを無視して全面に落ちる\n"
+            "壁面で模様が伸びる場合は上げる");
+      }
+      if (ImGui::SliderFloat("Dist Fade Start", &causticsDistanceFadeStart_, 0.0f, 600.0f)) {
+        SetCausticsDistanceFade(causticsDistanceFadeStart_, causticsDistanceFadeEnd_);
+      }
+      if (ImGui::SliderFloat("Dist Fade End", &causticsDistanceFadeEnd_, 10.0f, 600.0f)) {
+        SetCausticsDistanceFade(causticsDistanceFadeStart_, causticsDistanceFadeEnd_);
+      }
+      if (ImGui::SliderFloat("Caustics Lerp Factor (Debug)", &causticsLerpFactor_, 0.0f, 1.0f)) {
+        SetCausticsLerpFactor(causticsLerpFactor_);
+      }
+
+      ImGui::Unindent();
+    }
+
+    bool lightShaft = HasEffect(PostEffectType::LightShaft);
+    if (ImGui::Checkbox("LightShaft", &lightShaft)) {
+      if (lightShaft) {
+        AddEffect(PostEffectType::LightShaft);
+      } else {
+        RemoveEffect(PostEffectType::LightShaft);
+      }
+    }
+    if (lightShaft) {
+      ImGui::Indent();
+
+      if (ImGui::ColorEdit3("Shaft Color", lightShaftColor_)) {
+        SetLightShaftColor(lightShaftColor_[0], lightShaftColor_[1], lightShaftColor_[2]);
+      }
+      if (ImGui::SliderFloat("Shaft Intensity", &lightShaftIntensity_, 0.0f, 3.0f)) {
+        SetLightShaftIntensity(lightShaftIntensity_);
+      }
+      if (ImGui::SliderFloat("Shaft Density", &lightShaftDensity_, 0.0f, 0.3f)) {
+        SetLightShaftDensity(lightShaftDensity_);
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "深さによる指数減衰。\n"
+            "大きくすると浅い層だけが光り、光柱が短くなる。");
+      }
+      if (ImGui::SliderFloat("Shaft Contrast", &lightShaftContrast_, 1.0f, 8.0f)) {
+        SetLightShaftContrast(lightShaftContrast_);
+      }
+
+      ImGui::Separator();
+
+      // Caustics と共有するパラメータ。LightShaft 単体で有効にしたときにも
+      // ここから触れるようにしておく（触れないと水面高さを変更できない）。
+      ImGui::TextDisabled("以下は Caustics と共有");
+      if (ImGui::DragFloat("Water Height (Y)##shaft", &causticsWaterHeight_, 0.1f)) {
+        SetCausticsWater(causticsWaterHeight_, causticsDepthFadeDistance_);
+      }
+      if (ImGui::SliderFloat("Pattern Scale##shaft", &causticsScale_, 0.02f, 2.0f)) {
+        SetCausticsScale(causticsScale_);
+      }
+      if (ImGui::SliderFloat("Pattern Speed##shaft", &causticsSpeed_, 0.0f, 3.0f)) {
+        SetCausticsSpeed(causticsSpeed_);
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::SliderInt("Sample Count", &lightShaftSampleCount_, 4, 64)) {
+        SetLightShaftSampleCount(lightShaftSampleCount_);
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(!)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "レイマーチのステップ数。\n"
+            "このエフェクトのコストはほぼこの値に比例する。\n"
+            "FPS が落ちる場合はまずここを下げること。");
+      }
+      if (ImGui::SliderFloat("Shaft Max Distance", &lightShaftMaxDistance_, 10.0f, 400.0f)) {
+        SetLightShaftMaxDistance(lightShaftMaxDistance_);
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "レイマーチの打ち切り距離。明るさには影響しない（コストだけ）。\n"
+            "カメラの Far Clip より大きくしても効果は伸びない。");
+      }
+      if (ImGui::SliderFloat("Dither Strength", &lightShaftDitherStrength_, 0.0f, 1.0f)) {
+        SetLightShaftDitherStrength(lightShaftDitherStrength_);
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "0 にするとステップの縞（バンディング）が見える。\n"
+            "Sample Count を下げたときは 1.0 のままにしておくこと。");
+      }
+      if (ImGui::SliderFloat("Shaft Lerp Factor (Debug)", &lightShaftLerpFactor_, 0.0f, 1.0f)) {
+        SetLightShaftLerpFactor(lightShaftLerpFactor_);
+      }
+
+      ImGui::Unindent();
+    }
+
+    bool screenDroplets = HasEffect(PostEffectType::ScreenDroplets);
+    if (ImGui::Checkbox("ScreenDroplets (レンズ水滴)", &screenDroplets)) {
+      if (screenDroplets) {
+        AddEffect(PostEffectType::ScreenDroplets);
+      } else {
+        RemoveEffect(PostEffectType::ScreenDroplets);
+      }
+    }
+    if (screenDroplets) {
+      ImGui::Indent();
+      if (ImGui::SliderFloat("Intensity (水滴の強さ)", &screenDropletsIntensity_, 0.0f, 1.0f)) {
+        SetScreenDropletsIntensity(screenDropletsIntensity_);
+      }
+      if (ImGui::SliderFloat("Speed (流れる速度)", &screenDropletsSpeed_, 0.0f, 5.0f)) {
+        SetScreenDropletsSpeed(screenDropletsSpeed_);
+      }
+      if (ImGui::SliderFloat("Distortion (屈折の強さ)", &screenDropletsDistortion_, 0.0f, 0.2f)) {
+        SetScreenDropletsDistortion(screenDropletsDistortion_);
+      }
+      if (ImGui::SliderFloat("Scale (水滴の密度)", &screenDropletsScale_, 0.5f, 5.0f)) {
+        SetScreenDropletsScale(screenDropletsScale_);
+      }
+      ImGui::Unindent();
+    }
+
+    // ------------------------------------------------------------------
+    // 適用順（結果に影響するので並び替えできるようにしておく）
+    // ------------------------------------------------------------------
+    ImGui::Separator();
+
     const auto &effects = GetEffects();
     if (effects.empty()) {
       ImGui::TextDisabled("Active: None");
     } else {
-      ImGui::Text("Active: %zu effect(s)", effects.size());
+      ImGui::Text("Apply Order (%zu effect(s))", effects.size());
+      ImGui::SameLine();
+      ImGui::TextDisabled("(?)");
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(
+            "上から順に適用される。\n"
+            "Underwater は UV を歪めるため、Caustics / LightShaft より\n"
+            "後ろ（下）に置かないと模様の位置がジオメトリとズレる。");
+      }
+
+      ImGui::Indent();
+      // 並び替えはリストを書き換えるので、この描画フレーム中は1回だけ行う
+      int moveFrom = -1;
+      int moveOffset = 0;
+      for (size_t i = 0; i < effects.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+
+        if (ImGui::ArrowButton("##up", ImGuiDir_Up)) {
+          moveFrom = static_cast<int>(i);
+          moveOffset = -1;
+        }
+        ImGui::SameLine();
+        if (ImGui::ArrowButton("##down", ImGuiDir_Down)) {
+          moveFrom = static_cast<int>(i);
+          moveOffset = 1;
+        }
+        ImGui::SameLine();
+        ImGui::Text("%zu. %s", i + 1, ToString(effects[i]));
+
+        ImGui::PopID();
+      }
+      if (moveFrom >= 0) {
+        MoveEffect(static_cast<size_t>(moveFrom), moveOffset);
+      }
+      ImGui::Unindent();
+
+      // 順序ミスの警告
+      auto indexOf = [&effects](PostEffectType type) -> int {
+        for (size_t i = 0; i < effects.size(); ++i) {
+          if (effects[i] == type) return static_cast<int>(i);
+        }
+        return -1;
+      };
+      const int idxUnderwater = indexOf(PostEffectType::Underwater);
+      const int idxCaustics = indexOf(PostEffectType::Caustics);
+      const int idxLightShaft = indexOf(PostEffectType::LightShaft);
+      if (idxUnderwater >= 0 &&
+          ((idxCaustics >= 0 && idxCaustics > idxUnderwater) ||
+           (idxLightShaft >= 0 && idxLightShaft > idxUnderwater))) {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f),
+                           "警告: Underwater を Caustics / LightShaft より後ろに\n"
+                           "移動してください（模様の位置がズレています）");
+      }
     }
   }
 #endif

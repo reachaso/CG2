@@ -1178,6 +1178,18 @@ void SetRandomNoiseIntensity(float intensity);
 /// @brief RandomNoise の色を設定する (RGB)
 void SetRandomNoiseColor(float r, float g, float b);
 
+/// @brief ScreenDroplets (レンズ水滴) の強度を設定する (0.0 ~ 1.0)
+void SetScreenDropletsIntensity(float intensity);
+
+/// @brief ScreenDroplets (レンズ水滴) の流れる速度を設定する
+void SetScreenDropletsSpeed(float speed);
+
+/// @brief ScreenDroplets (レンズ水滴) によるUV屈折強度を設定する
+void SetScreenDropletsDistortion(float distortion);
+
+/// @brief ScreenDroplets (レンズ水滴) の密度（グリッドスケール）を設定する
+void SetScreenDropletsScale(float scale);
+
 /// @brief ポストエフェクトの ImGui 表示を行う
 /// @param label ラベル名
 void DrawPostEffectImGui(const char *label = "PostEffect");

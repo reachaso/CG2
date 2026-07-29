@@ -328,6 +328,30 @@ void SetRandomNoiseColor(float r, float g, float b) {
   }
 }
 
+void SetScreenDropletsIntensity(float intensity) {
+  if (PostProcess *pp = RenderContext::GetInstance().GetPostProcess()) {
+    pp->SetScreenDropletsIntensity(intensity);
+  }
+}
+
+void SetScreenDropletsSpeed(float speed) {
+  if (PostProcess *pp = RenderContext::GetInstance().GetPostProcess()) {
+    pp->SetScreenDropletsSpeed(speed);
+  }
+}
+
+void SetScreenDropletsDistortion(float distortion) {
+  if (PostProcess *pp = RenderContext::GetInstance().GetPostProcess()) {
+    pp->SetScreenDropletsDistortion(distortion);
+  }
+}
+
+void SetScreenDropletsScale(float scale) {
+  if (PostProcess *pp = RenderContext::GetInstance().GetPostProcess()) {
+    pp->SetScreenDropletsScale(scale);
+  }
+}
+
 #if RC_ENABLE_IMGUI
 void DrawPostEffectImGui(const char *label) {
   if (PostProcess *pp = RenderContext::GetInstance().GetPostProcess()) {

@@ -178,6 +178,10 @@ void RenderContext::SetCamera(const Matrix4x4 &view, const Matrix4x4 &proj,
   if (postProcess_) {
     Matrix4x4 projInv = Inverse(proj);
     postProcess_->SetProjectionInverse(&projInv.m[0][0]);
+
+    // Caustics がビュー空間 → ワールド空間の復元に使用する
+    Matrix4x4 viewInv = Inverse(view);
+    postProcess_->SetViewInverse(&viewInv.m[0][0]);
   }
 }
 

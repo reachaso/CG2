@@ -25,6 +25,9 @@ enum class PostEffectType {
   Dissolve,   ///< ディゾルブ（ノイズマスクによる消失演出）
   RandomNoise,///< ランダムノイズ（時間経過によるプロシージャルノイズ）
   Underwater, ///< 水中エフェクト（UV歪みと青み）
+  Caustics,   ///< 水面から差す光の網目模様（深度からワールド座標を復元して投影）
+  LightShaft, ///< 水中の降り注ぐ光（レイマーチ型 volumetric light shaft）
+  ScreenDroplets, ///< レンズ水滴（水上・水中の遷移や着水時にレンズへ付いて流れる水滴）
 };
 
 /// @class PostProcess
@@ -64,6 +67,11 @@ public:
 
   /// @brief プロジェクション逆行列を設定する (DepthBasedOutline等で使用)
   void SetProjectionInverse(const float* projInv16);
+
+  /// @brief ビュー逆行列（カメラのワールド行列）を設定する
+  /// @details Caustics がビュー空間座標をワールド空間へ戻すために使用する。
+  ///          RenderContext::SetCamera から毎フレーム供給される。
+  void SetViewInverse(const float* viewInv16);
 
   // ===========================
   // 単体エフェクト（後方互換）
@@ -123,6 +131,95 @@ public:
   /// @brief Underwater の歪みの強さを設定する
   void SetUnderwaterDistortionForce(float force);
 
+  // ===========================
+  // Caustics パラメータ
+  // ===========================
+
+  /// @brief Caustics の発光色を設定する (RGB)
+  void SetCausticsColor(float r, float g, float b);
+
+  /// @brief Caustics 全体の強さを設定する (0.0 ~)
+  void SetCausticsIntensity(float intensity);
+
+  /// @brief 網目の密度（ワールド1単位あたりのタイル数）を設定する
+  void SetCausticsScale(float scale);
+
+  /// @brief 網目のうねる速度を設定する
+  void SetCausticsSpeed(float speed);
+
+  /// @brief 水面のワールドY座標と減衰距離を設定する
+  /// @param waterHeight 水面の高さ
+  /// @param fadeDistance この距離だけ潜ると caustics が消えきる
+  void SetCausticsWater(float waterHeight, float fadeDistance);
+
+  /// @brief 網目のコントラストを設定する（大きいほど細くシャープになる）
+  void SetCausticsContrast(float contrast);
+
+  /// @brief 色収差量を設定する (0.0 で無効)
+  void SetCausticsChromaticOffset(float offset);
+
+  /// @brief 上向き法線への偏りを設定する
+  /// @param bias 1.0 = 上向きの面（床）にだけ落ちる / 0.0 = 面の向きを無視
+  void SetCausticsUpwardBias(float bias);
+
+  /// @brief カメラからの距離減衰の範囲を設定する
+  void SetCausticsDistanceFade(float start, float end);
+
+  /// @brief 水中ブレンド率を設定する (0.0:適用しない ~ 1.0:完全適用)
+  /// @note Underwater の lerpFactor と揃えて使うことを想定している。
+  void SetCausticsLerpFactor(float lerpFactor);
+
+  // ===========================
+  // LightShaft パラメータ
+  // ===========================
+
+  /// @brief 光柱の色を設定する (RGB)
+  void SetLightShaftColor(float r, float g, float b);
+
+  /// @brief 光柱全体の強さを設定する
+  void SetLightShaftIntensity(float intensity);
+
+  /// @brief 深さによる指数減衰の強さを設定する（大きいほど浅い層だけ光る）
+  void SetLightShaftDensity(float density);
+
+  /// @brief 光柱の断面のコントラストを設定する
+  void SetLightShaftContrast(float contrast);
+
+  /// @brief バンディング対策のディザ量を設定する (0.0 ~ 1.0)
+  void SetLightShaftDitherStrength(float strength);
+
+  /// @brief レイマーチの最大距離を設定する
+  void SetLightShaftMaxDistance(float maxDistance);
+
+  /// @brief レイマーチのステップ数を設定する
+  /// @note 性能の主要因。FPSが落ちる場合はまずここを下げる。
+  void SetLightShaftSampleCount(int sampleCount);
+
+  /// @brief 水中ブレンド率を設定する (0.0:適用しない ~ 1.0:完全適用)
+  void SetLightShaftLerpFactor(float lerpFactor);
+
+  /// @brief 模様の密度・速度・水面高さを Caustics と同期させる
+  /// @details 光柱の断面と床の網目は同じパターンを共有しているため、
+  ///          scale / speed / waterHeight がズレると位置が合わなくなる。
+  ///          Caustics 側の現在値をそのまま LightShaft へコピーする。
+  void SyncLightShaftWithCaustics();
+
+  // ===========================
+  // ScreenDroplets パラメータ
+  // ===========================
+
+  /// @brief レンズ水滴の強度を設定する (0.0:消えきった状態 ~ 1.0:フル)
+  void SetScreenDropletsIntensity(float intensity);
+
+  /// @brief 水滴が流れ落ちる速度を設定する
+  void SetScreenDropletsSpeed(float speed);
+
+  /// @brief 水滴による背景UV屈折（歪み）の強さを設定する
+  void SetScreenDropletsDistortion(float distortion);
+
+  /// @brief 水滴のサイズ・密度（グリッドスケール）を設定する
+  void SetScreenDropletsScale(float scale);
+
   /// @brief ポストエフェクトを1つだけ設定する
   /// @details 既存のエフェクトスタックをクリアして、指定されたエフェクトのみを設定します。
   /// @param type 設定するエフェクトの種類（None でエフェクトなし）
@@ -147,6 +244,14 @@ public:
 
   /// @brief 全てのエフェクトを解除する
   void ClearEffects();
+
+  /// @brief エフェクトの適用順を1つ入れ替える
+  /// @details 適用順は結果に影響する。特に Underwater は UV を歪めるため、
+  ///          Caustics や LightShaft より後ろに置かないと模様の位置がズレる。
+  /// @param index 動かすエフェクトの現在の位置
+  /// @param offset -1 で前へ、+1 で後ろへ
+  /// @return 実際に入れ替わったら true（範囲外なら false）
+  bool MoveEffect(size_t index, int offset);
 
   /// @brief 指定したエフェクトが現在有効かどうかを確認する
   /// @param type 確認するエフェクトの種類
@@ -201,6 +306,9 @@ private:
   GraphicsPipeline *pipelineDissolve_ = nullptr;
   GraphicsPipeline *pipelineRandom_ = nullptr;
   GraphicsPipeline *pipelineUnderwater_ = nullptr;
+  GraphicsPipeline *pipelineCaustics_ = nullptr;
+  GraphicsPipeline *pipelineLightShaft_ = nullptr;
+  GraphicsPipeline *pipelineScreenDroplets_ = nullptr;
 
   std::vector<PostEffectType> activeEffects_; ///< アクティブなエフェクトスタック（適用順）
 
@@ -298,6 +406,95 @@ private:
 
   float underwaterFogEnd_ = 150.0f;
   float underwaterLerpFactor_ = 1.0f;
+
+  // Caustics パラメータ
+  // NOTE: HLSL 側 cbuffer CausticsParams (b1) と 1:1 で対応する。
+  //       全 48 float = 192 byte がちょうど 12 個の float4 行に収まるため
+  //       末尾パディングは不要（メンバを増減する際は必ず再確認すること）。
+  Microsoft::WRL::ComPtr<ID3D12Resource> cbufferCaustics_;
+  struct CausticsData {
+    float projectionInverse[16];               // プロジェクション逆行列
+    float viewInverse[16];                     // ビュー逆行列
+    float causticsColor[4] = {0.75f, 0.95f, 1.0f, 1.0f}; // 網目の発光色
+    float time = 0.0f;                         // 経過時間
+    float intensity = 1.5f;                    // 全体の強さ
+    float scale = 0.05f;                       // 網目の密度
+    float speed = 0.5f;                        // うねる速度
+    float contrast = 1.0f;                     // 網目のコントラスト
+    float chromaticOffset = 2.0f;              // 色収差量
+    float waterHeight = 150.0f;                  // 水面のワールドY
+    float depthFadeDistance = 200.0f;           // 水面からの減衰距離
+    float upwardBias = 0.5f;                  // 上向き法線への偏り
+    float distanceFadeStart = 300.0f;           // 距離減衰の開始
+    float distanceFadeEnd = 150.0f;            // 距離減衰の終了
+    float lerpFactor = 1.0f;                   // 水中ブレンド率
+  };
+  CausticsData *mappedCaustics_ = nullptr;
+  float causticsColor_[3] = {0.75f, 0.95f, 1.0f};
+  float causticsIntensity_ = 1.5f;
+  float causticsScale_ = 0.05f;
+  float causticsSpeed_ = 0.5f;
+  float causticsContrast_ = 1.0f;
+  float causticsChromaticOffset_ = 2.0f;
+  float causticsWaterHeight_ = 150.0f;
+  float causticsDepthFadeDistance_ = 200.0f;
+  float causticsUpwardBias_ = 0.5f;
+  float causticsDistanceFadeStart_ = 300.0f;
+  float causticsDistanceFadeEnd_ = 150.0f;
+  float causticsLerpFactor_ = 1.0f;
+
+  // LightShaft パラメータ
+  // NOTE: HLSL 側 cbuffer LightShaftParams (b1) と 1:1 で対応する。
+  //       全 48 float = 192 byte がちょうど 12 個の float4 行に収まる。
+  //       末尾の _padding を含めて数が合っているので、メンバを増減する際は
+  //       必ずパディングを調整すること。
+  Microsoft::WRL::ComPtr<ID3D12Resource> cbufferLightShaft_;
+  struct LightShaftData {
+    float projectionInverse[16];                      // プロジェクション逆行列
+    float viewInverse[16];                            // ビュー逆行列
+    float shaftColor[4] = {0.80f, 0.94f, 1.0f, 1.0f}; // 光柱の色
+    float time = 0.0f;                                // 経過時間
+    float intensity = 1.0f;                           // 全体の強さ
+    float scale = 0.05f;                              // 模様の密度（Caustics と同期）
+    float speed = 0.5f;                              // うねる速度（Caustics と同期）
+    float contrast = 3.0f;                            // 断面のコントラスト
+    float waterHeight = 150.0f;                         // 水面のワールドY（Caustics と同期）
+    float density = 0.045f;                           // 深さによる指数減衰
+    float maxDistance = 120.0f;                       // レイマーチの最大距離
+    int sampleCount = 24;                             // ステップ数（性能の主要因）
+    float ditherStrength = 1.0f;                      // バンディング対策
+    float lerpFactor = 1.0f;                          // 水中ブレンド率
+    float _padding = 0.0f;
+  };
+  LightShaftData *mappedLightShaft_ = nullptr;
+  float lightShaftColor_[3] = {0.80f, 0.94f, 1.0f};
+  float lightShaftIntensity_ = 1.0f;
+  float lightShaftContrast_ = 3.0f;
+  float lightShaftDensity_ = 0.045f;
+  float lightShaftMaxDistance_ = 120.0f;
+  int lightShaftSampleCount_ = 24;
+  float lightShaftDitherStrength_ = 1.0f;
+  float lightShaftLerpFactor_ = 1.0f;
+
+  // ScreenDroplets パラメータ
+  // NOTE: HLSL 側 cbuffer ScreenDropletsParams (b1) と 1:1 で対応する。
+  //       全 8 float = 32 byte が 2 個の float4 行に収まる。
+  Microsoft::WRL::ComPtr<ID3D12Resource> cbufferScreenDroplets_;
+  struct ScreenDropletsData {
+    float time = 0.0f;
+    float intensity = 1.0f;
+    float speed = 1.0f;
+    float distortion = 0.05f;
+    float scale = 1.5f;
+    float aspectRatio = 1.777f;
+    float padding[2] = {0.0f, 0.0f};
+  };
+  ScreenDropletsData *mappedScreenDroplets_ = nullptr;
+  float screenDropletsIntensity_ = 1.0f;
+  float screenDropletsSpeed_ = 1.0f;
+  float screenDropletsDistortion_ = 0.05f;
+  float screenDropletsScale_ = 1.5f;
+  float screenDropletsAspectRatio_ = 1.777f;
 
 public:
   void SetUnderwaterLerpFactor(float lf) { underwaterLerpFactor_ = lf; }
