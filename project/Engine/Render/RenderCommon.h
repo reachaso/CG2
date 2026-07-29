@@ -440,6 +440,37 @@ bool HasModelSkinData(int modelHandle);
 /// @param modelHandle モデルハンドル
 /// @return スケルトン構造が存在すれば true
 bool HasModelSkeleton(int modelHandle);
+
+// ============================================================
+// ボーン追従（ソケット）
+// ============================================================
+
+/// @brief 指定Jointの現在の姿勢（スケルトン空間＝モデルローカル）を取得する
+/// @param modelHandle モデルハンドル
+/// @param jointName Joint名（例: "R_Hand"）
+/// @param out 取得先の行列
+/// @return 見つかれば true
+/// @details ワールド姿勢は Multiply(out, モデルのワールド行列) で求まる。
+///          武器などをボーンに追従させたい場合に使う。
+bool GetModelJointMatrix(int modelHandle, const std::string &jointName,
+                         Matrix4x4 &out);
+
+/// @brief モデルの全Joint名を取得する（ボーン名を調べる用）
+/// @param modelHandle モデルハンドル
+/// @return Joint名の一覧。スケルトンが無ければ空
+std::vector<std::string> GetModelJointNames(int modelHandle);
+
+/// @brief 描画に使うワールド行列を直接指定する（Transform の TRS を無視する）
+/// @param modelHandle モデルハンドル
+/// @param world ワールド行列
+/// @details ボーン追従のように行列でしか表せない姿勢を与えるための機能。
+///          解除するには ClearModelWorldOverride を呼ぶ。
+void SetModelWorldOverride(int modelHandle, const Matrix4x4 &world);
+
+/// @brief ワールド行列の上書きを解除し、Transform 基準の描画に戻す
+/// @param modelHandle モデルハンドル
+void ClearModelWorldOverride(int modelHandle);
+
 /// @brief モデルのライティングモードを設定する
 /// @param modelHandle モデルハンドル
 /// @param m ライティングモード

@@ -29,6 +29,19 @@ public:
   /// @param name Entity name
   explicit Entity(const std::string &name) : id_(NextId()), name_(name), guid_(GenerateGUID()) {}
 
+  /// @brief Destructor
+  /// @details components_ の破棄が始まる前に全コンポーネントへ OnEntityDestroy() を通知する。
+  ///          スクリプトの OnDestroy() は GetComponent() で他のコンポーネントを触るため、
+  ///          unordered_map の破棄中に呼ぶとノードが解放済みのマップを検索してしまい
+  ///          アクセス違反で落ちる。通知 → clear() の順にすることで、
+  ///          後始末の間はすべてのコンポーネントが有効であることを保証する。
+  ~Entity() {
+    for (auto &[type, comp] : components_) {
+      if (comp) comp->OnEntityDestroy();
+    }
+    components_.clear();
+  }
+
   /// @brief Add a component
   /// @tparam T Component type (must derive from IComponent)
   /// @tparam Args Constructor arguments

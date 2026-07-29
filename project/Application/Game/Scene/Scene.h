@@ -6,6 +6,7 @@
 #include <vector>
 #include "AppConfig.h"
 #include "ECS/Entity.h"
+#include "Common/Math/MathTypes.h"
 #include "../Framework/GameModeBase.h"
 
 // 前方宣言（App 側の実体を参照するため）
@@ -166,6 +167,36 @@ public:
   /// @brief 現在のSceneContextを取得する
   SceneContext* GetContext() const { return currentContext_; }
 
+  // ============================================================
+  // 当たり判定付き移動（キャラクターコントローラー用）
+  // ============================================================
+
+  /// @brief 指定エンティティのコライダーを testPos に置いたとき、
+  ///        他のブロッキングコライダーと重なるかを判定する
+  /// @param self 判定対象のエンティティ（自身は除外される）
+  /// @param testPos self の TransformComponent::position をこの値に置き換えて判定する
+  /// @param skin コライダーを内側に縮める余裕量（m）。床や壁と面が接した状態で
+  ///             引っかかるのを防ぐため、既定で 0.05 だけ小さく判定する
+  /// @param hitOut 重なった相手のエンティティを受け取る（不要なら nullptr）
+  /// @return 重なっていれば true
+  /// @note isTrigger のコライダー、無効なコライダーは無視する
+  bool TestBlockingOverlap(Entity* self, const RC::Vector3& testPos,
+                           float skin = 0.05f, Entity** hitOut = nullptr);
+
+  /// @brief 壁抜け（トンネリング）しない移動を行う
+  /// @param self 移動させるエンティティ
+  /// @param delta このフレームの移動量（速度×deltaTime）
+  /// @param maxStep 1回の判定で進む最大距離(m)。これを壁の最小厚みより小さく保つことで
+  ///                高速移動時でも「飛び越え」が起きない。既定 0.1m
+  /// @param skin TestBlockingOverlap に渡す余裕量
+  /// @return 実際に移動した量（壁に阻まれた分は差し引かれる）
+  /// @details delta を maxStep 以下に分割し、各ステップで X→Z→Y の順に
+  ///          軸ごとに移動を試す。ブロックされた軸だけを取り消すため、
+  ///          斜め移動で壁に当たっても壁に沿ってスライドする。
+  ///          既にめり込んでいる場合はその軸の移動を許可して脱出できるようにする。
+  RC::Vector3 MoveWithCollision(Entity* self, const RC::Vector3& delta,
+                                float maxStep = 0.1f, float skin = 0.05f);
+
   /// @brief 動的に生成したエンティティのランタイムリソースを初期化する
   /// @param e 初期化するエンティティ
   /// @details 派生クラスでオーバーライドして、モデルロードやメッシュ生成を行う
@@ -203,12 +234,24 @@ protected:
 
   /// @brief Remove entities marked for destruction
   void RemoveDeadEntities() {
+    // 破棄予定のエンティティを先に別の入れ物へ退避して参照を残しておく。
+    // entities_ から消しながら解放すると、スクリプトの OnDestroy から
+    // GetEntities() を辿ったときに解放途中の要素を触ってしまう。
+    std::vector<std::shared_ptr<Entity>> doomed;
+    for (auto& e : entities_) {
+      if (!e || e->IsPendingDestroy()) doomed.push_back(e);
+    }
+    if (doomed.empty()) return;
+
     entities_.erase(
       std::remove_if(entities_.begin(), entities_.end(),
         [](const std::shared_ptr<Entity>& e) {
           return !e || e->IsPendingDestroy();
         }),
       entities_.end());
+
+    // entities_ が正しい状態になってから実際に解放する
+    doomed.clear();
   }
 
   /// @brief Destroy entity by name

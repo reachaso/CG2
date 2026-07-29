@@ -57,6 +57,17 @@ public:
   /// @param contactPoint The world position where the collision occurred
   virtual void OnCollision(Entity* other, const RC::Vector3& contactPoint = {}) {}
 
+  /// @brief 当たり判定付きで移動する（壁抜け防止＋壁ずり）
+  /// @param delta このフレームの移動量（速度 × deltaTime）
+  /// @param maxStep 1回の判定で進む最大距離(m)。シーン内の最も薄い壁の厚みより
+  ///                小さくしておくこと（既定 0.1m）
+  /// @return 実際に移動した量
+  /// @details TransformComponent::position を直接書き換える代わりにこれを使うと、
+  ///          移動量が maxStep 以下に分割されるためダッシュ中でも壁を貫通しない。
+  ///          斜め移動で壁に当たった場合は壁に沿ってスライドする。
+  /// @note 実体は Application 側の Scene.cpp で定義している（Scene の完全型が必要なため）
+  RC::Vector3 MoveAndSlide(const RC::Vector3& delta, float maxStep = 0.1f);
+
 protected:
   /// @brief Called when the script is created
   virtual void OnCreate() {}

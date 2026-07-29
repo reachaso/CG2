@@ -1174,6 +1174,16 @@ void PipelineManager::RegisterDefaultPipelines() {
                 L"Resources/Shader/Compute/UpdateRain.CS.hlsl",
                 RootSignatureType::UpdateParticleCS);
 
+  // emit_fire_cs: GPU Particle 炎射出用 Compute Shader
+  CreateCompute("emit_fire_cs",
+                L"Resources/Shader/Compute/EmitFire.CS.hlsl",
+                RootSignatureType::EmitParticleCS);
+
+  // update_fire_cs: GPU Particle 炎更新用 Compute Shader
+  CreateCompute("update_fire_cs",
+                L"Resources/Shader/Compute/UpdateFire.CS.hlsl",
+                RootSignatureType::UpdateParticleCS);
+
   // gpu_particle: GPU Particle 描画用（ブレンドモード別）
   {
     const std::wstring gpuPtlVs = L"Resources/Shader/Particle/GPUParticle.VS.hlsl";
@@ -1226,6 +1236,35 @@ void PipelineManager::RegisterDefaultPipelines() {
       GPipelineOptions optNoDepth = opt;
       optNoDepth.enableDepth = false;
       CreateFromFiles(MakeKey("gpu_particle_bubble_nodepth", mode), bubblePtlVs, bubblePtlPs,
+                      InputLayoutType::Particle, optNoDepth);
+    }
+  }
+
+  // gpu_particle_fire: GPU Particle 炎描画用（ブレンドモード別）
+  // VS は共通。PS だけ炎用に差し替える（手続き的に炎の粒を描く）
+  {
+    const std::wstring firePtlVs = L"Resources/Shader/Particle/GPUParticle.VS.hlsl";
+    const std::wstring firePtlPs = L"Resources/Shader/Particle/FireParticle.PS.hlsl";
+
+    for (int m = (int)kBlendModeNone; m <= (int)kBlendModePremultiplied; ++m) {
+      const BlendMode mode = (BlendMode)m;
+
+      // 通常版（深度テストON）
+      GPipelineOptions opt{};
+      opt.rootType = RootSignatureType::GPUParticle;
+      opt.enableDepth = true;
+      opt.enableDepthWrite = false;
+      opt.enableAlphaBlend = (mode != kBlendModeNone);
+      opt.blendMode = mode;
+      opt.cull = D3D12_CULL_MODE_NONE;
+
+      CreateFromFiles(MakeKey("gpu_particle_fire", mode), firePtlVs, firePtlPs,
+                      InputLayoutType::Particle, opt);
+
+      // プレビュー版（深度テストOFF）
+      GPipelineOptions optNoDepth = opt;
+      optNoDepth.enableDepth = false;
+      CreateFromFiles(MakeKey("gpu_particle_fire_nodepth", mode), firePtlVs, firePtlPs,
                       InputLayoutType::Particle, optNoDepth);
     }
   }

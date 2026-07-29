@@ -116,6 +116,14 @@ void GPUParticle::Initialize(SceneContext &ctx) {
       set.update.Initialize(device_.Get(), ctx.pipelineManager, "update_rain_cs");
       set.ready = set.emit.IsReady() && set.update.IsReady();
     }
+
+    // Fire タイプ
+    {
+      auto &set = csSets_[static_cast<uint32_t>(ParticleType::Fire)];
+      set.emit.Initialize(device_.Get(), ctx.pipelineManager, "emit_fire_cs");
+      set.update.Initialize(device_.Get(), ctx.pipelineManager, "update_fire_cs");
+      set.ready = set.emit.IsReady() && set.update.IsReady();
+    }
   }
 
   // ==================
@@ -444,7 +452,7 @@ void GPUParticle::DrawImGui() {
     }
 
     // ParticleType 切り替え
-    const char *typeNames[] = {"Default", "Explosion", "Rain"};
+    const char *typeNames[] = {"Default", "Explosion", "Rain", "Fire"};
     int currentTypeInt = static_cast<int>(currentType_);
     if (ImGui::Combo("Particle Type", &currentTypeInt, typeNames,
                      IM_ARRAYSIZE(typeNames))) {

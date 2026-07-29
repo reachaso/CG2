@@ -19,7 +19,22 @@ public:
 
   std::vector<ScriptEntry> scripts;
 
+  /// @brief エンティティ破棄の通知
+  /// @details スクリプトの OnDestroy() は GetComponent() で同じエンティティの
+  ///          他コンポーネントを参照する。デストラクタまで待つと components_ の
+  ///          破棄が始まっており、破棄途中の unordered_map を検索して落ちるため、
+  ///          全コンポーネントが有効なこの時点で片付ける。
+  void OnEntityDestroy() override { DestroyAllScripts(); }
+
   ~NativeScriptComponent() override {
+    // OnEntityDestroy() が呼ばれずに破棄された場合（Entity から切り離して
+    // 単体で持っているケース）の保険。DestroyAllScripts は再入しても安全。
+    DestroyAllScripts();
+  }
+
+  /// @brief 保持しているスクリプトすべてに OnDestroy() を通知して破棄する
+  /// @note instance を nullptr に戻すので二度呼んでも二重解放にならない
+  void DestroyAllScripts() {
     for (auto& entry : scripts) {
       if (entry.instance && entry.DestroyScript) {
         entry.instance->OnDestroy();

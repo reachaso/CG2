@@ -502,13 +502,22 @@ static std::string FindRootMotionJointName(const Skeleton& skeleton,
     return std::string();
 }
 
-/// @brief ルートモーション分の線形ドリフトを差し引いた移動量を返す
+/// @brief ルートモーション分の移動を打ち消した translation を返す
 /// @param nodeAnim 対象JointのNodeAnimation
 /// @param time 現在の再生時刻（秒）
 /// @param raw 補正前の補間済み translation
+/// @param restTranslate バインドポーズ（rest）での translation。nullptr なら開始オフセット補正を行わない
+/// @details 打ち消す成分は2つある。
+///          (1) クリップ内で進んだ分（線形ドリフト）: 先頭→末尾の差分を経過割合で按分して引く。
+///          (2) クリップ先頭そのものが rest からズレている分（開始オフセット）:
+///              例えば farmer.glb の走りモーションは Hip が既に約0.5m前進した位置から
+///              始まっているため、(1) だけではモデル全体が常に約0.5m前へズレたまま再生される。
+///              その状態では当たり判定（Transform位置）より前にモデルが描画され、
+///              壁の手前で止まってもモデルだけが壁にめり込んで見える。
 static RC::Vector3 RemoveRootMotionDrift(const RC::NodeAnimation& nodeAnim,
                                          float time,
-                                         const RC::Vector3& raw) {
+                                         const RC::Vector3& raw,
+                                         const RC::Vector3* restTranslate) {
     const std::vector<RC::KeyframeVector3>& keys = nodeAnim.translate;
     if (keys.size() < 2) return raw;
 
@@ -524,11 +533,40 @@ static RC::Vector3 RemoveRootMotionDrift(const RC::NodeAnimation& nodeAnim,
 
     const RC::Vector3& head = keys.front().value;
     const RC::Vector3& tail = keys.back().value;
-    return RC::Vector3{
+    RC::Vector3 result{
         raw.x - (tail.x - head.x) * ratio,
         raw.y - (tail.y - head.y) * ratio,
         raw.z - (tail.z - head.z) * ratio
     };
+
+    // (2) 開始オフセットの補正：クリップ先頭を rest の位置に揃える
+    if (restTranslate) {
+        result.x -= (head.x - restTranslate->x);
+        result.y -= (head.y - restTranslate->y);
+        result.z -= (head.z - restTranslate->z);
+    }
+    return result;
+}
+
+/// @brief rest translation を引く（無ければ nullptr）
+static const RC::Vector3* FindRestTranslate(
+    const std::map<std::string, RC::Vector3>* restTranslations,
+    const std::string& jointName) {
+    if (!restTranslations) return nullptr;
+    auto it = restTranslations->find(jointName);
+    return (it != restTranslations->end()) ? &it->second : nullptr;
+}
+
+// ------------------------------------------------------------------
+// CaptureRestPose_: バインドポーズの translation を控える
+// ------------------------------------------------------------------
+// ApplyAnimation は joint.transform を毎フレーム上書きしてしまうため、
+// CreateSkeleton 直後（＝まだ rest 値が入っている状態）で控えておく必要がある。
+void ModelObject::CaptureRestPose_() {
+    restTranslations_.clear();
+    for (const Joint& joint : skeleton_.joints) {
+        restTranslations_[joint.name] = joint.transform.translate;
+    }
 }
 
 // ------------------------------------------------------------------
@@ -559,7 +597,8 @@ void ModelObject::ResolveRootMotionJoint_() {
 static void ApplyAnimation(Skeleton& skeleton,
                            const RC::Animation& animation,
                            float animationTime,
-                           const std::string& rootMotionJoint) {
+                           const std::string& rootMotionJoint,
+                           const std::map<std::string, RC::Vector3>* restTranslations) {
     for (Joint& joint : skeleton.joints) {
         // 対象のJointのAnimationがあれば、値の適用を行う
         // C++17の初期化付きif文
@@ -570,7 +609,8 @@ static void ApplyAnimation(Skeleton& skeleton,
             RC::Vector3 translate =
                 RC::CalculateValue(nodeAnim.translate, animationTime);
             if (!rootMotionJoint.empty() && joint.name == rootMotionJoint) {
-                translate = RemoveRootMotionDrift(nodeAnim, animationTime, translate);
+                translate = RemoveRootMotionDrift(nodeAnim, animationTime, translate,
+                                                  FindRestTranslate(restTranslations, joint.name));
             }
 
             joint.transform.translate = translate;
@@ -590,7 +630,8 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
                                 const RC::Animation& animB, float timeB,
                                 float t,
                                 const std::string& rootMotionJointA,
-                                const std::string& rootMotionJointB) {
+                                const std::string& rootMotionJointB,
+                                const std::map<std::string, RC::Vector3>* restTranslations) {
     for (Joint& joint : skeleton.joints) {
         auto itA = animA.nodeAnimations.find(joint.name);
         auto itB = animB.nodeAnimations.find(joint.name);
@@ -601,6 +642,7 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
         // ルートモーション除去の対象Jointか（A/Bで別々に判定する）
         const bool isRootA = (!rootMotionJointA.empty() && joint.name == rootMotionJointA);
         const bool isRootB = (!rootMotionJointB.empty() && joint.name == rootMotionJointB);
+        const RC::Vector3* rest = FindRestTranslate(restTranslations, joint.name);
 
         if (hasA && hasB) {
             const RC::NodeAnimation& nodeAnimA = itA->second;
@@ -608,8 +650,8 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
 
             RC::Vector3 posA = RC::CalculateValue(nodeAnimA.translate, timeA);
             RC::Vector3 posB = RC::CalculateValue(nodeAnimB.translate, timeB);
-            if (isRootA) posA = RemoveRootMotionDrift(nodeAnimA, timeA, posA);
-            if (isRootB) posB = RemoveRootMotionDrift(nodeAnimB, timeB, posB);
+            if (isRootA) posA = RemoveRootMotionDrift(nodeAnimA, timeA, posA, rest);
+            if (isRootB) posB = RemoveRootMotionDrift(nodeAnimB, timeB, posB, rest);
             RC::Quaternion rotA = RC::CalculateValue(nodeAnimA.rotate, timeA);
             RC::Quaternion rotB = RC::CalculateValue(nodeAnimB.rotate, timeB);
             RC::Vector3 sclA = RC::CalculateValue(nodeAnimA.scale, timeA);
@@ -623,7 +665,7 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
             // 次のアニメーションにしかキーが無い場合はBのみ適用
             const RC::NodeAnimation& nodeAnimB = itB->second;
             RC::Vector3 posB = RC::CalculateValue(nodeAnimB.translate, timeB);
-            if (isRootB) posB = RemoveRootMotionDrift(nodeAnimB, timeB, posB);
+            if (isRootB) posB = RemoveRootMotionDrift(nodeAnimB, timeB, posB, rest);
             joint.transform.translate = posB;
             joint.transform.rotate    = RC::CalculateValue(nodeAnimB.rotate, timeB);
             joint.transform.scale     = RC::CalculateValue(nodeAnimB.scale, timeB);
@@ -631,7 +673,7 @@ static void ApplyAnimationBlend(Skeleton& skeleton,
             // 前のアニメーションにしかキーが無い場合はAのみ適用
             const RC::NodeAnimation& nodeAnimA = itA->second;
             RC::Vector3 posA = RC::CalculateValue(nodeAnimA.translate, timeA);
-            if (isRootA) posA = RemoveRootMotionDrift(nodeAnimA, timeA, posA);
+            if (isRootA) posA = RemoveRootMotionDrift(nodeAnimA, timeA, posA, rest);
             joint.transform.translate = posA;
             joint.transform.rotate    = RC::CalculateValue(nodeAnimA.rotate, timeA);
             joint.transform.scale     = RC::CalculateValue(nodeAnimA.scale, timeA);
@@ -672,6 +714,7 @@ void ModelObject::AttachAnimation(const std::string& filePath, int animIndex) {
     // メッシュが既にロード済みならSkeletonを即座に構築
     if (resource_.GetMesh() && resource_.GetMesh()->Ready()) {
         skeleton_ = CreateSkeleton(resource_.GetMesh()->RootNode());
+        CaptureRestPose_(); // アニメーション適用前に rest を控える
         UpdateSkeleton(skeleton_);
         hasSkeleton_ = true;
     }
@@ -725,6 +768,7 @@ void ModelObject::CrossfadeAnimation(const std::string& filePath, int animIndex,
     // メッシュが既にロード済みでスケルトン未作成なら構築
     if (resource_.GetMesh() && resource_.GetMesh()->Ready() && !hasSkeleton_) {
         skeleton_ = CreateSkeleton(resource_.GetMesh()->RootNode());
+        CaptureRestPose_(); // アニメーション適用前に rest を控える
         UpdateSkeleton(skeleton_);
         hasSkeleton_ = true;
     }
@@ -756,6 +800,7 @@ void ModelObject::UpdateAnimation(float dt) {
     // 遅延Skeleton構築（メッシュの非同期ロード完了を待つ）
     if (!hasSkeleton_) {
         skeleton_ = CreateSkeleton(resource_.GetMesh()->RootNode());
+        CaptureRestPose_(); // アニメーション適用前に rest を控える
         UpdateSkeleton(skeleton_);
         hasSkeleton_ = true;
     }
@@ -794,10 +839,10 @@ void ModelObject::UpdateAnimation(float dt) {
         if (blendFactor_ < 1.0f && !prevAnimation_.nodeAnimations.empty()) {
             // 2つのAnimationを同時に再生＆ tB + (1-t)A ブレンド（回転はSlerp）
             ApplyAnimationBlend(skeleton_, prevAnimation_, prevAnimationTime_, animation_, animationTime_, blendFactor_,
-                                prevRootMotionJointName_, rootMotionJointName_);
+                                prevRootMotionJointName_, rootMotionJointName_, &restTranslations_);
         } else {
             // 単一アニメーションの適用
-            ApplyAnimation(skeleton_, animation_, animationTime_, rootMotionJointName_);
+            ApplyAnimation(skeleton_, animation_, animationTime_, rootMotionJointName_, &restTranslations_);
         }
         UpdateSkeleton(skeleton_);
 

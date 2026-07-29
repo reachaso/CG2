@@ -6,8 +6,10 @@
 #include "ECS/ColliderComponent.h"
 #include "ECS/RigidbodyComponent.h"
 #include "ECS/NativeScriptComponent.h"
+#include "ECS/ScriptableEntity.h"
 #include "Common/Math/MathUtils.h"
 #include "RenderCommon.h"
+#include <algorithm>
 #include <cmath>
 
 void Scene::DrawLightGizmos(uint32_t selectedEntityId) {
@@ -249,6 +251,181 @@ void Scene::DrawColliderGizmos(uint32_t selectedEntityId) {
     }
   }
 #endif
+}
+
+// ============================================================
+// 当たり判定付き移動（キャラクターコントローラー用）
+// ============================================================
+namespace {
+
+/// @brief コライダーのワールド空間での形状（AABB / 球）
+struct ColliderVolume {
+    bool isSphere = false;
+    RC::Vector3 center{0.0f, 0.0f, 0.0f};
+    RC::Vector3 half{0.0f, 0.0f, 0.0f}; ///< AABB の半サイズ
+    float radius = 0.0f;                ///< 球の半径
+};
+
+/// @brief エンティティのコライダーをワールド空間の形状に変換する
+/// @param overridePos TransformComponent::position の代わりに使う位置
+/// @param shrink 形状を内側に縮める量（m）。0以下にはならないようクランプする
+/// @return コライダーが無い / 無効なら false
+bool BuildColliderVolume(Entity* e, const RC::Vector3& overridePos, float shrink,
+                         ColliderVolume& out) {
+    if (!e) return false;
+    auto* tr = e->GetComponent<TransformComponent>();
+    auto* col = e->GetComponent<ColliderComponent>();
+    if (!tr || !col || !col->IsEnabled()) return false;
+
+    const RC::Vector3 scaledCenter = {
+        col->center.x * tr->scale.x,
+        col->center.y * tr->scale.y,
+        col->center.z * tr->scale.z
+    };
+    out.center = RC::Add(overridePos, scaledCenter);
+
+    if (col->shape == ColliderComponent::Shape::Sphere) {
+        out.isSphere = true;
+        const float maxScale = (std::max)((std::max)(std::abs(tr->scale.x), std::abs(tr->scale.y)),
+                                          std::abs(tr->scale.z));
+        out.radius = (std::max)(0.001f, col->radius * maxScale - shrink);
+    } else {
+        // Capsule は未実装のため AABB として扱う（ResolveCollisions と同じ扱い）
+        out.isSphere = false;
+        out.half = {
+            (std::max)(0.001f, std::abs(col->size.x * tr->scale.x * 0.5f) - shrink),
+            (std::max)(0.001f, std::abs(col->size.y * tr->scale.y * 0.5f) - shrink),
+            (std::max)(0.001f, std::abs(col->size.z * tr->scale.z * 0.5f) - shrink)
+        };
+    }
+    return true;
+}
+
+/// @brief 2つの形状が重なっているか判定する
+bool VolumesOverlap(const ColliderVolume& a, const ColliderVolume& b) {
+    if (!a.isSphere && !b.isSphere) {
+        const RC::Vector3 minA = RC::Sub(a.center, a.half), maxA = RC::Add(a.center, a.half);
+        const RC::Vector3 minB = RC::Sub(b.center, b.half), maxB = RC::Add(b.center, b.half);
+        return RC::CheckCollisionAabbAabb(minA, maxA, minB, maxB).hit;
+    }
+    if (a.isSphere && b.isSphere) {
+        return RC::CheckCollisionSphereSphere(a.center, a.radius, b.center, b.radius).hit;
+    }
+    // 球 vs AABB
+    const ColliderVolume& s = a.isSphere ? a : b;
+    const ColliderVolume& box = a.isSphere ? b : a;
+    const RC::Vector3 minB = RC::Sub(box.center, box.half), maxB = RC::Add(box.center, box.half);
+    return RC::CheckCollisionSphereAabb(s.center, s.radius, minB, maxB).hit;
+}
+
+} // namespace
+
+bool Scene::TestBlockingOverlap(Entity* self, const RC::Vector3& testPos, float skin,
+                                Entity** hitOut) {
+    if (hitOut) *hitOut = nullptr;
+    if (!self) return false;
+
+    auto* selfCol = self->GetComponent<ColliderComponent>();
+    if (!selfCol || !selfCol->IsEnabled() || selfCol->isTrigger) return false;
+
+    ColliderVolume selfVol;
+    if (!BuildColliderVolume(self, testPos, skin, selfVol)) return false;
+
+    for (auto& other : entities_) {
+        if (!other || other.get() == self) continue;
+        if (!other->IsActive() || other->IsPendingDestroy()) continue;
+
+        auto* otherCol = other->GetComponent<ColliderComponent>();
+        if (!otherCol || !otherCol->IsEnabled() || otherCol->isTrigger) continue;
+        // レイヤーマスクが噛み合わない組み合わせは無視する
+        if ((selfCol->layer & otherCol->layer) == 0) continue;
+
+        auto* otherTr = other->GetComponent<TransformComponent>();
+        if (!otherTr) continue;
+
+        ColliderVolume otherVol;
+        if (!BuildColliderVolume(other.get(), otherTr->position, 0.0f, otherVol)) continue;
+
+        if (VolumesOverlap(selfVol, otherVol)) {
+            if (hitOut) *hitOut = other.get();
+            return true;
+        }
+    }
+    return false;
+}
+
+RC::Vector3 Scene::MoveWithCollision(Entity* self, const RC::Vector3& delta, float maxStep,
+                                     float skin) {
+    RC::Vector3 moved{0.0f, 0.0f, 0.0f};
+    if (!self) return moved;
+    auto* tr = self->GetComponent<TransformComponent>();
+    if (!tr) return moved;
+
+    const RC::Vector3 startPos = tr->position;
+
+    // コライダーが無い場合は従来通りそのまま移動する
+    if (!self->GetComponent<ColliderComponent>()) {
+        tr->position = RC::Add(startPos, delta);
+        return delta;
+    }
+
+    // --- 移動量を maxStep 以下に分割する（トンネリング対策の本体）---
+    // 分割数 = 最大成分 / maxStep。deltaTime のスパイクで delta が大きくなっても
+    // 1回の判定で進む距離は必ず maxStep 以下に保たれるため、薄い壁も飛び越えない。
+    const float maxComponent = (std::max)((std::max)(std::abs(delta.x), std::abs(delta.y)),
+                                          std::abs(delta.z));
+    if (maxComponent <= 0.0f) return moved;
+
+    const float safeStep = (maxStep > 0.0001f) ? maxStep : 0.1f;
+    int steps = static_cast<int>(std::ceil(maxComponent / safeStep));
+    if (steps < 1) steps = 1;
+    if (steps > 64) steps = 64; // 極端な delta でのコスト爆発を防ぐ上限
+
+    const RC::Vector3 step = RC::Mul(delta, 1.0f / static_cast<float>(steps));
+
+    for (int i = 0; i < steps; ++i) {
+        // このステップ開始時点で既にめり込んでいるか
+        // （めり込んでいる場合は移動を止めると永久に抜け出せなくなるので許可する）
+        const bool stuckAtStart = TestBlockingOverlap(self, tr->position, skin);
+
+        // 軸ごとに個別に試す。ブロックされた軸だけ取り消すので
+        // 斜め移動で壁に当たっても残りの成分で壁に沿ってスライドする。
+        const float stepAxis[3] = {step.x, step.y, step.z};
+        for (int axis = 0; axis < 3; ++axis) {
+            if (stepAxis[axis] == 0.0f) continue;
+
+            RC::Vector3 candidate = tr->position;
+            if (axis == 0) candidate.x += stepAxis[axis];
+            else if (axis == 1) candidate.y += stepAxis[axis];
+            else candidate.z += stepAxis[axis];
+
+            if (!stuckAtStart && TestBlockingOverlap(self, candidate, skin)) {
+                continue; // この軸はブロック — 移動を取り消す
+            }
+            tr->position = candidate;
+        }
+    }
+
+    moved = RC::Sub(tr->position, startPos);
+    return moved;
+}
+
+// ScriptableEntity::MoveAndSlide の実体。
+// 宣言は Engine/ECS/ScriptableEntity.h（Scene は前方宣言のみ）にあるため、
+// Scene の完全型が見えるこの翻訳単位で定義する。
+RC::Vector3 ScriptableEntity::MoveAndSlide(const RC::Vector3& delta, float maxStep) {
+    Scene* scene = GetScene();
+    Entity* e = GetEntity();
+    if (!e) return {0.0f, 0.0f, 0.0f};
+
+    if (!scene) {
+        // シーン未設定時（単体テスト等）は従来通り直接移動
+        if (auto* tr = e->GetComponent<TransformComponent>()) {
+            tr->position = RC::Add(tr->position, delta);
+        }
+        return delta;
+    }
+    return scene->MoveWithCollision(e, delta, maxStep);
 }
 
 void Scene::ResolveCollisions() {

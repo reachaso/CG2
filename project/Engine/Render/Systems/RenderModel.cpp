@@ -171,6 +171,18 @@ void UnloadModel(int modelHandle) {
 // Draw (基本)
 // ============================================================================
 
+/// @brief モデルの描画に使うワールド行列を求める
+/// @details SetModelWorldOverride で行列が直接指定されている場合はそれを使い、
+///          そうでなければ従来通り Transform(TRS) から生成する。
+///          ボーン追従（武器を手に持たせる等）はオイラー角では表現しづらいため、
+///          行列をそのまま渡せる経路を用意している。
+static Matrix4x4 ResolveModelWorld_(ModelObject *m) {
+  if (m->HasWorldOverride()) {
+    return m->WorldOverride();
+  }
+  return MakeAffineMatrix(m->T().scale, m->T().rotation, m->T().translation);
+}
+
 void DrawModel(int modelHandle, int texHandle) {
   auto &ctx = GetRenderContext();
   if (!ctx.IsInitialized()) {
@@ -181,7 +193,7 @@ void DrawModel(int modelHandle, int texHandle) {
     return;
   }
 
-  Matrix4x4 world = MakeAffineMatrix(m->T().scale, m->T().rotation, m->T().translation);
+  Matrix4x4 world = ResolveModelWorld_(m);
   D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
   BlendMode blend = ctx.CurrentBlendMode();
 
@@ -240,7 +252,7 @@ void DrawModelNoCull(int modelHandle, int texHandle) {
     return;
   }
 
-  Matrix4x4 world = MakeAffineMatrix(m->T().scale, m->T().rotation, m->T().translation);
+  Matrix4x4 world = ResolveModelWorld_(m);
   D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
   BlendMode blend = ctx.CurrentBlendMode();
 
@@ -399,7 +411,7 @@ void DrawModelGlass(int modelHandle, int texHandle) {
     return;
   }
 
-  Matrix4x4 world = MakeAffineMatrix(m->T().scale, m->T().rotation, m->T().translation);
+  Matrix4x4 world = ResolveModelWorld_(m);
   D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
 
   const uint64_t key = SortKey::Make(SortKey::kLayerGlass,
@@ -556,7 +568,7 @@ void DrawModelGlassTwoPass(int modelHandle, int texHandle) {
     return;
   }
 
-  Matrix4x4 world = MakeAffineMatrix(m->T().scale, m->T().rotation, m->T().translation);
+  Matrix4x4 world = ResolveModelWorld_(m);
   D3D12_GPU_VIRTUAL_ADDRESS lightAddr = ctx.DirLights().GetActiveCBAddress();
 
 
@@ -831,6 +843,43 @@ bool HasModelSkeleton(int modelHandle) {
   auto *m = ctx.Models().Get(modelHandle);
   if (!m) return false;
   return m->HasSkeleton();
+}
+
+// ============================================================================
+// ボーン追従（ソケット）
+// ============================================================================
+
+bool GetModelJointMatrix(int modelHandle, const std::string &jointName,
+                         Matrix4x4 &out) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return false;
+  return m->TryGetJointMatrix(jointName, out);
+}
+
+std::vector<std::string> GetModelJointNames(int modelHandle) {
+  std::vector<std::string> names;
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m || !m->HasSkeleton()) return names;
+  const Skeleton &sk = m->GetSkeleton();
+  names.reserve(sk.joints.size());
+  for (const Joint &j : sk.joints) names.push_back(j.name);
+  return names;
+}
+
+void SetModelWorldOverride(int modelHandle, const Matrix4x4 &world) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return;
+  m->SetWorldOverride(world);
+}
+
+void ClearModelWorldOverride(int modelHandle) {
+  auto &ctx = GetRenderContext();
+  auto *m = ctx.Models().Get(modelHandle);
+  if (!m) return;
+  m->ClearWorldOverride();
 }
 
 Material *GetModelMaterialPtr(int modelHandle) {

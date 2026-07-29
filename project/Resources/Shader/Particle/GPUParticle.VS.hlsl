@@ -38,5 +38,12 @@ VertexShaderOutput main(VertexShaderInput input, uint instanceId : SV_InstanceID
     output.texcoord = input.texcoord;
     output.color = particle.color;
 
+    // 5. PS 側で経過時間を使えるように寿命の進行度と固有乱数を渡す
+    //    （炎の先細り・ちらつきに使う。lifeTime が 0 のときは 0 除算を避ける）
+    float lifeRatio = (particle.lifeTime > 0.0f)
+        ? saturate(particle.currentTime / particle.lifeTime)
+        : 0.0f;
+    output.particleParams = float2(lifeRatio, particle.pad0);
+
     return output;
 }

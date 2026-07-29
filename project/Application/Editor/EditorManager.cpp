@@ -2282,7 +2282,7 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         // ParticleType と BlendMode
         ImGui::Separator();
         ImGui::Text("Rendering");
-        const char* typeNames[] = {"Default", "Explosion", "Rain"};
+        const char* typeNames[] = {"Default", "Explosion", "Rain", "Fire"};
         int currentTypeInt = static_cast<int>(peParticle_->GetParticleType());
         if (ImGui::Combo("Particle Type", &currentTypeInt, typeNames, IM_ARRAYSIZE(typeNames))) {
           peParticle_->SetParticleType(static_cast<ParticleType>(currentTypeInt));
@@ -2296,10 +2296,12 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
         // Pipeline Prefix
         ImGui::Separator();
         ImGui::Text("Pipeline");
-        const char* pipelineNames[] = {"gpu_particle", "gpu_particle_bubble"};
+        const char* pipelineNames[] = {"gpu_particle", "gpu_particle_bubble", "gpu_particle_fire"};
         int currentPipelineInt = 0;
         if (peParticle_->GetPipelinePrefix() == "gpu_particle_bubble") {
             currentPipelineInt = 1;
+        } else if (peParticle_->GetPipelinePrefix() == "gpu_particle_fire") {
+            currentPipelineInt = 2;
         }
         if (ImGui::Combo("Pipeline Prefix", &currentPipelineInt, pipelineNames, IM_ARRAYSIZE(pipelineNames))) {
             peParticle_->SetPipelinePrefix(pipelineNames[currentPipelineInt]);

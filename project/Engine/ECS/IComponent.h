@@ -11,6 +11,14 @@ public:
   /// @param deltaTime Time elapsed since last frame (seconds)
   virtual void Update(float deltaTime) { (void)deltaTime; }
 
+  /// @brief Called just before the owning Entity tears down its component map
+  /// @details エンティティが破棄されるとき、components_ の破棄が始まる前に全コンポーネントへ
+  ///          通知される。他のコンポーネントを参照する後始末（スクリプトの OnDestroy など）は
+  ///          デストラクタではなくここで行うこと。デストラクタから GetComponent() を呼ぶと、
+  ///          破棄途中の unordered_map を検索することになり未定義動作になる。
+  /// @note 同じインスタンスに対して複数回呼ばれても壊れないように実装すること
+  virtual void OnEntityDestroy() {}
+
   /// @brief Get component type name (for serialization)
   /// @return Type name string (e.g. "TransformComponent")
   virtual const char* TypeName() const = 0;

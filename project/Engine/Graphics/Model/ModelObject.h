@@ -8,6 +8,7 @@
 #include "struct.h"
 #include <array>
 #include <d3d12.h>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -248,6 +249,12 @@ private:
   /// @details スケルトン構築後に一度だけ判定し、結果を rootMotionJointName_ に保持する
   void ResolveRootMotionJoint_();
 
+  /// @brief バインドポーズ（rest）のJoint平行移動量を控えておく
+  /// @details CreateSkeleton 直後（アニメーション適用前）に呼ぶこと。
+  ///          joint.transform はフレームごとにアニメーション値で上書きされるため、
+  ///          後からでは rest 値を取得できない。
+  void CaptureRestPose_();
+
 private:
   ModelResource resource_; ///< 描画リソース・ロジック本体
 
@@ -305,6 +312,42 @@ public:
   /// @brief Skeleton が有効かどうか
   bool HasSkeleton() const { return hasSkeleton_; }
 
+  /// @brief スケルトンを取得する（読み取り専用）
+  const Skeleton &GetSkeleton() const { return skeleton_; }
+
+  /// @brief 指定Jointのスケルトン空間行列（モデルローカル）を取得する
+  /// @param jointName Joint名（例: "R_Hand"）
+  /// @param out 取得先。ワールドに変換するには Multiply(out, モデルのワールド行列) とする
+  /// @return 見つかれば true
+  /// @details 武器などをボーンに追従させる（ソケット）用途に使う
+  bool TryGetJointMatrix(const std::string &jointName, RC::Matrix4x4 &out) const {
+    if (!hasSkeleton_) return false;
+    auto it = skeleton_.jointMap.find(jointName);
+    if (it == skeleton_.jointMap.end()) return false;
+    out = skeleton_.joints[it->second].skeletonSpaceMatrix;
+    return true;
+  }
+
+  // === ワールド行列の上書き（ボーン追従などで使う） ===
+
+  /// @brief 描画に使うワールド行列を直接指定する（Transform の TRS を無視する）
+  /// @details ボーン追従のように「行列でしか表せない姿勢」を与えるための機能。
+  ///          Transform 経由だとオイラー角へ分解する必要があり誤差やジンバルの問題が出るため、
+  ///          行列をそのまま渡せるようにしている。
+  void SetWorldOverride(const RC::Matrix4x4 &world) {
+    worldOverride_ = world;
+    hasWorldOverride_ = true;
+  }
+
+  /// @brief ワールド行列の上書きを解除し、Transform 基準の描画に戻す
+  void ClearWorldOverride() { hasWorldOverride_ = false; }
+
+  /// @brief ワールド行列が上書きされているか
+  bool HasWorldOverride() const { return hasWorldOverride_; }
+
+  /// @brief 上書き中のワールド行列
+  const RC::Matrix4x4 &WorldOverride() const { return worldOverride_; }
+
   /// @brief スキンデータが有効かどうか（ボーンウェイト付きモデルか）
   bool HasSkinData() const;
 
@@ -346,11 +389,19 @@ private:
   Skeleton skeleton_;          ///< スケルトンデータ
   bool hasSkeleton_ = false;   ///< スケルトンが構築済みか
 
+  // === ワールド行列の上書き ===
+  RC::Matrix4x4 worldOverride_{};      ///< 上書き用ワールド行列
+  bool hasWorldOverride_ = false;      ///< 上書きが有効か
+
   // === ルートモーション除去関連 ===
   bool removeRootMotion_ = true;      ///< アニメーションに焼き込まれた移動量を打ち消すか
   bool rootMotionResolved_ = false;   ///< 現アニメのルートモーション担当Jointを判定済みか
   std::string rootMotionJointName_;      ///< 現アニメ(B)のルートモーション担当Joint名（無ければ空）
   std::string prevRootMotionJointName_;  ///< クロスフェード元(A)のルートモーション担当Joint名
+  /// @brief バインドポーズ時の Joint 平行移動量（Joint名 → translate）
+  /// @details クリップ先頭の移動量が rest からズレているモデル（例: 走りモーションが
+  ///          前方に0.5m進んだ位置から始まる）で、モデル全体が当たり判定からズレるのを補正するのに使う
+  std::map<std::string, RC::Vector3> restTranslations_;
 
   // === スキニング関連 ===
   std::vector<RC::Matrix4x4> skinMatrices_; ///< スキンクラスター行列パレット (T_i = IBP_i * SSM_i)

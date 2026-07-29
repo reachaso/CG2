@@ -65,6 +65,9 @@ public:
   /// @brief Clear entities on scene exit
   void OnExit(SceneContext&) override {
     for (auto& e : entities_) {
+        NotifyScriptsDestroy(*e);
+    }
+    for (auto& e : entities_) {
         ReleaseRuntimeResources(*e);
     }
     entities_.clear();
@@ -293,15 +296,18 @@ public:
     // === ゲーム結果判定（プレイ中のみ） ===
     if (ctx.isPlaying() && !resultTriggered_) {
         if (sceneName_ != "Game") {
-            // ゲーム以外のシーンではスペースキーで次のシーンへ
-            if (ctx.input->IsKeyTrigger(DIK_SPACE)) {
+            // スペースキーで次へ進むのはタイトル〜リザルトの導線シーンだけに限定する。
+            // CG4 など導線外のシーンでは Space をゲーム操作（ジャンプ）に使うため、
+            // 名前が一致しないシーンをまとめて Title へ送らないこと。
+            const bool isFlowScene =
+                (sceneName_ == "Title" || sceneName_ == "Select" ||
+                 sceneName_ == "Result" || sceneName_ == "GameOver");
+            if (isFlowScene && ctx.input->IsKeyTrigger(DIK_SPACE)) {
                 resultTriggered_ = true;
                 if (sceneName_ == "Title") {
                     resultTarget_ = "Select";
                 } else if (sceneName_ == "Select") {
                     resultTarget_ = "Game";
-                } else if (sceneName_ == "Result" || sceneName_ == "GameOver") {
-                    resultTarget_ = "Title";
                 } else {
                     resultTarget_ = "Title";
                 }
@@ -717,7 +723,13 @@ public:
   /// @brief Restore the state of entities from memory
   void RestoreState(SceneContext& ctx) {
       if (backupJson_.empty()) return;
-      
+
+      // スクリプトの後始末はモデル等のハンドルを解放する前に行う。
+      // 逆順だと OnDestroy から見えるハンドルが既に -1 になっていて、
+      // 描画側に残した上書き設定などを片付けられない。
+      for (auto& e : entities_) {
+          NotifyScriptsDestroy(*e);
+      }
       for (auto& e : entities_) {
           ReleaseRuntimeResources(*e);
       }
@@ -893,6 +905,15 @@ private:
               gpu->particleSystem->Initialize(ctx);
               gpu->isInitialized = true;
           }
+      }
+  }
+
+  /// @brief エンティティに付いているスクリプトへ OnDestroy() を通知して破棄する
+  /// @details ランタイムリソースの解放より先に呼ぶ。NativeScriptComponent 側で
+  ///          scripts をクリアするため、後続の Entity 破棄で二重に呼ばれることはない。
+  void NotifyScriptsDestroy(Entity& e) {
+      if (auto* nsc = e.GetComponent<NativeScriptComponent>()) {
+          nsc->DestroyAllScripts();
       }
   }
 

@@ -18,6 +18,7 @@ enum class ParticleType : uint8_t {
   Default,    ///< 上方向噴出（既存）
   Explosion,  ///< 全方向放射（爆発）
   Rain,       ///< 下方向落下（雨）
+  Fire,       ///< 炎（浮力・ゆらぎ・中心軸への収束）
   Count
 };
 
