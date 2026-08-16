@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.h"
+#include "Application/Game/Framework/GameSession.h"
 #include "Common/Math/MathUtils.h"
 #include "Common/Math/Math.h"
 #include "RenderCommon.h"
@@ -56,14 +57,39 @@ public:
     Load();
     resultTriggered_ = false;
     resultDelayTimer_ = 0.0f;
+    waterTime_ = 0.0f;
+
+    // GameMode / GameState をリトライ前提の初期状態へ戻す。
+    // Load() が GameMode を作り直すため通常はこれで二重に初期化される形になるが、
+    // JSON の読み込みに失敗した場合や、派生シーンが独自の GameMode を差し替えている
+    // 場合にも、スコアと経過時間が前回のプレイのまま残らないことを保証する。
+    if (gameMode_) {
+        gameMode_->ResetForRestart();
+    }
+
+    // Game シーンに入った瞬間が「1 プレイの開始」。前回の結果を捨てる。
+    if (sceneName_ == "Game") {
+        GameSession::Get().BeginRun();
+    }
+
     // Initialize runtime handles for all loaded components
     for (auto& e : entities_) {
         InitializeRuntimeResources(*e, ctx);
     }
+
+    // シーンに入った時点でメインカメラを反映しておく。
+    // 通常は入場直後に Update が回るので同じ結果になるが、Update を挟まずに
+    // Render される経路（起動直後の ChangeImmediately など）で前のカメラ姿勢が
+    // 1 フレーム見えるのを防ぐ。
+    SyncMainCamera(ctx);
   }
 
   /// @brief Clear entities on scene exit
   void OnExit(SceneContext&) override {
+    // 更新ループ中に生成されて未マージのエンティティも解放対象に含める。
+    // ここで取り込まずに捨てると、生成済みのランタイムハンドルが回収されない。
+    FlushPendingEntities();
+
     for (auto& e : entities_) {
         NotifyScriptsDestroy(*e);
     }
@@ -321,6 +347,7 @@ public:
                     resultTriggered_ = true;
                     resultTarget_ = "GameOver";
                     resultDelayTimer_ = 0.0f;
+                    GameSession::Get().Finish(GameSession::Outcome::GameOver);
                     break;
                 }
             }
@@ -341,7 +368,14 @@ public:
                     resultTriggered_ = true;
                     resultTarget_ = "Result";
                     resultDelayTimer_ = 0.0f;
+                    GameSession::Get().Finish(GameSession::Outcome::Cleared);
                 }
+            }
+
+            // 決着がついた時点の経過時間を確定させ、Result / GameOver へ引き渡す
+            if (resultTriggered_ && gameMode_ && gameMode_->GetGameState()) {
+                GameSession::Get().SetElapsedTime(
+                    gameMode_->GetGameState()->GetElapsedTime());
             }
         }
     }
@@ -359,16 +393,27 @@ public:
     }
 
     // === Play/Editor カメラ切り替え ===
+    if (ctx.isPlaying() && ctx.input && ctx.camera && ctx.input->IsKeyTrigger(DIK_F1)) {
+        ctx.camera->SetUseDebug(!ctx.camera->IsUsingDebug());
+    }
+    SyncMainCamera(ctx);
+  }
+
+  /// @brief シーン内のメインカメラを CameraController へ反映する
+  /// @details Update の末尾と OnEnter の両方から呼ぶ。OnEnter で呼ぶことで、
+  ///          シーン遷移直後の 1 フレームに前のシーンのカメラ位置が残るのを防ぐ。
+  void SyncMainCamera(SceneContext& ctx) {
+    if (!ctx.camera || !ctx.app) return;
+
     for (auto& e : entities_) {
+        if (!e) continue;
         auto* camComp = e->GetComponent<CameraComponent>();
         auto* camTr = e->GetComponent<TransformComponent>();
         if (!camComp || !camTr || !camComp->isMain) continue;
 
-        float aspect = float(ctx.app->width) / ctx.app->height;
+        const float aspect =
+            (ctx.app->height > 0) ? float(ctx.app->width) / ctx.app->height : 16.0f / 9.0f;
         if (ctx.isPlaying()) {
-            if (ctx.input && ctx.input->IsKeyTrigger(DIK_F1)) {
-                ctx.camera->SetUseDebug(!ctx.camera->IsUsingDebug());
-            }
             ctx.camera->SetMainPosition(RC::Add(camTr->position, camComp->shakeOffset));
             ctx.camera->SetMainRotation(camTr->rotation);
             ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
@@ -440,6 +485,10 @@ public:
     sParams.bias = 0.01f; // シャドウアクネを防ぐためにバイアスを少し大きめに設定
     sParams.color = {0.0f, 0.0f, 0.0f, 0.5f}; // 色と濃さ
     sParams.shadowMapEnabled = shadowEnabled ? 1 : 0;
+    // PCF のタップ間隔（テクセル単位）。大きくするほど影の縁が柔らかくなるが、
+    // 広げすぎると接地部分の影が薄れる。0以下にすると 1 タップ（PCF無効）になる。
+    sParams.pcfRadius = 1.0f;
+    // shadowMapTexelSize は RenderContext 側でシャドウマップの実解像度から設定される
     RC::UpdateShadowParams(sParams);
 
     if (shadowEnabled) {

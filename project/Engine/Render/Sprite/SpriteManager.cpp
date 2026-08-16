@@ -124,6 +124,10 @@ void SpriteManager::Draw(int handle, ID3D12GraphicsCommandList *cl) {
     return;
   }
 
+  // DrawRect / DrawRectUV は UVTransform を残したまま抜けるので、
+  // 全体描画のときは毎回 identity へ戻す（同じハンドルを使い回せるようにする）
+  sp->UVTransform() = MakeIdentity4x4();
+
   sp->Update();
   sp->Draw(cl);
 }
@@ -167,9 +171,11 @@ void SpriteManager::DrawRect(int handle, float srcX, float srcY, float srcW,
   const float su = srcW / texW;
   const float sv = srcH / texH;
 
-  // この呼び出しだけ UVTransform を差し替えて描画し、戻す。
-  const Matrix4x4 oldUV = sp->UVTransform();
-
+  // UVTransform は定数バッファへの直接参照であり、Draw() はコマンドリストへ
+  // 「記録」するだけで GPU がそれを読むのはフレーム終端の実行時。
+  // ここで描画後に元の値へ戻すと、GPU が読む頃には戻したあとの値になっており、
+  // 指定した切り出し矩形がまったく効かない。したがって差し替えたまま抜ける。
+  // 全体描画へ戻したい場合は Draw() が identity に戻すので問題ない。
   // uv' = uv * Scale + Translate（row-vector 前提）
   Matrix4x4 uvM = MakeIdentity4x4();
   uvM = Multiply(MakeScaleMatrix(Vector3{su, sv, 1.0f}), uvM);
@@ -178,8 +184,6 @@ void SpriteManager::DrawRect(int handle, float srcX, float srcY, float srcW,
 
   sp->Update();
   sp->Draw(cl);
-
-  sp->UVTransform() = oldUV;
 }
 
 void SpriteManager::DrawRectUV(int handle, float u0, float v0, float u1,
@@ -199,8 +203,7 @@ void SpriteManager::DrawRectUV(int handle, float u0, float v0, float u1,
     return;
   }
 
-  const Matrix4x4 oldUV = sp->UVTransform();
-
+  // DrawRect と同じ理由で、描画後に UVTransform を戻さない
   Matrix4x4 uvM = MakeIdentity4x4();
   uvM = Multiply(MakeScaleMatrix(Vector3{su, sv, 1.0f}), uvM);
   uvM = Multiply(uvM, MakeTranslateMatrix(Vector3{u0, v0, 0.0f}));
@@ -208,8 +211,6 @@ void SpriteManager::DrawRectUV(int handle, float u0, float v0, float u1,
 
   sp->Update();
   sp->Draw(cl);
-
-  sp->UVTransform() = oldUV;
 }
 
 void SpriteManager::SetTransform(int handle, const Transform &t) {

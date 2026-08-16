@@ -85,6 +85,57 @@
           }
         }
       ]
+    },
+    {
+      "id": "9a4e6c07-51b8-4f2d-b7c3-0e8a15d6f302",
+      "name": "GameOverUI",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "NativeScriptComponent",
+          "data": {
+            "scriptTypeNames": [
+              "SceneFlowUI"
+            ],
+            "scriptDataList": [
+              {
+                "bannerPath": "Resources/UI/GameOver.png",
+                "showScore": true,
+                "showPrompt": true,
+                "panelColor": [
+                  0.92,
+                  0.95,
+                  1.0,
+                  0.82
+                ]
+              }
+            ],
+            "scriptTypeName": "SceneFlowUI"
+          }
+        }
+      ]
     }
   ]
 }

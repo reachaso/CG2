@@ -20,6 +20,7 @@
 #include "ECS/PrimitiveMeshComponent.h"
 #include "ECS/ColliderComponent.h"
 #include "Scene.h"
+#include "Application/Game/Framework/GameSession.h"
 #include <algorithm>
 #include <utility>
 #include <cmath>
@@ -341,6 +342,11 @@ protected:
                 score += scoreAdd;
             }
         }
+
+        // Result / GameOver シーンから読めるように、現在の成績を GameSession へ写す。
+        // score / hp はこのスクリプトのメンバなので、シーンを抜けると失われるため。
+        GameSession::Get().SetScore(score);
+        GameSession::Get().SetPlayerHp(hp, maxHp);
 
         // 敵の合計HPの集計、ダメージ処理、およびクリア判定
         totalEnemyHp = 0;

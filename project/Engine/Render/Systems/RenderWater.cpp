@@ -38,8 +38,11 @@ struct WaterParamsCB {
   Vector4 foamParams      = {2.0f, 1.0f, 0.0f, 0.0f}; // x: FoamDepth, y: FoamScale
   Vector4 foamColor       = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  Vector4 obstacles[4]; // xyz: position, w: radius
-  Vector4 obstacleCount; // x: count
+  Vector4 obstacles[4] = {}; // xyz: position, w: radius
+  // x: 障害物の数
+  // y: 反射波の強さ (0 で反射なし、1.0 で入射波と同じ振幅の完全反射)
+  // z: 反射波の到達範囲（障害物半径に対する倍率）
+  Vector4 obstacleCount = {0.0f, 1.0f, 3.0f, 0.0f};
 };
 
 // シングルトン的に定数バッファリソースを管理
@@ -98,10 +101,17 @@ void DrawWater(int meshHandle, int normalMapHandle) {
       s_waterCBMapped->cameraNearFar.y = 1000.0f;
 
       // 障害物（岩）の座標と半径をセット
+      // TODO(D-01): 現状ハードコードのため、シーンデータから受け取る形へ変更する
       s_waterCBMapped->obstacleCount.x = 3.0f;
       s_waterCBMapped->obstacles[0] = {-5.0f, 0.0f, -30.0f, 7.0f};
       s_waterCBMapped->obstacles[1] = {8.0f, 0.0f, -10.0f, 8.0f};
       s_waterCBMapped->obstacles[2] = {-6.0f, 0.0f, 10.0f, 9.0f};
+      // 反射波のチューニング値（VS 側で使用）
+      // 1.0 = 入射波と同じ振幅で跳ね返す（壁際で振幅が倍になる＝定在波の腹）。
+      // 水面メッシュが粗いと岩の際の数頂点しか反射帯に入らないため、
+      // 到達範囲は半径の 3 倍ほど取らないと画面上で認識できない。
+      s_waterCBMapped->obstacleCount.y = 1.0f; // 反射の強さ
+      s_waterCBMapped->obstacleCount.z = 3.0f; // 反射の到達範囲（半径倍率）
   }
 
   const uint64_t key = SortKey::Make(SortKey::kLayerTranslucent, SortKey::HashPSO("water"), 0);

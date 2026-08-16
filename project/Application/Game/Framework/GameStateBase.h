@@ -11,6 +11,14 @@ public:
     /// @brief ゲーム開始時の初期化処理
     virtual void BeginPlay() {}
 
+    /// @brief スコアと経過時間を初期状態へ戻す
+    /// @details GameState は Scene のメンバであり、シーンを抜けても破棄されない。
+    ///          リトライ時に前回の値が残り続けるのを防ぐため、シーン再入場時に呼ぶ。
+    virtual void Reset() {
+        elapsedTime_ = 0.0f;
+        score_ = 0;
+    }
+
     /// @brief 毎フレームの更新処理
     /// @param deltaTime 経過時間
     virtual void Tick(float deltaTime) {

@@ -426,20 +426,22 @@ for (uint i = 0; i < MAX_SPOT_LIGHTS; ++i)
             projCoords.y >= 0.0f && projCoords.y <= 1.0f &&
             projCoords.z >= 0.0f && projCoords.z <= 1.0f)
         {
-            // サンプリング（PCFなどを行わず単純な1点比較）
-            float closestDepth = gShadowMap.Sample(gShadowSampler, projCoords.xy).r;
-            
             // 法線とライト方向の角度に応じてバイアスを変動させる (Slope-Scale Depth Bias 簡易版)
-            float NdotL = max(0.0f, dot(N, -gShadowParams.lightDirection));
-            float currentBias = max(0.001f, gShadowParams.bias * (1.0f - NdotL));
-            
-            // 自分の深度がシャドウマップの深度より大きければ影
-            if (projCoords.z > closestDepth + currentBias)
-            {
-                // 影の場合、指定された色・濃さで暗くする（アルファブレンド的に合成）
-                float shadowIntensity = gShadowParams.color.a;
-                output.color.rgb = lerp(output.color.rgb, output.color.rgb * gShadowParams.color.rgb, shadowIntensity);
-            }
+            float NdotLShadow = max(0.0f, dot(N, -gShadowParams.lightDirection));
+            float currentBias = max(0.001f, gShadowParams.bias * (1.0f - NdotLShadow));
+
+            // 3x3 の PCF で「光が当たっている率」を求める (0:完全に影, 1:影なし)
+            // 比較サンプラは (参照深度 <= 格納深度) で 1 を返すため、バイアスは参照側から引く
+            float litRate = SampleShadowPCF(projCoords.xy, projCoords.z - currentBias);
+
+            // シャドウマップの端で影が唐突に切れないよう、外周へ向けてフェードさせる
+            float2 fadeUV = abs(projCoords.xy * 2.0f - 1.0f); // 中心0 〜 端1
+            float edgeFade = saturate((1.0f - max(fadeUV.x, fadeUV.y)) / 0.05f);
+            litRate = lerp(1.0f, litRate, edgeFade);
+
+            // 影の濃さ（連続値）。二値判定ではないため輪郭のジャギーが出ない
+            float shadowFactor = (1.0f - litRate) * gShadowParams.color.a;
+            output.color.rgb = lerp(output.color.rgb, output.color.rgb * gShadowParams.color.rgb, shadowFactor);
         }
     }
 

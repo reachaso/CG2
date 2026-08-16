@@ -316,7 +316,8 @@ struct ShadowParams {
   float bias;                        ///< シャドウバイアス (自己影回避用)
   RC::Vector4 color;                 ///< 影の色 (RGB:色, A:濃さ)
   uint32_t shadowMapEnabled;         ///< シャドウマップが有効か (0:無効, 1:有効)
-  uint32_t padding[3];               ///< パディング
+  RC::Vector2 shadowMapTexelSize = {1.0f / 2048.0f, 1.0f / 2048.0f}; ///< 1テクセルのUVサイズ (RenderContext が実サイズで上書きする)
+  float pcfRadius = 1.0f;            ///< PCFのタップ間隔 (テクセル単位。0以下で1タップ＝PCF無効)
 };
 
 /// @brief ライティングの計算方式

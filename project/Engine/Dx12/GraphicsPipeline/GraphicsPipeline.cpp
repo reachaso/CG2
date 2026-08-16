@@ -957,8 +957,8 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   // ====================
   // Static Sampler
   // ====================
-  D3D12_STATIC_SAMPLER_DESC samplers[3] = {};
-  
+  D3D12_STATIC_SAMPLER_DESC samplers[4] = {};
+
   // s0: Linear
   samplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
   samplers[0].AddressU = samplers[0].AddressV = samplers[0].AddressW =
@@ -986,6 +986,18 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   samplers[2].ShaderRegister = 2;
   samplers[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+  // s3: Shadow Comparison (PCF用)
+  // 深度比較つきバイリニアフィルタ。1タップで 2x2 の比較結果が補間されるため、
+  // シェーダ側の 3x3 タップと合わせて実質 6x6 相当の滑らかさになる。
+  samplers[3].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+  samplers[3].AddressU = samplers[3].AddressV = samplers[3].AddressW =
+      D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+  samplers[3].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+  samplers[3].BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+  samplers[3].MaxLOD = D3D12_FLOAT32_MAX;
+  samplers[3].ShaderRegister = 3;
+  samplers[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
   // ====================
   // Serialize
   // ====================
@@ -997,7 +1009,7 @@ void GraphicsPipeline::buildRootSignature_(RootSignatureType type) {
   desc.pParameters = params;
   desc.NumParameters = paramCount;
   desc.pStaticSamplers = samplers;
-  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS || type == RootSignatureType::WaveSimulationCS) ? 0u : 3u;
+  desc.NumStaticSamplers = (type == RootSignatureType::SkinningCS || type == RootSignatureType::InitParticleCS || type == RootSignatureType::UpdateParticleCS || type == RootSignatureType::WaveSimulationCS) ? 0u : 4u;
 
   Microsoft::WRL::ComPtr<ID3DBlob> sig;
   Microsoft::WRL::ComPtr<ID3DBlob> err;

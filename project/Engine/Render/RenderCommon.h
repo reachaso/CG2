@@ -553,6 +553,13 @@ int LoadSprite(const std::string &path, SceneContext &ctx, bool srgb = true);
 
 /// @brief スプライトを描画する
 /// @param spriteHandle スプライトハンドル
+/// @warning 1 つのハンドルは 1 フレームにつき 1 回しか描画できません。
+///          位置・色・UV はハンドルごとに定数バッファ 1 つで保持しており、
+///          Draw 系はコマンドリストへ記録するだけで GPU が読むのはフレーム終端です。
+///          同じハンドルを位置を変えながら複数回描くと、実行時にはすべて最後に
+///          書いた状態で描かれます。同時に複数箇所へ出したい場合は、
+///          出したい個数だけ LoadSprite でハンドルを作ってください。
+/// @note UV は identity（テクスチャ全体）に戻してから描画します。
 void DrawSprite(int spriteHandle);
 
 /// @brief スプライトを「テクスチャ内の矩形」を指定して描画する（スプライトシート用）
@@ -565,6 +572,10 @@ void DrawSprite(int spriteHandle);
 /// @param texH テクスチャ全体の高さ（ピクセル）
 /// @param insetPx にじみ対策の内側オフセット（ピクセル）
 /// @note 位置/回転/サイズは SetSpriteTransform で設定した値を使用します。
+/// @note 切り出し矩形はハンドルに残ります（DrawSprite を呼ぶと全体表示へ戻ります）。
+/// @warning DrawSprite と同じく、1 ハンドルにつき 1 フレーム 1 回までです。
+///          スプライトシートから複数の絵柄を同時に出す場合は、
+///          描く個数だけ同じ画像のハンドルを作ってください。
 void DrawSpriteRect(int spriteHandle, float srcX, float srcY, float srcW,
                     float srcH, float texW, float texH, float insetPx = 0.0f);
 
@@ -574,6 +585,7 @@ void DrawSpriteRect(int spriteHandle, float srcX, float srcY, float srcW,
 /// @param v0 開始 V
 /// @param u1 終了 U
 /// @param v1 終了 V
+/// @warning 制約は DrawSpriteRect と同じです（1 ハンドル 1 フレーム 1 回）。
 void DrawSpriteRectUV(int spriteHandle, float u0, float v0, float u1, float v1);
 
 /// @brief スプライトの Transform を設定する

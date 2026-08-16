@@ -6,6 +6,7 @@
 #include <vector>
 #include "AppConfig.h"
 #include "ECS/Entity.h"
+#include "ECS/NativeScriptComponent.h"
 #include "Common/Math/MathTypes.h"
 #include "../Framework/GameModeBase.h"
 
@@ -250,7 +251,21 @@ protected:
         }),
       entities_.end());
 
-    // entities_ が正しい状態になってから実際に解放する
+    // entities_ が正しい状態になってから後始末する。
+    // 順序は OnExit と揃えて「スクリプトへ通知 → ランタイムリソース解放」とする。
+    // 先に解放するとスクリプトの OnDestroy から解放済みハンドルを触りうるため。
+    for (auto& e : doomed) {
+      if (!e) continue;
+      if (auto* nsc = e->GetComponent<NativeScriptComponent>()) {
+        nsc->DestroyAllScripts();
+      }
+    }
+    // ランタイムリソース（モデル／メッシュ／ライト等のハンドル）は shared_ptr の
+    // 破棄では返らないため、ここで明示的に解放する。これを忘れると、撃破した敵や
+    // 破棄されたエフェクトのぶんだけハンドルが積み上がり、シーンを抜けるまで回収されない。
+    for (auto& e : doomed) {
+      if (e) ReleaseDynamicEntityRuntime(*e);
+    }
     doomed.clear();
   }
 

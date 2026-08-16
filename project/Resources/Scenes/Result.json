@@ -85,6 +85,57 @@
           }
         }
       ]
+    },
+    {
+      "id": "5b7d2e18-2a94-4c63-8a10-4d9f2c3b7e55",
+      "name": "ResultUI",
+      "tag": "",
+      "active": true,
+      "visible": true,
+      "components": [
+        {
+          "type": "TransformComponent",
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "type": "NativeScriptComponent",
+          "data": {
+            "scriptTypeNames": [
+              "SceneFlowUI"
+            ],
+            "scriptDataList": [
+              {
+                "bannerPath": "Resources/UI/clear.png",
+                "showScore": true,
+                "showPrompt": true,
+                "panelColor": [
+                  0.92,
+                  0.95,
+                  1.0,
+                  0.82
+                ]
+              }
+            ],
+            "scriptTypeName": "SceneFlowUI"
+          }
+        }
+      ]
     }
   ]
 }

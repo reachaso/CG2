@@ -49,12 +49,12 @@
             "specularPower": 55.0,
             "visible": true,
             "waveFreq": 0.6499999761581421,
-            "waveFreq2": 2.799999952316284,
+            "waveFreq2": 0.95,
             "waveHeight": 0.15000000596046448,
             "waveHeight2": 0.15000000596046448,
             "waveSpeed": 2.0,
             "waveSpeed2": 2.0,
-            "waveSteepness": 0.0
+            "waveSteepness": 0.35
           },
           "enabled": true,
           "type": "WaterComponent"

@@ -402,6 +402,14 @@ void RenderContext::BindEnvironmentMap() {
 void RenderContext::UpdateShadowParams(const ShadowParams& params) {
   if (shadowCBMapped_) {
     *shadowCBMapped_ = params;
+
+    // PCF のタップ間隔はシャドウマップの実解像度から求めるため、
+    // 呼び出し側の値に関わらずここで上書きする（シーン側が解像度を知る必要をなくす）
+    const uint32_t w = shadowMap_.GetWidth();
+    const uint32_t h = shadowMap_.GetHeight();
+    shadowCBMapped_->shadowMapTexelSize = {
+        (w > 0) ? 1.0f / static_cast<float>(w) : 0.0f,
+        (h > 0) ? 1.0f / static_cast<float>(h) : 0.0f};
   }
 }
 
