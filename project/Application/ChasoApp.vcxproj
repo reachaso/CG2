@@ -163,6 +163,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <!-- Framework -->
     <ClCompile Include="..\Application\Framework\App.cpp" />
     <ClCompile Include="..\Application\Editor\EditorManager.cpp" />
+    <ClCompile Include="..\Application\Editor\VerifyPanel.cpp" />
+    <ClCompile Include="..\Application\Editor\CaptureMode.cpp" />
     <!-- Game -->
     <ClCompile Include="..\\Application\\Game\\Game.cpp" />
     <ClCompile Include="..\Application\Game\Framework\GameModeBase.cpp" />
@@ -175,7 +177,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="..\Application\Game\Scripts\SharkEnemyScript.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\WaterBullet.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\SplashParticle.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\BuoyancyScript.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\SceneFlowUI.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\ShipEnemyScript.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\WaterObstacleScript.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\WaveManagerScript.cpp" />
+    <ClCompile Include="..\Application\Game\Scripts\WaveSpawnerScript.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\FarmerController.cpp" />
     <ClCompile Include="..\Application\Game\Scripts\HoeItem.cpp" />
     <ClCompile Include="..\Application\Game\Scene\Fade\Fade.cpp" />
@@ -187,6 +194,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="..\Application\Framework\App.h" />
     <ClInclude Include="..\Application\Framework\AppConfig.h" />
     <ClInclude Include="..\Application\Editor\EditorManager.h" />
+    <ClInclude Include="..\Application\Editor\VerifyPanel.h" />
+    <ClInclude Include="..\Application\Editor\CaptureMode.h" />
+    <ClInclude Include="..\Application\Editor\DebugBridge.h" />
     <!-- Game -->
     <ClInclude Include="..\Application\Game\Game.h" />
     <ClInclude Include="..\Application\Game\Framework\GameModeBase.h" />

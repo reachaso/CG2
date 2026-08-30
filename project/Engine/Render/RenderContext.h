@@ -193,7 +193,34 @@ public:
 
   /// @brief シャドウパラメータを更新する
   void UpdateShadowParams(const ShadowParams& params);
-  
+
+  /// @struct ShadowDebugOverride
+  /// @brief シャドウパラメータを実行時に上書きするための確認用の口（C-04）
+  /// @details DataDrivenScene::Render() は毎フレーム ShadowParams をローカルで
+  ///          作り直して UpdateShadowParams() へ渡す（pcfRadius も bias も
+  ///          そこにハードコードされている）ため、外から書いた値は必ず消える。
+  ///          そこで「呼び出し側の値を無視して上書きする」処理を
+  ///          shadowMapTexelSize と同じ場所に置き、PCF の効きを
+  ///          ゲームを動かしたまま見比べられるようにする。
+  ///
+  ///          enabled == false（既定）のときは何もしないので、
+  ///          この構造体を触らない限り従来と完全に同じ挙動になる。
+  struct ShadowDebugOverride {
+    bool enabled = false;      ///< true のとき以下の値で上書きする
+    float pcfRadius = 1.0f;    ///< PCF のタップ間隔（0 以下で 1 タップ＝PCF 無効）
+    float bias = 0.01f;        ///< シャドウバイアス
+    float darkness = 0.5f;     ///< 影の濃さ（ShadowParams::color.w）
+    bool forceDisable = false; ///< true で影そのものを切る（shadowMapEnabled = 0）
+  };
+
+  /// @brief シャドウの確認用オーバーライド設定を取得する
+  ShadowDebugOverride &ShadowDebug() { return shadowDebug_; }
+  /// @brief シャドウの確認用オーバーライド設定を取得する (const)
+  const ShadowDebugOverride &ShadowDebug() const { return shadowDebug_; }
+
+  /// @brief シャドウマップを取得する（確認用のプレビュー表示などに使う）
+  const ShadowMap &GetShadowMap() const { return shadowMap_; }
+
   /// @brief シャドウ定数バッファとシャドウマップを現在のスロットにバインドする
   void BindShadow();
 
@@ -373,6 +400,7 @@ private:
   Microsoft::WRL::ComPtr<ID3D12Resource> shadowCB_;   ///< シャドウCB
   ShadowParams *shadowCBMapped_ = nullptr;            ///< シャドウCBマップ済みポインタ
   ShadowMap shadowMap_;                               ///< シャドウマップリソース
+  ShadowDebugOverride shadowDebug_;                   ///< 確認用のシャドウ上書き設定（既定は無効）
 
   std::unique_ptr<Primitive2D> prim2D_;             ///< 2Dプリミティブ描画器
   std::unique_ptr<Primitive3D> prim3D_;             ///< 3Dプリミティブ描画器

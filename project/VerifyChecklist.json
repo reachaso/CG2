@@ -1,0 +1,80 @@
+[
+  {
+    "id": "C-04",
+    "note": "",
+    "state": 0,
+    "title": "シャドウマップの PCF 対応"
+  },
+  {
+    "id": "C-03",
+    "note": "",
+    "state": 0,
+    "title": "障害物への波の反射（鏡像法）"
+  },
+  {
+    "id": "A-02",
+    "note": "",
+    "state": 0,
+    "title": "コアゲームループの結合（GameSession）"
+  },
+  {
+    "id": "D-04",
+    "note": "",
+    "state": 0,
+    "title": "死亡エンティティのハンドル解放漏れ"
+  },
+  {
+    "id": "D-05",
+    "note": "",
+    "state": 0,
+    "title": "スプライトの切り出し矩形が効かない不具合"
+  },
+  {
+    "id": "C-01/02",
+    "note": "",
+    "state": 0,
+    "title": "浮力シミュレーション"
+  },
+  {
+    "id": "T-20",
+    "note": "",
+    "state": 0,
+    "title": "ステージのルート分岐"
+  },
+  {
+    "id": "A-05",
+    "note": "",
+    "state": 0,
+    "title": "レベルローダーの LIGHT / CAMERA 対応"
+  },
+  {
+    "id": "D-07〜10",
+    "note": "",
+    "state": 0,
+    "title": "既存不具合の修正4件"
+  },
+  {
+    "id": "D-01",
+    "note": "",
+    "state": 0,
+    "title": "水面シェーダの障害物座標のデータ化"
+  },
+  {
+    "id": "A-03",
+    "note": "",
+    "state": 0,
+    "title": "ウェーブ戦闘の構築"
+  },
+  {
+    "id": "T-15",
+    "note": "",
+    "state": 0,
+    "title": "新規敵タイプ「船」の AI と挙動"
+  },
+  {
+    "id": "—",
+    "note": "",
+    "state": 0,
+    "title": "Title → Game → Result / GameOver の一周"
+  }
+]

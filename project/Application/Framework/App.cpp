@@ -1,6 +1,7 @@
 #include "App.h"
 #include "RC.h"
 #include "SceneManager.h"
+#include "../Editor/VerifyPanel.h"
 #include <cassert>
 #include <chrono>
 #include <format>
@@ -114,6 +115,11 @@ bool App::Init() {
 
   // Game (Initial Scene Load)
   game_.Init(sceneCtx_);
+
+  // 実装確認パネルからシーンを飛ばせるようにする。
+  // Scene からは SceneManager へ辿れないため、ここで一度だけ口を渡す。
+  VerifyPanel::SetSceneRequest(
+      [this](const std::string &name) { game_.RequestChange(name); });
 
   auto totalEnd = std::chrono::high_resolution_clock::now();
   Log::Print(std::format("[App] 初期化完了 (Total Time: {:.3f}s)", std::chrono::duration<float>(totalEnd - totalStart).count()));

@@ -351,20 +351,46 @@ public:
                     break;
                 }
             }
-            // 全エネミー撃破チェック（プレイヤーが生きている場合のみ）
+            // クリアチェック（プレイヤーが生きている場合のみ）
+            //
+            // レールが敷かれているシーンでは「終点に到達＝クリア」とする。
+            // A-03 のウェーブ戦闘を入れると、ウェーブとウェーブの間に敵が
+            // 0 体になる瞬間が必ず生まれるため、「敵が全員撃破された＝クリア」
+            // のままだと最初のウェーブを倒した時点で Result へ飛んでしまう。
+            // 撃破後の敵は 2 秒で実体ごと消えるので、抑止タグを足すだけでは塞げない。
+            //
+            // レールが無いシーン（単体テスト用など）は従来どおり全滅で判定する。
             if (!resultTriggered_) {
-                bool hasEnemy = false;
-                bool allDefeated = true;
+                bool hasRail = false;
+                bool railFinished = false;
                 for (auto& e : entities_) {
-                    if (e && (e->GetName() == "Enemy" || e->GetName() == "Shark" || e->HasTag("is_enemy"))) {
-                        hasEnemy = true;
-                        if (!e->HasTag("enemy_defeated")) {
-                            allDefeated = false;
-                            break;
-                        }
+                    if (!e || !e->HasTag("has_rail")) continue;
+                    hasRail = true;
+                    if (e->HasTag("rail_finished")) {
+                        railFinished = true;
+                        break;
                     }
                 }
-                if (hasEnemy && allDefeated) {
+
+                bool cleared = false;
+                if (hasRail) {
+                    cleared = railFinished;
+                } else {
+                    bool hasEnemy = false;
+                    bool allDefeated = true;
+                    for (auto& e : entities_) {
+                        if (e && (e->GetName() == "Enemy" || e->GetName() == "Shark" || e->HasTag("is_enemy"))) {
+                            hasEnemy = true;
+                            if (!e->HasTag("enemy_defeated")) {
+                                allDefeated = false;
+                                break;
+                            }
+                        }
+                    }
+                    cleared = hasEnemy && allDefeated;
+                }
+
+                if (cleared) {
                     resultTriggered_ = true;
                     resultTarget_ = "Result";
                     resultDelayTimer_ = 0.0f;
@@ -405,23 +431,43 @@ public:
   void SyncMainCamera(SceneContext& ctx) {
     if (!ctx.camera || !ctx.app) return;
 
+    // A-05: レベル JSON 側のカメラを優先する。
+    // レベルのカメラは "main": true を明示したときだけ isMain が立つので、
+    // 1周目でレベル側を探し、見つからなければシーン JSON 側を採用する。
+    // シーン側の isMain を false に書き換えて降格させる手もあるが、
+    // isMain は CameraComponent::Serialize() でシーン JSON に焼き付くため、
+    // 「探す順番」だけで解決してデータは書き換えない。
+    Entity* target = FindMainCamera(true);
+    if (!target) target = FindMainCamera(false);
+    if (!target) return;
+
+    auto* camComp = target->GetComponent<CameraComponent>();
+    auto* camTr = target->GetComponent<TransformComponent>();
+    if (!camComp || !camTr) return;
+
+    const float aspect =
+        (ctx.app->height > 0) ? float(ctx.app->width) / ctx.app->height : 16.0f / 9.0f;
+    if (ctx.isPlaying()) {
+        ctx.camera->SetMainPosition(RC::Add(camTr->position, camComp->shakeOffset));
+        ctx.camera->SetMainRotation(camTr->rotation);
+        ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
+    } else {
+        ctx.camera->SetUseDebug(true);
+    }
+  }
+
+  /// @brief isMain が立っているカメラを探す
+  /// @param fromLevelOnly true ならレベル JSON 由来のエンティティだけを見る
+  /// @return 見つかったエンティティ。無ければ nullptr
+  Entity* FindMainCamera(bool fromLevelOnly) {
     for (auto& e : entities_) {
         if (!e) continue;
+        if (fromLevelOnly != e->HasTag(kLevelEntityTag)) continue;
         auto* camComp = e->GetComponent<CameraComponent>();
         auto* camTr = e->GetComponent<TransformComponent>();
-        if (!camComp || !camTr || !camComp->isMain) continue;
-
-        const float aspect =
-            (ctx.app->height > 0) ? float(ctx.app->width) / ctx.app->height : 16.0f / 9.0f;
-        if (ctx.isPlaying()) {
-            ctx.camera->SetMainPosition(RC::Add(camTr->position, camComp->shakeOffset));
-            ctx.camera->SetMainRotation(camTr->rotation);
-            ctx.camera->SetProjection(camComp->fovY, aspect, camComp->nearZ, camComp->farZ);
-        } else {
-            ctx.camera->SetUseDebug(true);
-        }
-        break; // メインカメラは1つだけ
+        if (camComp && camTr && camComp->isMain) return e.get();
     }
+    return nullptr;
   }
 
   void Render(SceneContext& ctx, ID3D12GraphicsCommandList* cl) override {
@@ -649,9 +695,12 @@ public:
     root["sceneName"] = sceneName_;
     nlohmann::json entitiesJson = nlohmann::json::array();
     for (auto& e : entities_) {
-      if (e) {
-        entitiesJson.push_back(e->Serialize());
-      }
+      if (!e) continue;
+      // レベル JSON 由来のエンティティはシーン JSON へ書き出さない。
+      // 実体はレベル側にあるので、ここへ写すと保存のたびに複製が増えていく
+      // （MESH だけでなく A-05 で追加したライトとカメラも同様）。
+      if (e->HasTag(kLevelEntityTag)) continue;
+      entitiesJson.push_back(e->Serialize());
     }
     root["entities"] = entitiesJson;
 
@@ -706,6 +755,15 @@ public:
       LevelLoader loader;
       if (loader.LoadFromFile(levelDataPath_)) {
         auto loaded = loader.TakeEntities();
+
+        // A-05: レベル由来のエンティティに印を付ける。
+        // ・Save() でシーン JSON へ二重に書き出さないため
+        //   （レベル側の実体はレベル JSON なので、シーンに写すと保存ごとに増える）
+        // ・SyncMainCamera がレベル側のカメラを優先するため
+        for (auto& e : loaded) {
+          if (e) e->SetTag(kLevelEntityTag, 1);
+        }
+
         entities_.insert(entities_.end(), loaded.begin(), loaded.end());
 
         // 自キャラに座標を反映
@@ -812,6 +870,10 @@ public:
   }
 
 private:
+  /// @brief レベル JSON 由来のエンティティに付ける印
+  /// @details Save() の除外と、SyncMainCamera の優先判定に使う
+  static constexpr const char* kLevelEntityTag = "from_level";
+
   std::string sceneName_;
   std::string filePath_;
   std::string levelDataPath_; ///< Blenderからエクスポートした追加レベルデータのパス

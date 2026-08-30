@@ -862,6 +862,79 @@ void SetWaterEnvironmentCoefficient(int meshHandle, float coeff);
 /// @param timeSec 累積時間（秒）
 void SetWaterTime(float timeSec);
 
+/// @brief 水面用のフレーム時間を取得する
+/// @return 累積時間（秒）。まだ設定されていなければ 0
+/// @details C-01 の水面高さ計算（RC::WaterSurface）は GPU と同じ時刻で
+///          評価しないと、見た目の水面と当たり判定の水面がズレる。
+///          スクリプト側で時間を持ち直さず、必ずこの値を使うこと。
+float GetWaterTime();
+
+/// @brief 水面シェーダへ渡している障害物リストを取得する
+/// @param out 書き込み先（xyz: 位置, w: 半径）。nullptr 可（数だけ知りたいとき）
+/// @param maxCount out に書き込める最大数
+/// @return 実際の障害物の数
+/// @details 障害物は反射波を作るだけでなく、内側の波を平らに潰す（insideMask）。
+///          CPU 側の水面高さ計算（RC::WaterSurface）でこれを渡さないと、
+///          岩の近くで「描画は平らなのに当たり判定だけ波打つ」状態になる。
+/// @note リストの中身を決めるのはアプリ側（水面に載せた WaterObstacleScript）。
+///       この取得口は SetWaterObstacles で入れられた値をそのまま返す。
+int GetWaterObstacles(Vector4* out, int maxCount);
+
+/// @brief 水面シェーダへ渡す障害物リストを差し替える
+/// @param obstacles xyz: ワールド座標, w: 半径。nullptr なら障害物なしにする
+/// @param count 障害物の数（上限を超えたぶんは切り捨てる）
+/// @details 以前はレンダラ内にハードコードしていた（技術的負債 D-01）。
+///          「どれが障害物か」はシーンの中身を知っているアプリ側にしか決められないため、
+///          エンジンは入れ物と受け口だけを持ち、中身は毎フレーム外から入れてもらう。
+///
+///          水面を一度も描いていない段階でも呼べる（定数バッファはまだ無いので
+///          いったん内部に控え、次の描画でシェーダへ渡る）。
+/// @note 半径は「その障害物の水際での大きさ」。シェーダはこの半径の円として扱い、
+///       内側の波を平らに潰し、円周上で波を反射させる。実物より大きくすると
+///       岩から離れた場所に平らな輪と反射の輪ができるので、見た目と合わせること。
+void SetWaterObstacles(const Vector4* obstacles, int count);
+
+/// @brief 反射波の強さ（シェーダの gObstacleCount.y）
+float GetWaterReflectStrength();
+
+/// @brief 反射波の到達範囲（障害物半径に対する倍率／gObstacleCount.z）
+float GetWaterReflectRange();
+
+/// @brief 反射波のチューニング値を差し替える
+/// @param strength 反射の強さ（1.0 で入射波と同じ振幅）
+/// @param range 反射の到達範囲（障害物半径に対する倍率）
+/// @warning **どちらも 0 を渡してはいけない。** シェーダ側も CPU 側の WaterSurface も
+///          `(値 > 0) ? 値 : 既定値` というフォールバックを持つため、0 は
+///          「無効」ではなく既定値（1.0 / 3.0）として扱われる（技術的負債 D-14）。
+///          反射を消したいときは障害物リストのほうを空にすること。
+void SetWaterReflectParams(float strength, float range);
+
+/// @brief 反射波のチューニング値を確認用に上書きする（C-03）
+/// @param enable true のあいだ SetWaterReflectParams の値を無視して下の値を使う
+/// @param strength 反射の強さ
+/// @param range 反射の到達範囲（障害物半径に対する倍率）
+/// @details 水面に載せた WaterObstacleScript が毎フレーム SetWaterReflectParams を
+///          呼び直すため、外から一度書いた値はすぐ上書きされて効かない。
+///          そこで「描画時に定数バッファへ写す直前」で横取りする口を用意し、
+///          ゲームを動かしたまま反射の効きを見比べられるようにする。
+///
+///          enable == false（既定）なら何もしないので、通常動作は変わらない。
+/// @warning strength / range に 0 を渡さないこと。シェーダ側も CPU 側も
+///          `(値 > 0) ? 値 : 既定値` というフォールバックを持つため、
+///          0 は「無効」ではなく既定値 1.0 / 3.0 として扱われる（D-14）。
+///          反射をほぼ消したいときは 0.01 のような小さい正の値を使う。
+void SetWaterReflectOverride(bool enable, float strength, float range);
+
+/// @brief 反射波の確認用オーバーライドの現在値を取得する
+/// @param outStrength 強さの書き込み先（nullptr 可）
+/// @param outRange 到達範囲の書き込み先（nullptr 可）
+/// @return オーバーライドが有効なら true
+bool GetWaterReflectOverride(float* outStrength, float* outRange);
+
+/// @brief 障害物リストが持てる最大数
+/// @details HLSL の `gObstacles[4]` と `RC::WaterSurface::kMaxObstacles` と揃っている。
+int GetMaxWaterObstacles();
+
 /// @brief 水面の共有リソース（定数バッファなど）を解放する
 void TermWaterResources();
 

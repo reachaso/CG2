@@ -410,6 +410,19 @@ void RenderContext::UpdateShadowParams(const ShadowParams& params) {
     shadowCBMapped_->shadowMapTexelSize = {
         (w > 0) ? 1.0f / static_cast<float>(w) : 0.0f,
         (h > 0) ? 1.0f / static_cast<float>(h) : 0.0f};
+
+    // 確認用の上書き（C-04）。
+    // シーン側は毎フレーム pcfRadius / bias をハードコード値で作り直すので、
+    // 外から効かせるにはテクセルサイズと同じくここで塗り替えるしかない。
+    // enabled が false のあいだは一切触らないため、通常動作は変わらない。
+    if (shadowDebug_.enabled) {
+      shadowCBMapped_->pcfRadius = shadowDebug_.pcfRadius;
+      shadowCBMapped_->bias = shadowDebug_.bias;
+      shadowCBMapped_->color.w = shadowDebug_.darkness;
+      if (shadowDebug_.forceDisable) {
+        shadowCBMapped_->shadowMapEnabled = 0u;
+      }
+    }
   }
 }
 

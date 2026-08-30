@@ -363,10 +363,15 @@ protected:
                     totalEnemyHp += ehp;
                     totalEnemyMaxHp += eMaxHp;
                 }
+                // クリア表示はレールの終点到達で出す。
+                // 以前は「敵の合計 HP が 0」で判定していたが、EnemyBaseScript は撃破時に
+                // is_enemy を外すため、最後の 1 体が死んだ瞬間に totalEnemyMaxHp も 0 に
+                // 落ちる。つまり totalEnemyMaxHp > 0 && totalEnemyHp <= 0 は一度も
+                // 成立せず、この表示はこれまで一切出ていなかった。
+                if (e->HasTag("rail_finished")) {
+                    isGameCleared = true;
+                }
             }
-        }
-        if (totalEnemyMaxHp > 0 && totalEnemyHp <= 0) {
-            isGameCleared = true;
         }
 
         // Weapon Switching

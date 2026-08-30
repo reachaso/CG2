@@ -1,4 +1,6 @@
 #include "EditorManager.h"
+#include "CaptureMode.h"
+#include "VerifyPanel.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/ImGuizmo.h"
@@ -132,6 +134,26 @@ void EditorManager::ApplyDarkTheme() {
 void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
   // ============================
+  // 撮影モード（F9）
+  // ============================
+  // 動画で成果を証明するためのモード。入っているあいだは
+  // メニューバーも他のパネルも出さず、ゲーム画面と字幕だけにする。
+  CaptureMode::HandleHotkeys();
+  if (CaptureMode::IsActive()) {
+    // 浮力やウェーブ戦闘は再生中でないと動かないので、再生状態にしておく。
+    // 停止中からの遷移は App 側がバックアップを取ってくれる。
+    if (CaptureMode::WantsPlaying() && playState_ == PlayState::Stopped) {
+      playState_ = PlayState::Playing;
+    }
+    // ホバー判定は CaptureMode::Draw が前フレームに出したものを使う。
+    // WantCaptureMouse は使えない。撮影ビューの下に DockSpace のホスト窓が
+    // 残っていて常に「何かをホバーしている」状態になるため、それで判定すると
+    // どこにいても射撃が止まる。
+    isViewportHovered_ = CaptureMode::IsGameHovered();
+    return;
+  }
+
+  // ============================
   // メニューバー
   // ============================
   if (ImGui::BeginMainMenuBar()) {
@@ -148,6 +170,12 @@ void EditorManager::Update(Dx12Core* core, std::function<void()> onMenuAppend, S
       ImGui::MenuItem("Particle Editor", nullptr, &showParticleEditor_);
       ImGui::MenuItem("Environment Settings", nullptr, &showEnvironmentWindow_);
       ImGui::MenuItem("Post Effect Settings", nullptr, &showPostEffectWindow_);
+      ImGui::Separator();
+      ImGui::MenuItem("実装確認 (Verify)", nullptr, &showVerifyWindow_);
+      if (ImGui::MenuItem("撮影モード (F9)")) {
+        CaptureMode::SetActive(true);
+      }
+      ImGui::Separator();
       if (ImGui::MenuItem("Reset Layout")) {
         resetLayout_ = true;
       }
@@ -403,6 +431,8 @@ void EditorManager::SetupDockingLayout() {
   ImGui::DockBuilderDockWindow("Inspector", dock_id_right);
   ImGui::DockBuilderDockWindow("Content Browser", dock_id_bottom);
   ImGui::DockBuilderDockWindow("Console", dock_id_bottom);
+  // 確認パネルは Inspector と同じ右側へ。見ながら値を動かす使い方になるため。
+  ImGui::DockBuilderDockWindow("実装確認 (Verify)", dock_id_right);
 
   ImGui::DockBuilderFinish(dockspace_id);
 #endif
@@ -621,6 +651,13 @@ void EditorManager::DrawEntityNode(std::shared_ptr<Entity> e, Scene* currentScen
 
 void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* core, PipelineManager* pm, float deltaTime, Scene* currentScene) {
 #if RC_ENABLE_IMGUI
+  // 撮影モード中はゲーム画面と字幕だけを描いて抜ける。
+  // 他のパネルを Begin しなければ、そのまま画面から消える。
+  if (CaptureMode::IsActive()) {
+    CaptureMode::Draw(viewportSrv, core, currentScene, deltaTime);
+    return;
+  }
+
   ImGuizmo::BeginFrame();
 
   if (showDemoWindow_) {
@@ -2352,6 +2389,13 @@ void EditorManager::DrawUI(D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv, Dx12Core* co
     }
   }
 
+  // === 実装確認 (Verify) パネル ===
+  // 直近に実装した機能を、ゲームを動かしたままその場で確かめるためのパネル。
+  // 中身は VerifyPanel.cpp 側にある（このファイルがこれ以上伸びないように）。
+  if (showVerifyWindow_) {
+    VerifyPanel::Draw(&showVerifyWindow_, currentScene, core);
+  }
+
   // === Screenshot Pop-out ===
   if (core) {
     ScreenCapture::DrawImGui(deltaTime, core);
@@ -2425,7 +2469,11 @@ void EditorManager::SaveConfig() {
   j["showRenderQueue"] = showRenderQueue_;
   j["showDemoWindow"] = showDemoWindow_;
   j["showParticleEditor"] = showParticleEditor_;
-  
+  j["showVerifyWindow"] = showVerifyWindow_;
+
+  // チェックリストの状態は別ファイルへ（項目ごとのメモを持つため）
+  VerifyPanel::SaveChecklist();
+
   std::ofstream ofs("../project/EditorConfig.json");
   if (ofs) {
     ofs << j.dump(4);
@@ -2442,6 +2490,7 @@ void EditorManager::LoadConfig() {
       if (j.contains("showRenderQueue")) showRenderQueue_ = j["showRenderQueue"];
       if (j.contains("showDemoWindow")) showDemoWindow_ = j["showDemoWindow"];
       if (j.contains("showParticleEditor")) showParticleEditor_ = j["showParticleEditor"];
+      if (j.contains("showVerifyWindow")) showVerifyWindow_ = j["showVerifyWindow"];
     } catch (...) {
       Log::Print("[Editor] Failed to parse EditorConfig.json");
     }

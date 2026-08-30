@@ -49,15 +49,37 @@
             "specularPower": 55.0,
             "visible": true,
             "waveFreq": 0.6499999761581421,
-            "waveFreq2": 0.95,
+            "waveFreq2": 0.949999988079071,
             "waveHeight": 0.15000000596046448,
             "waveHeight2": 0.15000000596046448,
             "waveSpeed": 2.0,
             "waveSpeed2": 2.0,
-            "waveSteepness": 0.35
+            "waveSteepness": 0.3499999940395355
           },
           "enabled": true,
           "type": "WaterComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "autoDetect": true,
+                "crossMargin": 0.5,
+                "debugDraw": true,
+                "minRadius": 0.5,
+                "radiusScale": 1.0,
+                "reflectRange": 6.0,
+                "reflectStrength": 1.0,
+                "terrainTag": "is_terrain"
+              }
+            ],
+            "scriptTypeName": "WaterObstacleScript",
+            "scriptTypeNames": [
+              "WaterObstacleScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
         }
       ],
       "guid": 15696101900784297463,
@@ -74,8 +96,213 @@
         {
           "data": {
             "scriptDataList": [
+              {
+                "alignToSurface": true,
+                "debugDraw": true,
+                "densityRatio": 0.44999998807907104,
+                "gravity": 9.8100004196167,
+                "halfHeight": 0.5,
+                "linearDrag": 6.0,
+                "maxRiseSpeed": 8.0,
+                "maxTiltDeg": 18.0,
+                "pitchSign": -1.0,
+                "quadraticDrag": 1.2000000476837158,
+                "rollSign": 1.0,
+                "sampleRadius": 1.5,
+                "tiltSharpness": 5.0,
+                "useFourSamples": true
+              }
+            ],
+            "scriptTypeName": "BuoyancyScript",
+            "scriptTypeNames": [
+              "BuoyancyScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              4.128709316253662,
+              2.7887816429138184,
+              -25.99594497680664
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              2.0,
+              1.0,
+              3.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.7200000286102295,
+              0.5199999809265137,
+              0.30000001192092896,
+              1.0
+            ],
+            "environmentCoeff": 0.20000000298023224,
+            "lightingMode": 2,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "shininess": 32.0,
+            "texturePath": "",
+            "type": 1,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "guid": 1101001001001001001,
+      "isFolder": false,
+      "locked": false,
+      "name": "FloatCrate",
+      "parentGuid": 710271550770534429,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "alignToSurface": true,
+                "debugDraw": true,
+                "densityRatio": 0.4000000059604645,
+                "gravity": 9.8100004196167,
+                "halfHeight": 1.2000000476837158,
+                "linearDrag": 5.5,
+                "maxRiseSpeed": 8.0,
+                "maxTiltDeg": 18.0,
+                "pitchSign": -1.0,
+                "quadraticDrag": 1.0,
+                "rollSign": 1.0,
+                "sampleRadius": 0.0,
+                "tiltSharpness": 5.0,
+                "useFourSamples": false
+              }
+            ],
+            "scriptTypeName": "BuoyancyScript",
+            "scriptTypeNames": [
+              "BuoyancyScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        },
+        {
+          "data": {
+            "position": [
+              -3.0,
+              4.56394100189209,
+              -11.326003074645996
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.2000000476837158,
+              1.2000000476837158,
+              1.2000000476837158
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "color": [
+              0.8999999761581421,
+              0.25,
+              0.20000000298023224,
+              1.0
+            ],
+            "environmentCoeff": 0.20000000298023224,
+            "lightingMode": 2,
+            "normalMapPath": "",
+            "roughnessMapPath": "",
+            "shininess": 32.0,
+            "texturePath": "",
+            "type": 0,
+            "uvOffset": [
+              0.0,
+              0.0
+            ],
+            "uvTiling": [
+              1.0,
+              1.0
+            ],
+            "visible": true
+          },
+          "enabled": true,
+          "type": "PrimitiveMeshComponent"
+        }
+      ],
+      "guid": 1101001001001001002,
+      "isFolder": false,
+      "locked": false,
+      "name": "FloatBuoy",
+      "parentGuid": 710271550770534429,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              2.0,
+              -50.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
               {},
               {
+                "branchColor": [
+                  0.0,
+                  0.800000011920929,
+                  1.0,
+                  1.0
+                ],
                 "drawPath": true,
                 "isMoving": true,
                 "loop": false,
@@ -86,6 +313,7 @@
                   1.0
                 ],
                 "speed": 5.0,
+                "waveManagerName": "WaveManager",
                 "waypoints": [
                   {
                     "pos": [
@@ -101,9 +329,21 @@
                       2.0,
                       -30.0
                     ],
-                    "waitTime": 0.0
+                    "waitTime": 0.0,
+                    "waveId": 1
                   },
                   {
+                    "branches": [
+                      {
+                        "chance": 0.5,
+                        "condition": "key_held",
+                        "entityName": "player",
+                        "keyCode": 205,
+                        "tagKey": "",
+                        "target": 8,
+                        "value": 1
+                      }
+                    ],
                     "pos": [
                       -2.0,
                       2.0,
@@ -125,7 +365,8 @@
                       -6.0,
                       30.0
                     ],
-                    "waitTime": 0.0
+                    "waitTime": 0.0,
+                    "waveId": 2
                   },
                   {
                     "pos": [
@@ -144,10 +385,47 @@
                     "waitTime": 0.0
                   },
                   {
+                    "isEnd": true,
                     "pos": [
                       0.0,
                       2.0,
                       90.0
+                    ],
+                    "waitTime": 0.0
+                  },
+                  {
+                    "pos": [
+                      12.0,
+                      2.0,
+                      10.0
+                    ],
+                    "waitTime": 0.0
+                  },
+                  {
+                    "pos": [
+                      14.0,
+                      2.0,
+                      40.0
+                    ],
+                    "waitTime": 0.0,
+                    "waveId": 3
+                  },
+                  {
+                    "branches": [
+                      {
+                        "chance": 0.5,
+                        "condition": "always",
+                        "entityName": "player",
+                        "keyCode": 0,
+                        "tagKey": "",
+                        "target": 7,
+                        "value": 1
+                      }
+                    ],
+                    "pos": [
+                      6.0,
+                      2.0,
+                      70.0
                     ],
                     "waitTime": 0.0
                   }
@@ -162,27 +440,6 @@
           },
           "enabled": true,
           "type": "NativeScriptComponent"
-        },
-        {
-          "data": {
-            "position": [
-              0.0,
-              2.0,
-              -50.0
-            ],
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "TransformComponent"
         },
         {
           "data": {
@@ -320,23 +577,24 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
+            "position": [
+              2.0,
+              0.09999999403953552,
+              27.0
             ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 0.5,
-            "shape": 0,
-            "size": [
-              0.4000000059604645,
-              0.4000000059604645,
-              1.0
+            "rotation": [
+              3.1415927410125732,
+              1.3962633609771729,
+              3.1415927410125732
+            ],
+            "scale": [
+              3.99999737739563,
+              4.0,
+              3.99999737739563
             ]
           },
           "enabled": true,
-          "type": "ColliderComponent"
+          "type": "TransformComponent"
         },
         {
           "data": {
@@ -367,24 +625,23 @@
         },
         {
           "data": {
-            "position": [
-              2.0,
-              0.09999999403953552,
-              27.0
+            "center": [
+              0.0,
+              0.0,
+              0.0
             ],
-            "rotation": [
-              3.1415927410125732,
-              1.3962633609771729,
-              3.1415927410125732
-            ],
-            "scale": [
-              3.99999737739563,
-              4.0,
-              3.99999737739563
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 0.5,
+            "shape": 0,
+            "size": [
+              0.4000000059604645,
+              0.4000000059604645,
+              1.0
             ]
           },
           "enabled": true,
-          "type": "TransformComponent"
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -423,26 +680,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               -5.0,
               0.0,
@@ -461,6 +698,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -506,26 +763,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               8.0,
               0.0,
@@ -544,6 +781,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -589,26 +846,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               -6.0,
               0.0,
@@ -627,6 +864,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -672,23 +929,24 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
+            "position": [
+              8.0,
+              0.10000000149011612,
+              -5.0
             ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              0.4000000059604645,
-              0.4000000059604645,
-              1.0
+            "rotation": [
+              3.1415927410125732,
+              1.3962633609771729,
+              3.1415927410125732
+            ],
+            "scale": [
+              3.99999737739563,
+              4.0,
+              3.99999737739563
             ]
           },
           "enabled": true,
-          "type": "ColliderComponent"
+          "type": "TransformComponent"
         },
         {
           "data": {
@@ -719,24 +977,23 @@
         },
         {
           "data": {
-            "position": [
-              8.0,
-              0.10000000149011612,
-              -5.0
+            "center": [
+              0.0,
+              0.0,
+              0.0
             ],
-            "rotation": [
-              3.1415927410125732,
-              1.3962633609771729,
-              3.1415927410125732
-            ],
-            "scale": [
-              3.99999737739563,
-              4.0,
-              3.99999737739563
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              0.4000000059604645,
+              0.4000000059604645,
+              1.0
             ]
           },
           "enabled": true,
-          "type": "TransformComponent"
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -775,26 +1032,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               0.0,
               -20.0,
@@ -813,6 +1050,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -858,26 +1115,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               0.0,
               -25.0,
@@ -896,6 +1133,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -941,26 +1198,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               -10.0,
               -10.0,
@@ -979,6 +1216,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -1024,26 +1281,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               12.0,
               -12.0,
@@ -1062,6 +1299,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -1107,26 +1364,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               -8.09057331085205,
               -15.0,
@@ -1145,6 +1382,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -1190,26 +1447,6 @@
       "components": [
         {
           "data": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "isTrigger": false,
-            "layer": 4294967295,
-            "radius": 1.0,
-            "shape": 0,
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ]
-          },
-          "enabled": true,
-          "type": "ColliderComponent"
-        },
-        {
-          "data": {
             "position": [
               5.0,
               -18.0,
@@ -1228,6 +1465,26 @@
           },
           "enabled": true,
           "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "isTrigger": false,
+            "layer": 4294967295,
+            "radius": 1.0,
+            "shape": 0,
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "ColliderComponent"
         },
         {
           "data": {
@@ -1321,6 +1578,393 @@
       "name": "Spot Light",
       "parentGuid": 0,
       "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "accentColor": [
+                  1.0,
+                  0.55,
+                  0.15,
+                  1.0
+                ],
+                "clearDuration": 1.6,
+                "introDuration": 0.8,
+                "panelColor": [
+                  0.05,
+                  0.09,
+                  0.14,
+                  0.78
+                ],
+                "showClearBanner": true,
+                "showHud": true
+              }
+            ],
+            "scriptTypeName": "WaveManagerScript",
+            "scriptTypeNames": [
+              "WaveManagerScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        }
+      ],
+      "guid": 4410277318825190001,
+      "isFolder": false,
+      "locked": false,
+      "name": "WaveManager",
+      "parentGuid": 0,
+      "tags": {},
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              4.0,
+              0.5,
+              -12.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "colliderRadius": 0.5,
+                "count": 3,
+                "drawGizmo": true,
+                "enemyName": "WaveShark",
+                "enemyParams": {
+                  "maxHp": 20
+                },
+                "enemyScale": [
+                  4.0,
+                  4.0,
+                  4.0
+                ],
+                "enemyScript": "SharkEnemyScript",
+                "modelPath": "Resources/model/shark/shark.obj",
+                "spawnInterval": 0.35,
+                "spreadRadius": 8.0,
+                "startDelay": 0.0,
+                "waveId": 1,
+                "waveManagerName": "WaveManager"
+              }
+            ],
+            "scriptTypeName": "WaveSpawnerScript",
+            "scriptTypeNames": [
+              "WaveSpawnerScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        }
+      ],
+      "guid": 4410277318825190002,
+      "isFolder": false,
+      "locked": false,
+      "name": "WaveSpawner_1",
+      "parentGuid": 0,
+      "tags": {
+        "spawner_wave_id": 1,
+        "wave_spawner": 1
+      },
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              2.0,
+              -6.0,
+              48.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "colliderRadius": 0.5,
+                "count": 4,
+                "drawGizmo": true,
+                "enemyName": "WaveShark",
+                "enemyParams": {
+                  "maxHp": 15
+                },
+                "enemyScale": [
+                  4.0,
+                  4.0,
+                  4.0
+                ],
+                "enemyScript": "SharkEnemyScript",
+                "modelPath": "Resources/model/shark/shark.obj",
+                "spawnInterval": 0.35,
+                "spreadRadius": 9.0,
+                "startDelay": 0.0,
+                "waveId": 2,
+                "waveManagerName": "WaveManager"
+              }
+            ],
+            "scriptTypeName": "WaveSpawnerScript",
+            "scriptTypeNames": [
+              "WaveSpawnerScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        }
+      ],
+      "guid": 4410277318825190003,
+      "isFolder": false,
+      "locked": false,
+      "name": "WaveSpawner_2_deep",
+      "parentGuid": 0,
+      "tags": {
+        "spawner_wave_id": 2,
+        "wave_spawner": 1
+      },
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              12.0,
+              1.0,
+              58.0
+            ],
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "colliderRadius": 0.5,
+                "count": 2,
+                "drawGizmo": true,
+                "enemyName": "WaveShark",
+                "enemyParams": {
+                  "maxHp": 30
+                },
+                "enemyScale": [
+                  4.0,
+                  4.0,
+                  4.0
+                ],
+                "enemyScript": "SharkEnemyScript",
+                "modelPath": "Resources/model/shark/shark.obj",
+                "spawnInterval": 0.35,
+                "spreadRadius": 6.0,
+                "startDelay": 0.0,
+                "waveId": 3,
+                "waveManagerName": "WaveManager"
+              }
+            ],
+            "scriptTypeName": "WaveSpawnerScript",
+            "scriptTypeNames": [
+              "WaveSpawnerScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        }
+      ],
+      "guid": 4410277318825190004,
+      "isFolder": false,
+      "locked": false,
+      "name": "WaveSpawner_3_surf",
+      "parentGuid": 0,
+      "tags": {
+        "spawner_wave_id": 3,
+        "wave_spawner": 1
+      },
+      "visible": true
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "position": [
+              16.0,
+              0.5,
+              66.0
+            ],
+            "rotation": [
+              0.0,
+              3.14159274,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "enabled": true,
+          "type": "TransformComponent"
+        },
+        {
+          "data": {
+            "scriptDataList": [
+              {
+                "colliderRadius": 3.0,
+                "count": 1,
+                "drawGizmo": true,
+                "enemyName": "WaveShip",
+                "enemyScale": [
+                  3.0,
+                  1.6,
+                  9.0
+                ],
+                "enemyScript": "ShipEnemyScript",
+                "modelPath": "",
+                "primitiveColor": [
+                  0.3,
+                  0.33,
+                  0.38,
+                  1.0
+                ],
+                "primitiveShape": "box",
+                "scripts": [
+                  {
+                    "name": "ShipEnemyScript",
+                    "params": {
+                      "broadsideToleranceDeg": 35.0,
+                      "bulletType": 0,
+                      "cruiseSpeed": 6.0,
+                      "detectDistance": 60.0,
+                      "engageSpeed": 4.5,
+                      "fireMaxDistance": 45.0,
+                      "fireMinDistance": 12.0,
+                      "gunHeight": 1.4,
+                      "gunOffset": 2.2,
+                      "leadFactor": 0.6,
+                      "maxHp": 40,
+                      "patrolRadius": 18.0,
+                      "preferredDistance": 28.0,
+                      "reloadDuration": 3.0,
+                      "shellSpeed": 22.0,
+                      "spreadDeg": 4.0,
+                      "turnRateDeg": 35.0,
+                      "volleyCount": 3,
+                      "volleyInterval": 0.22
+                    }
+                  },
+                  {
+                    "name": "BuoyancyScript",
+                    "params": {
+                      "alignToSurface": true,
+                      "debugDraw": false,
+                      "densityRatio": 0.5,
+                      "floodDuration": 3.0,
+                      "floodedDensityRatio": 1.4,
+                      "halfHeight": 0.8,
+                      "linearDrag": 5.5,
+                      "maxTiltDeg": 12.0,
+                      "quadraticDrag": 1.0,
+                      "sampleRadius": 4.0,
+                      "sampleRadiusSide": 1.5,
+                      "tiltSharpness": 4.0,
+                      "useFourSamples": true
+                    }
+                  }
+                ],
+                "spawnInterval": 0.0,
+                "spreadRadius": 0.0,
+                "startDelay": 1.2,
+                "waveId": 3,
+                "waveManagerName": "WaveManager"
+              }
+            ],
+            "scriptTypeName": "WaveSpawnerScript",
+            "scriptTypeNames": [
+              "WaveSpawnerScript"
+            ]
+          },
+          "enabled": true,
+          "type": "NativeScriptComponent"
+        }
+      ],
+      "guid": 4410277318825190005,
+      "isFolder": false,
+      "locked": false,
+      "name": "WaveSpawner_3_ship",
+      "parentGuid": 0,
+      "tags": {
+        "spawner_wave_id": 3,
+        "wave_spawner": 1
+      },
       "visible": true
     }
   ],

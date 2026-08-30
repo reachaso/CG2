@@ -38,9 +38,15 @@ struct WaterParamsCB {
   Vector4 foamParams      = {2.0f, 1.0f, 0.0f, 0.0f}; // x: FoamDepth, y: FoamScale
   Vector4 foamColor       = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  Vector4 obstacles[4] = {}; // xyz: position, w: radius
+  /// @brief 障害物の最大数。HLSL の gObstacles[4] と
+  ///        RC::WaterSurface::kMaxObstacles と必ず揃えること
+  static constexpr int kMaxObstacles = 4;
+
+  Vector4 obstacles[kMaxObstacles] = {}; // xyz: position, w: radius
   // x: 障害物の数
-  // y: 反射波の強さ (0 で反射なし、1.0 で入射波と同じ振幅の完全反射)
+  // y: 反射波の強さ (1.0 で入射波と同じ振幅の完全反射)
+  //    ※ 0 は「反射なし」にならない。シェーダ側が (値 > 0) ? 値 : 1.0 と
+  //       フォールバックするため既定値へ化ける（技術的負債 D-14）
   // z: 反射波の到達範囲（障害物半径に対する倍率）
   Vector4 obstacleCount = {0.0f, 1.0f, 3.0f, 0.0f};
 };
@@ -49,6 +55,31 @@ struct WaterParamsCB {
 static Microsoft::WRL::ComPtr<ID3D12Resource> s_waterCB;
 static WaterParamsCB* s_waterCBMapped = nullptr;
 static bool s_waterCBInitialized = false;
+
+// ============================================================================
+// D-01: 障害物リストの控え
+// ============================================================================
+// 「どれが障害物か」はシーンの中身を知っているアプリ側にしか決められない。
+// エンジンは入れ物と受け口だけを持ち、中身は SetWaterObstacles() で
+// 毎フレーム外から入れてもらう（以前はここにハードコードしていた）。
+//
+// 定数バッファは水面を一度描くまで作られないので、直接そこへ書くと
+// 「まだ描いていない段階で設定した値が捨てられる」ことになる。
+// いったんこの静的領域へ控え、描画時に定数バッファへ写す。
+// 取得系（GetWaterObstacles など）もこちらを読むので、
+// 水面を描く前でも設定した値がそのまま返る。
+static Vector4 s_obstacles[WaterParamsCB::kMaxObstacles] = {};
+static int s_obstacleCount = 0;
+static float s_reflectStrength = 1.0f; // 1.0 = 入射波と同じ振幅で跳ね返す
+static float s_reflectRange = 3.0f;    // 反射波の到達範囲（半径倍率）
+
+// 確認用の上書き（C-03）。
+// WaterObstacleScript が毎フレーム SetWaterReflectParams を呼び直すので、
+// 外から一度書いた値は次のフレームで消える。定数バッファへ写す直前で
+// 横取りすることで、ゲームを動かしたまま反射の効きを見比べられるようにする。
+static bool s_reflectOverride = false;
+static float s_reflectOverrideStrength = 1.0f;
+static float s_reflectOverrideRange = 3.0f;
 
 static void EnsureWaterCB() {
   if (s_waterCBInitialized) return;
@@ -100,18 +131,20 @@ void DrawWater(int meshHandle, int normalMapHandle) {
       s_waterCBMapped->cameraNearFar.x = 0.1f;
       s_waterCBMapped->cameraNearFar.y = 1000.0f;
 
-      // 障害物（岩）の座標と半径をセット
-      // TODO(D-01): 現状ハードコードのため、シーンデータから受け取る形へ変更する
-      s_waterCBMapped->obstacleCount.x = 3.0f;
-      s_waterCBMapped->obstacles[0] = {-5.0f, 0.0f, -30.0f, 7.0f};
-      s_waterCBMapped->obstacles[1] = {8.0f, 0.0f, -10.0f, 8.0f};
-      s_waterCBMapped->obstacles[2] = {-6.0f, 0.0f, 10.0f, 9.0f};
-      // 反射波のチューニング値（VS 側で使用）
-      // 1.0 = 入射波と同じ振幅で跳ね返す（壁際で振幅が倍になる＝定在波の腹）。
-      // 水面メッシュが粗いと岩の際の数頂点しか反射帯に入らないため、
-      // 到達範囲は半径の 3 倍ほど取らないと画面上で認識できない。
-      s_waterCBMapped->obstacleCount.y = 1.0f; // 反射の強さ
-      s_waterCBMapped->obstacleCount.z = 3.0f; // 反射の到達範囲（半径倍率）
+      // 障害物（岩）の座標と半径を定数バッファへ写す（D-01）。
+      // 中身はアプリ側（水面に載せた WaterObstacleScript）が
+      // SetWaterObstacles() で毎フレーム入れている。
+      // 誰も入れていなければ s_obstacleCount = 0 で、障害物なしとして描かれる。
+      for (int i = 0; i < WaterParamsCB::kMaxObstacles; ++i) {
+        s_waterCBMapped->obstacles[i] = s_obstacles[i];
+      }
+      s_waterCBMapped->obstacleCount.x = static_cast<float>(s_obstacleCount);
+      // 反射波のチューニング値（VS 側で使用）。
+      // 確認用のオーバーライドが有効なら、スクリプトが入れた値より優先する。
+      s_waterCBMapped->obstacleCount.y =
+          s_reflectOverride ? s_reflectOverrideStrength : s_reflectStrength;
+      s_waterCBMapped->obstacleCount.z =
+          s_reflectOverride ? s_reflectOverrideRange : s_reflectRange;
   }
 
   const uint64_t key = SortKey::Make(SortKey::kLayerTranslucent, SortKey::HashPSO("water"), 0);
@@ -243,6 +276,70 @@ void SetWaterTime(float timeSec) {
   }
 }
 
+float GetWaterTime() {
+  // CB がまだ無い（水面を一度も描いていない）場合は 0 を返す。
+  // EnsureWaterCB() を呼ばないのは、取得だけのために GPU リソースを
+  // 作らないため。
+  return s_waterCBMapped ? s_waterCBMapped->time : 0.0f;
+}
+
+int GetWaterObstacles(Vector4* out, int maxCount) {
+  // 定数バッファではなく控えのほうを読む。
+  // 水面をまだ一度も描いていない段階でも、設定した値がそのまま返るようにするため。
+  if (!out) return s_obstacleCount;
+
+  // 実際に書き込めた数を返す。s_obstacleCount を返してしまうと、小さいバッファを
+  // 渡した呼び出し側が未初期化の領域を読んでしまう。
+  const int writable =
+      (s_obstacleCount < maxCount) ? s_obstacleCount : ((maxCount > 0) ? maxCount : 0);
+  for (int i = 0; i < writable; ++i) {
+    out[i] = s_obstacles[i];
+  }
+  return writable;
+}
+
+void SetWaterObstacles(const Vector4* obstacles, int count) {
+  if (!obstacles || count <= 0) count = 0;
+  if (count > WaterParamsCB::kMaxObstacles) count = WaterParamsCB::kMaxObstacles;
+
+  for (int i = 0; i < count; ++i) {
+    s_obstacles[i] = obstacles[i];
+  }
+  // 使わなくなった枠は消しておく。残しておくと、障害物が減ったときに
+  // 古い岩の位置で波が平らなままになる。
+  for (int i = count; i < WaterParamsCB::kMaxObstacles; ++i) {
+    s_obstacles[i] = {0.0f, 0.0f, 0.0f, 0.0f};
+  }
+  s_obstacleCount = count;
+}
+
+int GetMaxWaterObstacles() { return WaterParamsCB::kMaxObstacles; }
+
+float GetWaterReflectStrength() { return s_reflectStrength; }
+
+float GetWaterReflectRange() { return s_reflectRange; }
+
+void SetWaterReflectParams(float strength, float range) {
+  s_reflectStrength = strength;
+  s_reflectRange = range;
+}
+
+void SetWaterReflectOverride(bool enable, float strength, float range) {
+  s_reflectOverride = enable;
+  // 0 は「無効」ではなく既定値へのフォールバックとして解釈されてしまうため（D-14）、
+  // ここで正の最小値へ丸めておく。呼び出し側の書き間違いで
+  // 「弱くしたつもりが既定値の 1.0 に戻る」事故を防ぐ。
+  constexpr float kMin = 0.001f;
+  s_reflectOverrideStrength = (strength > kMin) ? strength : kMin;
+  s_reflectOverrideRange = (range > kMin) ? range : kMin;
+}
+
+bool GetWaterReflectOverride(float* outStrength, float* outRange) {
+  if (outStrength) *outStrength = s_reflectOverrideStrength;
+  if (outRange) *outRange = s_reflectOverrideRange;
+  return s_reflectOverride;
+}
+
 void TermWaterResources() {
   if (s_waterCB) {
     if (s_waterCBMapped) {
@@ -252,6 +349,9 @@ void TermWaterResources() {
     s_waterCB.Reset();
   }
   s_waterCBInitialized = false;
+  // 障害物の控えも空にする。残したままだと、次に読み込んだシーンで
+  // 前のシーンの岩の位置に波の平らな穴が空く。
+  SetWaterObstacles(nullptr, 0);
 }
 
 } // namespace RC

@@ -30,13 +30,59 @@ public:
     int maxHp = 10;
     bool isDead = false;
     float deathTimer = 0.0f;
+    /// @brief 撃破されてから実体を消すまでの秒数
+    /// @details 沈む・崩れるといった演出の長さがタイプごとに違うため可変にした。
+    ///          船（T-15）は浸水して沈みきるまでに時間がかかるので長めに取る。
+    float deathDuration = 2.0f;
     
     // Flash variables
     float flashTimer = 0.0f;
     RC::Vector4 originalColor = {1.0f, 1.0f, 1.0f, 1.0f};
     bool hasSavedColor = false;
 
+    /// @brief 体力が JSON / スポナーから明示的に与えられたか
+    /// @details 派生クラスは OnCreate で既定 HP を入れることが多いが、
+    ///          それを無条件に代入するとデータ側の指定を潰してしまう。
+    ///          A-03 でウェーブごとに敵の硬さを変えられるようにするため、
+    ///          このフラグが立っているときは派生側の既定値を使わない。
+    bool hpFromData = false;
+
+    /// @brief deathDuration が JSON / スポナーから明示的に与えられたか
+    /// @details hpFromData と同じ理由。派生クラスが OnCreate で既定値を入れるとき、
+    ///          このフラグが立っていればデータ側の指定を尊重する。
+    bool deathDurationFromData = false;
+
 protected:
+    /// @brief 体力を JSON へ書き出す
+    /// @details 派生クラスは自分の Serialize の先頭でこれを呼び、
+    ///          返ってきた json に自分の項目を足していく。
+    nlohmann::json Serialize() override {
+        nlohmann::json j;
+        j["hp"] = hp;
+        j["maxHp"] = maxHp;
+        j["deathDuration"] = deathDuration;
+        return j;
+    }
+
+    void Deserialize(const nlohmann::json& j) override {
+        // maxHp だけ指定された場合は hp も満タンとして揃える。
+        // ウェーブ定義に "maxHp" とだけ書けるほうが素直なため。
+        if (j.contains("maxHp")) {
+            maxHp = j["maxHp"].get<int>();
+            hp = maxHp;
+            hpFromData = true;
+        }
+        if (j.contains("hp")) {
+            hp = j["hp"].get<int>();
+            if (!j.contains("maxHp")) maxHp = hp;
+            hpFromData = true;
+        }
+        if (j.contains("deathDuration")) {
+            deathDuration = j["deathDuration"].get<float>();
+            deathDurationFromData = true;
+        }
+    }
+
     void SaveOriginalColor() {
         if (hasSavedColor) return;
         if (Entity* self = GetEntity()) {
@@ -109,7 +155,7 @@ protected:
             // 仮の消滅処理
             if (isDead) {
                 deathTimer += deltaTime;
-                if (deathTimer > 2.0f) { // 2秒後に消滅
+                if (deathTimer > deathDuration) {
                     self->Destroy();
                 }
             }

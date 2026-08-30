@@ -1,5 +1,6 @@
 {
     "name": "scene",
+    "rotation_in_degrees": true,
     "objects": [
         {
             "type": "MESH",
@@ -110,7 +111,10 @@
                 "translation": [0.0, 10.0, 0.0],
                 "rotation": [37.261, 106.936, 3.163],
                 "scaling": [1.0, 1.0, 1.0]
-            }
+            },
+            "light_type": "SUN",
+            "color": [1.0, 0.96, 0.88, 1.0],
+            "energy": 1.2
         },
         {
             "type": "CAMERA",
@@ -119,7 +123,40 @@
                 "translation": [0.0, 5.0, -10.0],
                 "rotation": [63.559, 0.0, 0.0],
                 "scaling": [1.0, 1.0, 1.0]
-            }
+            },
+            "angle_y": 0.5,
+            "clip_start": 0.1,
+            "clip_end": 1000.0,
+            "main": false
+        },
+        {
+            "type": "LIGHT",
+            "name": "DockLamp",
+            "light_type": "POINT",
+            "transform": {
+                "translation": [6.0, 4.0, -8.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            },
+            "color": [1.0, 0.85, 0.6, 1.0],
+            "energy": 2.0,
+            "radius": 14.0,
+            "decay": 1.0
+        },
+        {
+            "type": "LIGHT",
+            "name": "Searchlight",
+            "light_type": "SPOT",
+            "transform": {
+                "translation": [-8.0, 10.0, 4.0],
+                "rotation": [60.0, 20.0, 0.0],
+                "scaling": [1.0, 1.0, 1.0]
+            },
+            "color": [0.8, 0.9, 1.0, 1.0],
+            "energy": 3.0,
+            "distance": 40.0,
+            "decay": 1.0,
+            "spot_size": 0.7
         }
     ]
 }

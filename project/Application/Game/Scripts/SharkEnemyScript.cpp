@@ -30,7 +30,7 @@ public:
 
 protected:
     nlohmann::json Serialize() override {
-        nlohmann::json j = EnemyBaseScript::Serialize(); // EnemyBaseScriptにSerializeがない場合は後でエラーになるかも？今回は空jsonとマージする形にする
+        nlohmann::json j = EnemyBaseScript::Serialize(); // 体力（hp / maxHp）はここで入る
         j["detectDistance"] = detectDistance;
         j["swimSpeed"] = swimSpeed;
         j["swimSineAmplitude"] = swimSineAmplitude;
@@ -64,8 +64,12 @@ protected:
         EnemyBaseScript::OnCreate();
         Log::Print("[SharkEnemyScript] OnCreate");
         state_ = SharkState::Wait;
-        hp = 20; // サメのHP調整
-        maxHp = 20;
+        // サメの既定 HP。JSON やウェーブのスポナーから指定があればそちらを尊重する
+        // （無条件に代入していたため、これまでデータ側で硬さを変えられなかった）。
+        if (!hpFromData) {
+            hp = 20;
+            maxHp = 20;
+        }
 
         if (auto* tr = GetComponent<TransformComponent>()) {
             tr->rotation.x = modelRotationOffsetDeg.x * (3.14159265f / 180.0f);

@@ -100,6 +100,7 @@ private:
   bool showParticleEditor_ = false; ///< Particle Editor ウィンドウの表示フラグ
   bool showEnvironmentWindow_ = false; ///< Environment Settings ウィンドウの表示フラグ
   bool showPostEffectWindow_ = false; ///< Post Effect Settings ウィンドウの表示フラグ
+  bool showVerifyWindow_ = false; ///< 実装確認 (Verify) ウィンドウの表示フラグ
   bool isViewportHovered_ = false; ///< Viewportウィンドウがホバーされているか
   
   PlayState playState_; ///< エディタ上での現在の再生状態

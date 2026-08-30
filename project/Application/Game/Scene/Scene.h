@@ -287,8 +287,12 @@ protected:
     return false;
   }
 
+public:
   /// @brief Find entity by name
   /// @return Pointer to entity, or nullptr
+  /// @note スクリプト側（ScriptableEntity 派生）から名前でエンティティを引くために
+  ///       public にしている。protected のままだと Scene の派生クラス以外から
+  ///       呼べず、T-20 のルート分岐がタグ参照先を辿れない。
   Entity* FindEntityByName(const std::string& name) {
     for (auto& e : entities_) {
       if (e && e->Name() == name) return e.get();
@@ -296,7 +300,6 @@ protected:
     return nullptr;
   }
 
-public:
   /// @brief Find entity by ID
   std::shared_ptr<Entity> FindEntityById(uint32_t id) {
     for (auto& e : entities_) {

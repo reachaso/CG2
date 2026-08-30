@@ -115,6 +115,23 @@ public:
   /// @return テクスチャハンドル（無効なら -1）
   int GetTexHandle(int handle) const;
 
+  /// @brief これまでに確保したスロットの総数（＝次に発行されるハンドル値）
+  /// @details Load() はスロットを再利用せず常に末尾へ足すため、この値は
+  ///          「起動してから何回 Load したか」に等しく、単調増加する。
+  ///          InUseCount() との差が「解放済みだが空いたままのスロット数」。
+  /// @note D-04 / D-05 の確認用。シーンを一周して InUseCount() が
+  ///       元の値へ戻るなら、ハンドルは取りこぼしなく回収されている。
+  size_t AllocatedCount() const { return sprites_.size(); }
+
+  /// @brief 現在使用中（Load 済みで Unload されていない）のスプライト数
+  size_t InUseCount() const {
+    size_t n = 0;
+    for (const auto &s : sprites_) {
+      if (s.inUse) ++n;
+    }
+    return n;
+  }
+
 private:
   /// @brief スプライト保持用スロット
   struct Slot {

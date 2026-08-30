@@ -222,6 +222,7 @@
     <ClInclude Include="..\Engine\Common\Math\MathUtils.h" />
     <ClInclude Include="..\Engine\Common\RC.h" />
     <ClInclude Include="..\Engine\Common\struct.h" />
+    <ClInclude Include="..\Engine\Common\Water\WaterSurface.h" />
     <!-- Dx12 -->
     <ClInclude Include="..\Engine\Dx12\CommandContext\CommandContext.h" />
     <ClInclude Include="..\Engine\Dx12\DepthStencil\DepthStencil.h" />

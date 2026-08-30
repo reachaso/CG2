@@ -2,5 +2,6 @@
     "showDemoWindow": false,
     "showParticleEditor": false,
     "showPerfWindow": true,
-    "showRenderQueue": true
+    "showRenderQueue": true,
+    "showVerifyWindow": false
 }
