@@ -915,7 +915,9 @@ void PostProcess::DrawSinglePass(ID3D12GraphicsCommandList *cmdList,
     uint32_t param3;
   } constants = { 0, 0, 0, 0 };
 
-  if (effectType == PostEffectType::BoxFilter) {
+  if (effectType == PostEffectType::Grayscale) {
+    constants.param0 = *(uint32_t *)&grayscaleLerpFactor_;
+  } else if (effectType == PostEffectType::BoxFilter) {
     constants.param0 = static_cast<uint32_t>(boxFilterK_);
   } else if (effectType == PostEffectType::GaussianFilter) {
     constants.param0 = static_cast<uint32_t>(gaussianFilterK_);
@@ -1104,6 +1106,12 @@ void PostProcess::DrawImGui([[maybe_unused]] const char *label) {
       } else {
         RemoveEffect(PostEffectType::Grayscale);
       }
+    }
+
+    if (grayscale) {
+      ImGui::Indent();
+      ImGui::SliderFloat("Grayscale Lerp Factor", &grayscaleLerpFactor_, 0.0f, 1.0f);
+      ImGui::Unindent();
     }
 
     if (ImGui::Checkbox("Sepia", &sepia)) {

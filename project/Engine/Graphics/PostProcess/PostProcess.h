@@ -335,6 +335,8 @@ private:
   std::unique_ptr<RenderTexture> pingPongB_;
   bool pingPongInitialized_ = false;
 
+  float grayscaleLerpFactor_ = 1.0f; ///< Grayscale のブレンド係数（1.0 = 完全白黒, 0.0 = カラー）
+
   int boxFilterK_ = 1; ///< BoxFilter のカーネル半径（1 = 3x3, 2 = 5x5, ...）
   int gaussianFilterK_ = 1; ///< GaussianFilter のカーネル半径
   float gaussianSigma_ = 2.0f; ///< GaussianFilter の標準偏差
@@ -520,4 +522,5 @@ public:
   void SetRadialBlurWidth(float w) { radialBlurWidth_ = w; }
   void SetRadialBlurCenter(float x, float y) { radialBlurCenter_.x = x; radialBlurCenter_.y = y; }
   void SetRadialBlurSamples(int samples) { radialBlurSamples_ = samples; }
+  void SetGrayscaleLerpFactor(float lf) { grayscaleLerpFactor_ = lf; }
 };

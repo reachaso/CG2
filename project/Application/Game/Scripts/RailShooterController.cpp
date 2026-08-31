@@ -190,9 +190,8 @@ protected:
         if (Entity* self = GetEntity()) {
             self->SetTag("is_player", 1);
         }
-        // 推奨3: 全体的な視認性向上（照準時や奥深くの敵・地形の輪郭把握を助けるため）として
-        // 深度ベースアウトライン (DepthBasedOutline) を常時有効化
         if (auto* postProcess = RC::GetRenderContext().GetPostProcess()) {
+            // 推奨3: 全体的な視認性向上のための深度ベースアウトラインを常時有効化
             postProcess->AddEffect(PostEffectType::DepthBasedOutline);
             float outlineColor[4] = {0.04f, 0.08f, 0.16f, 0.85f};
             postProcess->SetOutlineColor(outlineColor);
@@ -212,6 +211,7 @@ protected:
         }
 
         // === 水中判定とトランジション ===
+
         if (auto* tr = GetComponent<TransformComponent>()) {
             bool currentUnderwater = (tr->position.y < 0.0f);
             if (currentUnderwater != isUnderwater) {

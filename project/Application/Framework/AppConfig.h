@@ -10,11 +10,11 @@ struct AppConfig {
 #if defined(RC_DEVELOPMENT)
   int width = 1280;  ///< ウィンドウの幅
   int height = 720; ///< ウィンドウの高さ
-  bool fullscreen = true; ///< フルスクリーン表示にするか
+  bool fullscreen = false; ///< フルスクリーン表示にするか
 #elif defined(_DEBUG)
   int width = 1920;  ///< ウィンドウの幅
   int height = 1080; ///< ウィンドウの高さ
-  bool fullscreen = true; ///< フルスクリーン表示にするか
+  bool fullscreen = false; ///< フルスクリーン表示にするか
 #else
   int width = 1280; ///< ウィンドウの幅
   int height = 720; ///< ウィンドウの高さ

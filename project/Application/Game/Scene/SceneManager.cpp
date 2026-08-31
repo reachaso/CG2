@@ -14,6 +14,7 @@ namespace RC { class CameraController; }
 
 class FadeOutState;
 class FadeInState;
+class GrayscaleIntroState;
 class NormalState;
 class LoadingState;
 
@@ -67,6 +68,17 @@ public:
               ID3D12GraphicsCommandList *cl) override;
 private:
   float counter_ = 0.0f;
+};
+
+class GrayscaleIntroState : public ISceneState {
+public:
+  explicit GrayscaleIntroState(float duration = 1.8f) : duration_(duration) {}
+  void Update(Scene::SceneManager &sm, SceneContext &ctx) override;
+  void Render(Scene::SceneManager &sm, SceneContext &ctx,
+              ID3D12GraphicsCommandList *cl) override;
+private:
+  float counter_ = 0.0f;
+  float duration_ = 1.8f;
 };
 
 // =================================================================
@@ -146,10 +158,16 @@ void LoadingState::Update(Scene::SceneManager &sm, SceneContext &ctx) {
     RC::SetDissolveThreshold(1.0f);
     RC::SetDissolveBaseColor(0.0f, 0.0f, 0.0f, 1.0f); // トランジションは黒で抜く
 
+    // シークエンシャルなオープニング演出準備：初期を白黒状態にセットして静止させる
+    if (ctx.postProcess) {
+      ctx.postProcess->AddEffect(PostEffectType::Grayscale);
+      ctx.postProcess->SetGrayscaleLerpFactor(1.0f);
+    }
+
     // フェードインを開始（Dissolveから復帰）
     sm.ChangeState(std::make_unique<FadeInState>());
 
-    // 新シーンの初回 Update
+    // 新しいシーンの初期位置構成のため1回目だけUpdateを呼び、各オブジェクトの位置を決定
     if (sm.current_) {
       sm.current_->Update(sm, ctx);
     }
@@ -163,7 +181,7 @@ void LoadingState::Render(Scene::SceneManager &sm, SceneContext &ctx,
 }
 
 // =================================================================
-// FadeInState 実装
+// FadeInState 実装 (Dissolveがノイズより開ける期間：ゲーム進行は止めておく)
 // =================================================================
 void FadeInState::Update(Scene::SceneManager &sm, SceneContext &ctx) {
   counter_ += 1.0f / 60.0f;
@@ -172,23 +190,54 @@ void FadeInState::Update(Scene::SceneManager &sm, SceneContext &ctx) {
   float threshold = 1.0f - (counter_ / sm.kFadeTime);
   RC::SetDissolveThreshold(threshold);
 
-  // 新シーンの Update
-  if (sm.current_) {
-    sm.current_->Update(sm, ctx);
-  }
+  // 【ゲーム完全停止】演出完了までシーン更新 (sm.current_->Update) を飛ばし、時間とアクションをフリーズ！
 
   if (counter_ >= sm.kFadeTime) {
     RC::RemovePostEffect(PostEffectType::Dissolve);
-    sm.ChangeState(std::make_unique<NormalState>());
+    // Dissolveが完全に明けきった後、静止したモノクロ世界にカラーが満ちる GrayscaleIntroState へバトンタッチ！
+    sm.ChangeState(std::make_unique<GrayscaleIntroState>(1.8f));
   }
 }
 void FadeInState::Render(Scene::SceneManager &sm, SceneContext &ctx,
                          ID3D12GraphicsCommandList *cl) {
-  // 新シーンを描画
+  // 静止したゲーム世界を美しく描画
   if (sm.current_) {
     sm.current_->Render(ctx, cl);
   } else {
     Log::Print("[SceneState] FadeInState::Render - current_ is null!");
+  }
+}
+
+// =================================================================
+// GrayscaleIntroState 実装 (モノクロからのシネマティックカラーライゼーション -> GAME START!!)
+// =================================================================
+void GrayscaleIntroState::Update(Scene::SceneManager &sm, SceneContext &ctx) {
+  counter_ += 1.0f / 60.0f;
+  if (counter_ > duration_) counter_ = duration_;
+
+  // 白黒 (1.0f) から フルカラー (0.0f) へ滑らかに色彩復元
+  float progress = counter_ / duration_;
+  if (ctx.postProcess) {
+    ctx.postProcess->SetGrayscaleLerpFactor(1.0f - progress);
+  }
+
+  // 【引き続きゲーム完全停止】色彩が蘇るまで敵の行動や射撃・移動操作を一時留保！
+
+  if (counter_ >= duration_) {
+    if (ctx.postProcess) {
+      ctx.postProcess->RemoveEffect(PostEffectType::Grayscale);
+    }
+    Log::Print("[SceneState] All intro sequences complete! GAME START!");
+    // すべてのオープニングの終わり、かつゲーム本番（NormalState）への覚醒！ここから時が動き始める！
+    sm.ChangeState(std::make_unique<NormalState>());
+  }
+}
+void GrayscaleIntroState::Render(Scene::SceneManager &sm, SceneContext &ctx,
+                                 ID3D12GraphicsCommandList *cl) {
+  if (sm.current_) {
+    sm.current_->Render(ctx, cl);
+  } else {
+    Log::Print("[SceneState] GrayscaleIntroState::Render - current_ is null!");
   }
 }
 

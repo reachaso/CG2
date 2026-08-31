@@ -117,4 +117,5 @@ private:
   friend class FadeOutState;
   friend class LoadingState;
   friend class FadeInState;
+  friend class GrayscaleIntroState;
 };
